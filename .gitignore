@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.benchmarks/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Runtime outputs and local services
+output/runtime/
+output/evidence/**/bronze/
+tmp/
+temp/
+lakehouse/
+minio-data/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Large raw dumps and transient logs
+data/raw/
+*.tsv.gz
+*.jsonl
+*.log
+*.tmp
+
+# Notebook/editor noise
+.ipynb_checkpoints/
+.vscode/
+.idea/

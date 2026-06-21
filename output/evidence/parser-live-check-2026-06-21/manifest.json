@@ -1,0 +1,191 @@
+{
+  "run_id": "live-parser-check-20260621-144445",
+  "timestamp_utc": "2026-06-21T14:44:45.434945+00:00",
+  "scope": "bounded live parser check; no scheduler, no long historical backfill, no MinIO/Ollama/Spark launch",
+  "checks": [
+    {
+      "source": "eurostat",
+      "status": "partial",
+      "note": "TOC landed; first dataset=None",
+      "seconds": 1.91,
+      "extra": {
+        "discovered_codes_count": 183,
+        "failed_dataset_attempts": [
+          {
+            "code": "\"enpe_rail\"",
+            "status": 404,
+            "bytes": 245
+          },
+          {
+            "code": "\"enpe_rail_go\"",
+            "status": 404,
+            "bytes": 248
+          },
+          {
+            "code": "\"enpe_rail_if\"",
+            "status": 404,
+            "bytes": 248
+          },
+          {
+            "code": "\"enps_rail\"",
+            "status": 404,
+            "bytes": 245
+          },
+          {
+            "code": "\"enps_rail_eq\"",
+            "status": 404,
+            "bytes": 248
+          },
+          {
+            "code": "\"enps_rail_fr\"",
+            "status": 404,
+            "bytes": 248
+          },
+          {
+            "code": "\"enps_rail_if\"",
+            "status": 404,
+            "bytes": 248
+          },
+          {
+            "code": "\"enps_rail_pa\"",
+            "status": 404,
+            "bytes": 248
+          }
+        ]
+      }
+    },
+    {
+      "source": "worldbank",
+      "status": "partial",
+      "note": "catalogue landed; first indicator=BM.GSR.TRAN.CD returned a World Bank API error payload",
+      "seconds": 1.22,
+      "extra": {
+        "discovered_indicators_count": 32,
+        "failed_indicator_attempts": [],
+        "post_check": "artifact is 128 bytes and contains Invalid format / indicator not found message; discovery must validate usable rail indicators before claiming series collection"
+      }
+    },
+    {
+      "source": "gdelt",
+      "status": "failed",
+      "note": "HTTP 429, bytes=102",
+      "seconds": 4.22,
+      "extra": {}
+    },
+    {
+      "source": "rss",
+      "status": "passed",
+      "note": "landed 2 RSS feeds",
+      "seconds": 1.54,
+      "extra": {
+        "attempts": [
+          {
+            "outlet_id": "hu_telex",
+            "status": 200,
+            "bytes": 37219
+          },
+          {
+            "outlet_id": "hu_index",
+            "status": 200,
+            "bytes": 40157
+          }
+        ]
+      }
+    },
+    {
+      "source": "ksh",
+      "status": "passed",
+      "note": "landed ksh_rail_freight",
+      "seconds": 1.85,
+      "extra": {}
+    },
+    {
+      "source": "statistik_austria",
+      "status": "failed",
+      "note": "HTTP 200, bytes=0; configured seed may need refresh",
+      "seconds": 0.87,
+      "extra": {
+        "url": "https://data.statistik.gv.at/ogd/json/OGD_verkehr_ein_VERK_1"
+      }
+    },
+    {
+      "source": "uic",
+      "status": "failed",
+      "note": "HTTP 404, bytes=270; configured seed may need refresh",
+      "seconds": 0.54,
+      "extra": {
+        "url": "https://uic.org/IMG/xls/uic_railway_statistics_synopsis.xls"
+      }
+    },
+    {
+      "source": "gdelt_history",
+      "status": "failed",
+      "note": "HTTP 429, bytes=102",
+      "seconds": 5.03,
+      "extra": {}
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "eurostat",
+      "domain": "stats",
+      "dataset_id": "_catalogue_toc",
+      "path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/eurostat/_catalogue_toc/ingest_date=2026-06-21/toc_en.txt",
+      "meta_path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/eurostat/_catalogue_toc/ingest_date=2026-06-21/toc_en.txt.meta.json",
+      "bytes": 1980690,
+      "sha256": "d75a34722b2fddcfe1658c8ff8c872040aac4821346ee1c6d9a038c009e9f4f4",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "_catalogue_indicators",
+      "path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-21/indicators.json",
+      "meta_path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-21/indicators.json.meta.json",
+      "bytes": 9316675,
+      "sha256": "2834c1be573a593d05185d2effae92ca89ccf4045c58e79f6f1a1583dba5403b",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "BM.GSR.TRAN.CD",
+      "path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/worldbank/BM.GSR.TRAN.CD/ingest_date=2026-06-21/BM.GSR.TRAN.CD.json",
+      "meta_path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/worldbank/BM.GSR.TRAN.CD/ingest_date=2026-06-21/BM.GSR.TRAN.CD.json.meta.json",
+      "bytes": 128,
+      "sha256": "531cfc2a89937bfd09e7b2a4aeac3a5c55b79767ee4dd60ae770fd3629115f38",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_telex",
+      "path": "output/evidence/parser-live-check-2026-06-21/bronze/news/rss/hu_telex/ingest_date=2026-06-21/hu_telex.xml",
+      "meta_path": "output/evidence/parser-live-check-2026-06-21/bronze/news/rss/hu_telex/ingest_date=2026-06-21/hu_telex.xml.meta.json",
+      "bytes": 37219,
+      "sha256": "a96f6d96db6f4d2b745b0a3b7718da81bd19745e9eead454055568cf9b034d45",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_index",
+      "path": "output/evidence/parser-live-check-2026-06-21/bronze/news/rss/hu_index/ingest_date=2026-06-21/hu_index.xml",
+      "meta_path": "output/evidence/parser-live-check-2026-06-21/bronze/news/rss/hu_index/ingest_date=2026-06-21/hu_index.xml.meta.json",
+      "bytes": 40157,
+      "sha256": "94512a49e6795af7d77a73284ff739d0d455a2012912a31e1e0cf586991c09cc",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_freight",
+      "path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/ksh/ksh_rail_freight/ingest_date=2026-06-21/sza0010.xlsx",
+      "meta_path": "output/evidence/parser-live-check-2026-06-21/bronze/stats/ksh/ksh_rail_freight/ingest_date=2026-06-21/sza0010.xlsx.meta.json",
+      "bytes": 15657,
+      "sha256": "9da6a480445dfb8d4e09678888a0346c53416958cf0088719331e5e585776a8e",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 6
+}
