@@ -57,7 +57,7 @@ def discover_rail_datasets(toc_text: str) -> list[str]:
         if len(parts) < 2:
             continue
         title = parts[0].strip().lower()
-        code = parts[1].strip()
+        code = parts[1].strip().strip('"').strip("'")
         code_lc = code.lower()
         # skip folders/tables ('t_' aggregated tables); we want datasets
         if not code or code_lc.startswith("t_"):
