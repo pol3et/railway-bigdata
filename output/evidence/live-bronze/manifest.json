@@ -1,0 +1,117 @@
+{
+  "run_id": "live-check-20260621-151237",
+  "timestamp_utc": "2026-06-21T15:12:37.674998+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "rss",
+      "status": "passed",
+      "artifact_count": 5,
+      "byte_count": 223154,
+      "http_statuses": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "failures": []
+    },
+    {
+      "source": "ksh",
+      "status": "passed",
+      "artifact_count": 3,
+      "byte_count": 41516,
+      "http_statuses": [
+        200,
+        200,
+        200
+      ],
+      "failures": []
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_telex",
+      "path": "output/evidence/live-bronze/bronze/news/rss/hu_telex/ingest_date=2026-06-21/hu_telex.xml",
+      "meta_path": "output/evidence/live-bronze/bronze/news/rss/hu_telex/ingest_date=2026-06-21/hu_telex.xml.meta.json",
+      "bytes": 37210,
+      "sha256": "8a01c7590a481b5d342c3d234389bb324a545bff32046d38f588aaf2e025bbc4",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_index",
+      "path": "output/evidence/live-bronze/bronze/news/rss/hu_index/ingest_date=2026-06-21/hu_index.xml",
+      "meta_path": "output/evidence/live-bronze/bronze/news/rss/hu_index/ingest_date=2026-06-21/hu_index.xml.meta.json",
+      "bytes": 40516,
+      "sha256": "c3ec5f9a3c5d677a9e928302b9a8e9edc83e93c011129c5b919a666d31b57d3b",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_hvg",
+      "path": "output/evidence/live-bronze/bronze/news/rss/hu_hvg/ingest_date=2026-06-21/hu_hvg.xml",
+      "meta_path": "output/evidence/live-bronze/bronze/news/rss/hu_hvg/ingest_date=2026-06-21/hu_hvg.xml.meta.json",
+      "bytes": 76980,
+      "sha256": "1b06935643a98d25a440eb43fac4ba7d284ac0803e41a6f541d01f359622045f",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_24hu",
+      "path": "output/evidence/live-bronze/bronze/news/rss/hu_24hu/ingest_date=2026-06-21/hu_24hu.xml",
+      "meta_path": "output/evidence/live-bronze/bronze/news/rss/hu_24hu/ingest_date=2026-06-21/hu_24hu.xml.meta.json",
+      "bytes": 46091,
+      "sha256": "9b411466dc68607cfa30a6ca5698a9df81f09efc7ff727f5ab37dc6c3ce0d5eb",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_portfolio",
+      "path": "output/evidence/live-bronze/bronze/news/rss/hu_portfolio/ingest_date=2026-06-21/hu_portfolio.xml",
+      "meta_path": "output/evidence/live-bronze/bronze/news/rss/hu_portfolio/ingest_date=2026-06-21/hu_portfolio.xml.meta.json",
+      "bytes": 22357,
+      "sha256": "ee7957c34557c61ed4ab4c8b35b30d460a7637b08d6f502746ddf7eed25961c3",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_freight",
+      "path": "output/evidence/live-bronze/bronze/stats/ksh/ksh_rail_freight/ingest_date=2026-06-21/sza0010.xlsx",
+      "meta_path": "output/evidence/live-bronze/bronze/stats/ksh/ksh_rail_freight/ingest_date=2026-06-21/sza0010.xlsx.meta.json",
+      "bytes": 15657,
+      "sha256": "9da6a480445dfb8d4e09678888a0346c53416958cf0088719331e5e585776a8e",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_passenger",
+      "path": "output/evidence/live-bronze/bronze/stats/ksh/ksh_rail_passenger/ingest_date=2026-06-21/sza0009.xlsx",
+      "meta_path": "output/evidence/live-bronze/bronze/stats/ksh/ksh_rail_passenger/ingest_date=2026-06-21/sza0009.xlsx.meta.json",
+      "bytes": 13670,
+      "sha256": "9f8a7de732a017b8f9287b78883b552607bb273289d4dea1a435531a15516f6c",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_transport_network",
+      "path": "output/evidence/live-bronze/bronze/stats/ksh/ksh_transport_network/ingest_date=2026-06-21/sza0006.xlsx",
+      "meta_path": "output/evidence/live-bronze/bronze/stats/ksh/ksh_transport_network/ingest_date=2026-06-21/sza0006.xlsx.meta.json",
+      "bytes": 12189,
+      "sha256": "7575f48e15de2e642b7b4f263b30f491d2ee8bf01d414c304d2eafaeec2187a2",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 8,
+  "byte_count": 264670
+}
