@@ -57,7 +57,6 @@ Current KSH correction evidence:
   `output/evidence/ksh-live-check-2026-06-22-current/bronze/` tree by that
   command and are omitted from Git per the raw-data policy.
 
-
 Current RSS feed-health evidence:
 
 - RSS live-check manifest:
@@ -73,7 +72,43 @@ Current RSS feed-health evidence:
 - Scope: local Bronze output mode only. Not launched: scheduler, MinIO,
   Ollama, Spark, or long historical backfill.
 
+Current UIC public-publication evidence:
 
+- Required research note:
+  `.planning/coursework/research/bigdata/uic-refresh-2026-06-22.md`
+- Current-code live-check manifest:
+  `output/evidence/uic-live-check-2026-06-22/manifest.json`
+- Current-code validation command run 2026-06-22:
+  `python -m railway_lakehouse.bronze.live_check --sources uic --out output/evidence/uic-live-check-2026-06-22 --max-artifacts 2 --timeout-seconds 30`
+- Current-code output: `artifact_count=2`, `byte_count=2109240`; UIC passed
+  with 2 artifacts and 0 failures.
+- Raw PDF files were generated under the ignored
+  `output/evidence/uic-live-check-2026-06-22/bronze/` tree by that command and
+  are omitted from Git per the raw-data policy.
+- Scope note: this proves the current public UIC publication PDFs, not
+  subscribed RAILISA CSV/Excel downloads or REST API access.
+
+Current GDELT rate-limit handling evidence:
+
+- Required research note:
+  `.planning/coursework/research/bigdata/gdelt-rate-limit-2026-06-22.md`
+- Mocked verification command run 2026-06-22:
+  `python -m pytest -q tests\test_bronze_characterization.py -k "gdelt or past_recordings"`
+- Current-code output: `6 passed, 17 deselected`.
+- Current-code Bronze characterization output:
+  `python -m pytest -q tests\test_bronze_characterization.py` -> `23 passed`.
+- Bounded live retry manifest:
+  `output/evidence/gdelt-live-check-2026-06-22/manifest.json`
+- Bounded live retry command run 2026-06-22:
+  a one-day GDELT DOC probe through `gdelt.ingest(...)` with `max_records=25`
+  and `max_retries=2`, writing through `LocalBronzeLander`.
+- Bounded live retry output: `status=failed`, `artifact_count=0`,
+  `byte_count=0`; HU returned HTTP 429 after configured retry handling and AT
+  failed with a remote disconnect.
+- Scope note: this proves retry/backoff, `Retry-After` handling, DOC
+  `maxrecords` bounding, and historical `--dry-run` / `--max-pages` controls.
+  It does not prove current live GDELT collection because no artifact landed.
+  It also does not prove any long historical backfill.
 
 ### Task Status - `parser/ksh-stadat`
 
@@ -105,23 +140,36 @@ Still open and intentionally separate from the Bronze task:
 |---|---|---|---|---|
 | Eurostat | live-ok | Catalogue landed previously; bounded direct probe confirmed dataset fetch for `enpe_rail_go`: HTTP 200, 552 bytes, `text/tab-separated-values`. | Fixed quoted TOC dataset codes; discovery now returns 253 rail-related codes with `quoted_codes=[]`. First checked code `enpe_rail` still returns 404, but the next dataset `enpe_rail_go` downloads successfully. | Next Silver owner can parse downloaded TSV shape. |
 | World Bank | live-ok | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. Confirmed series probed live 2026-06-22: `IS.RRS.TOTL.KM` (HTTP 200, 17,556 obs), `IS.RRS.GOOD.MT.K6` (HTTP 200, HU 2021 = 11345.601), `IS.RRS.PASG.KM` (HTTP 200, HU 2021 = 5435.389). Evidence: `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. | Root cause confirmed: the API returns HTTP 200 even for archived ids; `BM.GSR.TRAN.CD` yields a 128-byte `{"message": ...}` envelope, so a status check could not catch it. Discovery now anchors on the word `rail*` (no longer matches `trail`/`trailer`/`curtail`), pulls a confirmed allowlist regardless of discovery, and `series_has_observations()` validates the payload before landing. | Wave 3: World Bank JSON -> StatFact (`silver/stats/merge.py::read_worldbank_json`). |
-| GDELT recent | failed live probe | No artifact landed. | DOC API returned HTTP 429 for bounded query. | Add rate-limit handling/backoff and retry; keep bounded `maxrecords` in tests. |
-| RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | Configured HU/AT media and operator RSS feeds | Full RSS XML feeds for Hungarian and Austrian railway-related news monitoring. | `bronze/news/rss/<feed_id>/ingest_date=YYYY-MM-DD/<feed_id>.xml` plus `.meta.json`. | Prepare RSS XML -> article records for Silver; optionally refresh/remove `hu_origo` and continue AT feed health checks beyond the first two AT feeds. | Partial live-ok: `output/evidence/rss-feed-health-2026-06-22/manifest.json` records 9 artifacts, 496,138 bytes, and one stale/broken feed (`hu_origo` HTTP 404). |
+| GDELT recent | mocked-rate-limit-ok; live retry failed | Current-code manifest: `output/evidence/gdelt-live-check-2026-06-22/manifest.json` with 0 artifacts and 2 failures. | Recent DOC API fetch now retries HTTP 429, respects `Retry-After`, and caps `maxrecords` at the documented 200-record bound. The latest bounded probe still failed: HU returned HTTP 429 after retries and AT disconnected. | Keep marked not live-ok until a future bounded probe lands a current artifact or the API limit is documented as unavailable for this environment. |
+| RSS media | partial live-ok | Current-code manifest: `output/evidence/rss-feed-health-2026-06-22/manifest.json` with 9 artifacts, 496,138 bytes, and 1 failure. | HU and AT feed collection works for 9/10 bounded attempts. `hu_origo` returned HTTP 404 and should be treated as stale/broken until refreshed or removed. | Prepare RSS XML -> article records for Silver; optionally refresh/remove `hu_origo` and continue feed health checks. |
 | KSH STADAT | live-ok | Current-code live-check manifest: `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts, 92,509 bytes, and 0 failures. Seed/title audit manifest: `output/evidence/ksh-live-check-2026-06-22/manifest.json`. | `parser/ksh-stadat` Bronze scope is done. The earlier three seeds were reachable but mislabelled: `sza0010` is inland waterway goods, `sza0006` is road goods, and `sza0009` is rail freight, not passenger. The active seed set now uses six title-verified rail tables and rejects empty, malformed, or non-XLSX HTTP-200 bodies. | Open follow-up: Wave 3 Silver KSH XLSX -> `StatFact` parser and tests. |
 | Statistik Austria | failed live probe | No artifact landed. | Configured OGD JSON URL returned HTTP 200 with 0 bytes. | Refresh OGD IDs/API path and add a test that fails on empty 200 responses. |
-| UIC | failed live probe | No artifact landed. | Configured XLS URL returned HTTP 404. | Refresh UIC resource URLs or document access limits/subscription boundaries. |
-| GDELT history | failed live probe | No artifact landed. | Bounded DOC history probe also returned HTTP 429. | Keep default backfill disabled; add rate-limit handling and a safe `--max-pages`/`--dry-run` mode. |
+| UIC | live-ok for public PDFs | Current-code live-check manifest: `output/evidence/uic-live-check-2026-06-22/manifest.json` with 2 artifacts, 2,109,240 bytes, and 0 failures. | Stale public XLS seeds were replaced with current free RAILISA resource PDFs. RAILISA CSV/Excel downloads and REST API access remain subscription/auth-bound. | Future Silver owner can parse the public synopsis PDF or use subscribed CSV/Excel exports if credentials become available. |
+| GDELT history | mocked-rate-limit-ok; live retry not rerun | No current live artifact landed. Prior bounded DOC history probe hit HTTP 429. | Historical DOC/GKG backfill now shares rate-limit retry handling and has safe CLI controls: `--dry-run`, default `--max-pages 1`, and explicit `--max-pages 0` for unbounded scans. | Run only a bounded live probe; do not start a long backfill without an explicit evidence plan. |
 
 Interpretation:
 
 - Currently live-usable raw collection is proven for RSS, six corrected KSH
-  rail tables, a bounded direct Eurostat dataset probe, and World Bank rail
-  series.
+  rail tables, UIC public statistical publication PDFs, a bounded direct
+  Eurostat dataset probe, and World Bank rail series.
+- Bronze MVP is not blocked by the failed recent GDELT live probe. Use the
+  proven Bronze sources above for the first dataset, and keep GDELT as an
+  optional hardening task if time remains.
 - Eurostat and World Bank still need Silver parsing work before they feed
   Gold features, but their current Bronze dataset/series pulls have bounded
   live evidence.
-- GDELT, Statistics Austria, UIC, and historical GDELT need source-specific
-  fixes or rate-limit handling before classmates rely on them.
+- UIC public PDF collection is a Bronze success; extracting facts from those
+  PDFs, or from subscribed RAILISA CSV/Excel exports, is Silver work.
+- Recent GDELT now has mocked retry coverage, but the latest bounded live
+  probe landed no artifacts. Historical GDELT has mocked
+  rate-limit and safety coverage but no live backfill evidence. Statistics
+  Austria still needs source-specific refresh. UIC public PDFs are
+  live-validated, but subscribed RAILISA data exports remain unavailable
+  without access.
+- GDELT is not a Silver blocker right now because there is no current Bronze
+  GDELT artifact to parse. Treat it as optional Bronze parser hardening and
+  start GDELT Silver parsing only after a future bounded probe lands raw
+  ArtList JSON.
 
 ## Dataset Readiness Milestones
 
@@ -139,11 +187,15 @@ the command output and generated files are recorded under `output/evidence/`.
 
 Decision:
 
-- Do not block the first dataset on GDELT, Statistik Austria, UIC, or historical
+- Do not block the first dataset on GDELT, Statistik Austria, or historical
   GDELT. Build the first dataset from proven sources, then expand parser
-  coverage.
-- UIC may close as documented unavailable/access-limited if no current public
-  artifact can be found.
+  coverage. GDELT live collection is explicitly fix-if-time unless the report
+  needs GDELT-specific news evidence.
+- Mark recent GDELT as not working for live Bronze collection now; retry/fix it
+  only after the fixture-to-Gold/Spark path is moving.
+- UIC no longer needs to close as unavailable for the public-publication scope:
+  current free PDFs are live-validated. Bulk RAILISA CSV/Excel/API collection
+  remains access-limited until credentials/subscription are available.
 
 
 Update 2026-06-22 — `parser/eurostat-live-datasets`:
@@ -181,6 +233,24 @@ Update 2026-06-22 — `parser/worldbank-indicators`:
     observations; `BM.GSR.TRAN.CD` HTTP 200 but rejected as an error envelope.
 
 
+Update 2026-06-22 — `parser/uic-refresh`:
+
+- Replaced stale UIC public XLS seeds with current free RAILISA resource PDFs:
+  `uic_traffic_trends_2024` and `uic_railway_statistics_synopsis_2025`.
+- Added PDF signature validation so empty responses, HTML pages, 404s, and
+  other non-PDF bodies are skipped before raw landing.
+- Added UIC support to the bounded local live-check command as an explicit
+  source. The default live-check sources remain unchanged.
+- Documented the RAILISA access boundary: CSV/Excel downloads and REST API
+  access require annual access/subscription or authentication.
+- Verification:
+  - `python -m pytest -q tests\test_bronze_live_check.py` -> 9 passed
+  - UIC-specific source/live-check tests -> 4 passed
+  - `python -m compileall .` -> passed
+  - `python -m railway_lakehouse.bronze.live_check --sources uic --out output/evidence/uic-live-check-2026-06-22 --max-artifacts 2 --timeout-seconds 30` -> passed with 2 artifacts, 2,109,240 bytes, and 0 failures
+  - `python -m pytest -q` -> 43 passed, 1 xfailed for documented GAP-004
+
+
 
 ## Parser Inventory
 
@@ -188,12 +258,22 @@ Update 2026-06-22 — `parser/worldbank-indicators`:
 |---|---|---|---|---|---|---|
 | Eurostat | `src/railway_lakehouse/bronze/sources/eurostat.py` | Eurostat catalogue and SDMX TSV API | Rail, regional transport, and transport safety statistical datasets. Lands catalogue plus raw gzipped TSV datasets. | `bronze/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<dataset_id>.tsv.gz` plus `.meta.json`. | `silver/stats/merge.py::read_eurostat_tsv`, then crosswalk to canonical features. | Dataset code cleanup fixed; bounded direct probe confirms one real TSV dataset (`enpe_rail_go`, HTTP 200, 552 bytes). |
 | World Bank | `src/railway_lakehouse/bronze/sources/worldbank.py` | World Bank Indicators API | Indicator catalogue and all-country time series JSON for rail-related indicators. | `bronze/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json` plus `.meta.json`. | `silver/stats/merge.py::read_worldbank_json`, then crosswalk. | Live-ok: word-anchored discovery + confirmed allowlist + payload validation (rejects HTTP-200 error envelopes); three confirmed indicators verified live; mocked-HTTP tests added. |
-| GDELT recent | `src/railway_lakehouse/bronze/sources/gdelt.py` | GDELT DOC 2.0 API | Recent rail-related news article lists for HU/AT source countries. | `bronze/news/gdelt/<geo>/ingest_date=YYYY-MM-DD/gdelt_doc_<geo>_<timespan>.json` plus `.meta.json`. | `silver/news/extract.py::gdelt_passthrough` or article extraction, then Gold news aggregation. | Query unit-tested; live probe hit 429. |
-| RSS media | partial | RSS live-check manifest: `output/evidence/rss-feed-health-2026-06-22/manifest.json`; 9 artifacts, 496,138 bytes. Successful feeds: `hu_telex`, `hu_index`, `hu_hvg`, `hu_24hu`, `hu_portfolio`, `hu_magyarnemzet`, `hu_nepszava`, `at_orf`, `at_derstandard`. | HU and AT feed collection works for 9/10 bounded attempts. `hu_origo` returned HTTP 404 and should be treated as stale/broken until the URL is refreshed or removed. | Prepare RSS XML -> article records for Silver; optionally refresh/remove `hu_origo` and continue AT feed health checks beyond the first two AT feeds. |
+| GDELT recent | `src/railway_lakehouse/bronze/sources/gdelt.py` | GDELT DOC 2.0 API | Recent rail-related news article lists for HU/AT source countries. | `bronze/news/gdelt/<geo>/ingest_date=YYYY-MM-DD/gdelt_doc_<geo>_<timespan>.json` plus `.meta.json`. | `silver/news/extract.py::gdelt_passthrough` or article extraction, then Gold news aggregation. | Query and mocked 429 retry behavior unit-tested; request size capped at 200 records. Latest bounded live retry failed with HU HTTP 429 and AT remote disconnect. |
+| RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | HU/AT media and official RSS feeds | Whole RSS feeds, unfiltered, to avoid losing sparse rail items. | `bronze/news/rss/<geo_outlet>/ingest_date=YYYY-MM-DD/<geo_outlet>.xml` plus `.meta.json`. | Future RSS parser should extract article records, then `silver/news/extract.py`. | Partial live-ok: current-code manifest records 9 artifacts, 496,138 bytes, and one stale/broken feed (`hu_origo` HTTP 404); registry unit test added. |
 | KSH | `src/railway_lakehouse/bronze/sources/ksh.py` | Hungarian Central Statistical Office STADAT files | Six title-verified rail or rail-bearing XLSX tables: freight, passenger by mode, rolling stock, road and rail network, regional line length, and narrow gauge. | `bronze/stats/ksh/<dataset_id>/ingest_date=YYYY-MM-DD/<code>.xlsx` plus `.meta.json`. | Future KSH parser should read XLSX and emit `StatFact` rows using the Wave 3 KSH plan. | Live-ok: 6/6 active tables verified by current-code live check; mocked validation tests added; active seeds reject empty, malformed, or non-XLSX HTTP-200 bodies. |
 | Statistik Austria | `src/railway_lakehouse/bronze/sources/statistik_austria.py` | Statistics Austria OGD JSON/CSV | Seeded Austrian transport/rail OGD datasets. | `bronze/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<ogd_id>.json|csv` plus `.meta.json`. | Future Austrian parser should read JSON-stat/CSV and emit `StatFact` rows. | Live seed failed empty; OGD IDs/API path need refresh. |
-| UIC | `src/railway_lakehouse/bronze/sources/uic.py` | UIC RAILISA/statistics files | International railway statistics files for infrastructure, traffic, rolling stock. | `bronze/stats/uic/<dataset_id>/ingest_date=YYYY-MM-DD/<filename>.xls` plus `.meta.json`. | Future UIC parser should read XLS and emit `StatFact` rows, then slice HU/AT in Silver. | Live seed 404; resource URLs/access need refresh. |
-| GDELT history | `src/railway_lakehouse/bronze/sources/past_recordings.py` | GDELT DOC history and GKG v1 files | Historical rail-related news pages or raw GKG daily zip files. | `bronze/news/gdelt_history/<dataset_id>/ingest_date=YYYY-MM-DD/<file>` plus `.meta.json`. | Future history parser should normalize article records before `NewsFeature` extraction. | Exists but dangerous by default; bounded probe hit 429; add safe limits before use. |
+| UIC | `src/railway_lakehouse/bronze/sources/uic.py` | UIC RAILISA public statistical publications | Current free UIC public PDFs: traffic trends and railway statistics synopsis. | `bronze/stats/uic/<dataset_id>/ingest_date=YYYY-MM-DD/<filename>.pdf` plus `.meta.json`. | Future UIC parser can extract facts from the public synopsis PDF, or use subscribed RAILISA CSV/Excel exports if access becomes available. | Live-ok for public PDFs: 2/2 current public resources verified by current-code live check; subscribed CSV/Excel/API access remains access-limited. |
+| GDELT history | `src/railway_lakehouse/bronze/sources/past_recordings.py` | GDELT DOC history and GKG v1 files | Historical rail-related news pages or raw GKG daily zip files. | `bronze/news/gdelt_history/<dataset_id>/ingest_date=YYYY-MM-DD/<file>` plus `.meta.json`. | Future history parser should normalize article records before `NewsFeature` extraction. | Mocked 429 retry behavior and safe `--dry-run` / `--max-pages` controls are tested. Live retry evidence still pending; long backfill remains opt-in only. |
+
+GDELT boundary:
+
+- Bronze status: retry/safety behavior is implemented and tested, but current
+  live collection is not working from this environment.
+- Silver status: not actionable yet. Do not spend Silver time on GDELT until a
+  raw Bronze GDELT artifact exists.
+- Project priority: not blocking MVP Bronze, first Gold Parquet, or Spark
+  evidence because RSS can cover the first news path and Eurostat/World Bank/
+  KSH/UIC cover the first stats path.
 
 ## Feature Coverage Matrix
 
@@ -247,10 +327,10 @@ Parallel owner tasks:
 | Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | DONE 2026-06-22: fixture test plus direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; tests pass with the documented GAP-004 xfail. |
 | World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | DONE 2026-06-22: word-anchored discovery, confirmed allowlist, `series_has_observations()`/`is_error_payload()` validation; mocked-HTTP error-payload test; live evidence in `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. |
 | RSS owner | `bronze/sources/rss_media.py`, `tests/test_bronze_characterization.py` | Feed registry includes HU and AT feeds; bounded local check lands reachable feeds and records stale ones as failures. | DONE 2026-06-22 for feed registry + bounded health check: unit test added; manifest `output/evidence/rss-feed-health-2026-06-22/manifest.json` records 9 artifacts / 496,138 bytes / 1 failure (`hu_origo` HTTP 404). Follow-up: RSS XML -> article records in Silver and optional `hu_origo` refresh/removal. |
-| GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded live query handles 429 with retry/backoff and never starts long backfill accidentally. | Mocked 429 test, safe CLI flags, bounded live success or documented rate-limit failure. |
+| GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded query handles 429 with retry/backoff and never starts long backfill accidentally. | DONE for mocked coverage 2026-06-22: shared GDELT retry helper, `Retry-After` handling, 200-record DOC bound, historical `--dry-run`, and default `--max-pages 1`. Latest bounded live retry failed with HU HTTP 429 and AT remote disconnect. |
 | KSH owner | `bronze/sources/ksh.py` | All seeded STADAT tables are verified or marked stale. | DONE 2026-06-22 for `parser/ksh-stadat` Bronze scope: retired two non-rail seeds, corrected `sza0009` to freight, added six curated rail tables, XLSX workbook-container validation, mocked tests, seed/title audit manifest `output/evidence/ksh-live-check-2026-06-22/manifest.json`, and current-code live-check manifest `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts / 0 failures. Silver XLSX -> `StatFact` remains Wave 3. |
 | Statistik Austria owner | `bronze/sources/statistik_austria.py` | Refresh OGD IDs/API path and reject empty 200 responses. | Mocked empty-response test plus bounded live JSON/CSV artifact. |
-| UIC owner | `bronze/sources/uic.py` | Refresh reachable resources or document access/subscription limits. | Mocked 404 test plus bounded live artifact or explicit access note. |
+| UIC owner | `bronze/sources/uic.py`, `bronze/live_check.py` | Public UIC resources are refreshed, PDF-validated, and live-checkable; subscribed RAILISA exports are documented as access-limited. | DONE 2026-06-22 for public-publication Bronze scope: current free PDFs landed in bounded live check with 2 artifacts / 0 failures. Bulk CSV/Excel/API collection remains blocked on credentials/subscription. |
 
 ### Wave 2 - Turn Live Probe Into A Repo Command
 
@@ -290,7 +370,7 @@ Tasks:
 
 - KSH XLSX -> `StatFact`
 - Statistics Austria JSON-stat/CSV -> `StatFact`
-- UIC XLS -> `StatFact`
+- UIC public PDF or subscribed RAILISA CSV/Excel -> `StatFact`
 - RSS XML -> article records -> `NewsFeature`
 - GDELT ArtList JSON -> article records or passthrough -> `NewsFeature`
 
