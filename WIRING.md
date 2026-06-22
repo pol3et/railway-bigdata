@@ -34,9 +34,10 @@ def run_stats() -> None:
 Run only after MinIO/service setup exists:
 
 ```bash
-python -m railway_lakehouse.bronze.sources.past_recordings
-python -m railway_lakehouse.bronze.sources.past_recordings --target-articles 100000
-python -m railway_lakehouse.bronze.sources.past_recordings --engine master_v1 --start 1990-01-01 --end 2014-12-31
+python -m railway_lakehouse.bronze.sources.past_recordings --dry-run
+python -m railway_lakehouse.bronze.sources.past_recordings --max-pages 3
+python -m railway_lakehouse.bronze.sources.past_recordings --target-articles 100000 --max-pages 0
+python -m railway_lakehouse.bronze.sources.past_recordings --engine master_v1 --start 1990-01-01 --end 2014-12-31 --max-pages 30
 ```
 
 It lands under `bronze/news/gdelt_history/...` and partitions by `ingest_date=`.
@@ -44,7 +45,8 @@ It lands under `bronze/news/gdelt_history/...` and partitions by `ingest_date=`.
 ## Live-Run Notes
 
 - The dataset ids/URLs in `ksh.py` now have bounded live evidence as of 2026-06-22, but they are still not wired into the scheduler.
-- The dataset ids/URLs in `statistik_austria.py` and `uic.py` remain documented seeds, not guaranteed-live endpoints.
+- The dataset ids/URLs in `statistik_austria.py` remain documented seeds, not guaranteed-live endpoints.
+- `uic.py` now uses current public UIC RAILISA resource PDFs and has bounded live evidence; subscribed RAILISA CSV/Excel/API access is still not available without credentials.
 - Reconfirm national portal codes before making report claims.
 - All source adapters require network access and MinIO configuration.
 - Do not run long collectors until the deterministic fixture E2E path exists.
