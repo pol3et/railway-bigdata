@@ -58,5 +58,12 @@ External findings:
 - `python -m pytest -q tests\test_bronze_characterization.py -k "gdelt or past_recordings"` initially failed for the new RED tests.
 - After implementation, `python -m pytest -q tests\test_bronze_characterization.py -k "gdelt or past_recordings"` passed: 6 passed, 17 deselected.
 - `python -m pytest -q tests\test_bronze_characterization.py` passed: 23 passed.
+- Bounded recent GDELT live retry probe wrote
+  `output/evidence/gdelt-live-check-2026-06-22/manifest.json`:
+  `status=partial`, `artifact_count=1`, `byte_count=11679`,
+  `http_statuses=[429, 200]`.
+- The live probe landed HU after retry. AT failed with a remote disconnect and
+  remains follow-up work.
 
-No live GDELT collector, scheduler, MinIO, Spark job, or long historical backfill was run.
+No scheduler, MinIO, Spark job, first-class GDELT live-check collector, or long
+historical backfill was run.
