@@ -30,7 +30,7 @@ Observed results:
 
 - GDELT/past-recordings targeted tests passed: 6 passed, 17 deselected.
 - Bronze characterization passed: 23 passed.
-- Bounded GDELT live retry probe wrote `output/evidence/gdelt-live-check-2026-06-22/manifest.json`: partial, 1 artifact, 11,679 bytes, HTTP statuses `[429, 200]`; HU landed after retry, AT failed with a remote disconnect.
+- Bounded GDELT live retry probe wrote `output/evidence/gdelt-live-check-2026-06-22/manifest.json`: failed, 0 artifacts, 0 bytes; HU returned HTTP 429 after retry handling and AT failed with a remote disconnect.
 - No long historical backfill was run.
 
 Additional KSH validation from 2026-06-22:

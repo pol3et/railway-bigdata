@@ -60,10 +60,9 @@ External findings:
 - `python -m pytest -q tests\test_bronze_characterization.py` passed: 23 passed.
 - Bounded recent GDELT live retry probe wrote
   `output/evidence/gdelt-live-check-2026-06-22/manifest.json`:
-  `status=partial`, `artifact_count=1`, `byte_count=11679`,
-  `http_statuses=[429, 200]`.
-- The live probe landed HU after retry. AT failed with a remote disconnect and
-  remains follow-up work.
+  `status=failed`, `artifact_count=0`, `byte_count=0`.
+- The live probe landed no artifacts. HU returned HTTP 429 after configured
+  retry handling. AT failed with a remote disconnect.
 
 No scheduler, MinIO, Spark job, first-class GDELT live-check collector, or long
 historical backfill was run.
