@@ -240,23 +240,22 @@ def collect_ksh(
     statuses: list[int] = []
     start_count = len(lander.artifacts)
 
-    for dataset_id, path, expected_content_type, filename in ksh.KSH_RAIL_TABLES[:max_artifacts]:
-        url = f"{ksh.KSH_API_BASE}/{path}"
+    for table in ksh.KSH_RAIL_TABLES[:max_artifacts]:
         try:
-            response = requests.get(url, timeout=timeout_seconds, headers={"User-Agent": USER_AGENT})
+            response = requests.get(table.url, timeout=timeout_seconds, headers={"User-Agent": USER_AGENT})
         except requests.RequestException as exc:
-            failures.append({"dataset_id": dataset_id, "url": url, "error": str(exc)})
+            failures.append({"dataset_id": table.dataset_id, "url": table.url, "error": str(exc)})
             continue
 
         statuses.append(response.status_code)
-        if response.status_code != 200 or not response.content:
+        if not ksh.is_valid_table_response(response.status_code, response.content):
             failures.append(
                 {
-                    "dataset_id": dataset_id,
-                    "url": url,
+                    "dataset_id": table.dataset_id,
+                    "url": table.url,
                     "http_status": response.status_code,
                     "bytes": len(response.content or b""),
-                    "error": "empty or non-200 response",
+                    "error": "non-200, empty, or non-xlsx response",
                 }
             )
             continue
@@ -265,16 +264,22 @@ def collect_ksh(
             RawArtifact(
                 domain="stats",
                 source="ksh",
-                dataset_id=dataset_id,
-                filename=filename,
+                dataset_id=table.dataset_id,
+                filename=table.filename,
                 content=response.content,
-                source_url=url,
-                content_type=response.headers.get("Content-Type", expected_content_type),
+                source_url=table.url,
+                content_type=response.headers.get(
+                    "Content-Type",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
                 http_status=response.status_code,
                 extra={
                     "agency": "KSH",
                     "country": "HU",
-                    "discovery": "configured_rail_table",
+                    "stadat_code": table.code,
+                    "stadat_title": table.title,
+                    "feature_hint": table.feature_hint,
+                    "discovery": "curated_rail_table",
                 },
             )
         )

@@ -43,7 +43,8 @@ It lands under `bronze/news/gdelt_history/...` and partitions by `ingest_date=`.
 
 ## Live-Run Notes
 
-- The dataset ids/URLs in `ksh.py`, `statistik_austria.py`, and `uic.py` are documented seeds, not guaranteed-live endpoints.
-- Confirm national portal codes before making report claims.
+- The dataset ids/URLs in `ksh.py` now have bounded live evidence as of 2026-06-22, but they are still not wired into the scheduler.
+- The dataset ids/URLs in `statistik_austria.py` and `uic.py` remain documented seeds, not guaranteed-live endpoints.
+- Reconfirm national portal codes before making report claims.
 - All source adapters require network access and MinIO configuration.
 - Do not run long collectors until the deterministic fixture E2E path exists.

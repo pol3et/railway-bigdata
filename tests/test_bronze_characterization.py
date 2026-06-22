@@ -1,12 +1,21 @@
 import hashlib
+import io
 import json
+import zipfile
 
 import pytest
 
 from railway_lakehouse.bronze.lander import RawArtifact, build_meta_dict
+from railway_lakehouse.bronze.sources import ksh
 from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
 from railway_lakehouse.bronze.sources.gdelt import build_query
 from railway_lakehouse.bronze.sources import worldbank
+from railway_lakehouse.bronze.sources.ksh import (
+    KSH_RAIL_TABLES,
+    KSH_RETIRED_SEEDS,
+    is_valid_table_response,
+    looks_like_xlsx,
+)
 from railway_lakehouse.bronze.sources.worldbank import (
     KNOWN_RAIL_INDICATORS,
     discover_rail_indicators,
@@ -252,3 +261,97 @@ def test_ingest_skips_error_payloads_and_lands_real_series():
     # returned paths cover only the real series (not the catalogue)
     assert len(paths) == 2
     assert all("IS.RRS.TOTL.KM" not in p for p in paths)
+
+
+# --- KSH: curated STADAT seeds + XLSX validation -----------------------------
+
+def _zip_bytes(members):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, body in members.items():
+            archive.writestr(name, body)
+    return buffer.getvalue()
+
+
+_XLSX_BYTES = _zip_bytes(
+    {
+        "[Content_Types].xml": "<Types/>",
+        "_rels/.rels": "<Relationships/>",
+        "xl/workbook.xml": "<workbook/>",
+    }
+)
+_ZIP_WITHOUT_WORKBOOK = _zip_bytes({"readme.txt": "not an XLSX workbook"})
+
+
+def test_looks_like_xlsx_accepts_workbook_container_rejects_html_empty_and_fake_zip():
+    assert looks_like_xlsx(_XLSX_BYTES) is True
+    assert looks_like_xlsx(b"<!DOCTYPE html><html>error</html>") is False
+    assert looks_like_xlsx(b"PK\x03\x04not a real zip") is False
+    assert looks_like_xlsx(_ZIP_WITHOUT_WORKBOOK) is False
+    assert looks_like_xlsx(b"") is False
+    assert looks_like_xlsx(None) is False
+
+
+def test_is_valid_table_response_requires_200_and_xlsx_bytes():
+    assert is_valid_table_response(200, _XLSX_BYTES) is True
+    assert is_valid_table_response(404, _XLSX_BYTES) is False
+    assert is_valid_table_response(200, b"") is False
+    assert is_valid_table_response(200, b"<html>") is False
+
+
+def test_curated_tables_exclude_retired_mislabelled_codes():
+    active_codes = {table.code for table in KSH_RAIL_TABLES}
+
+    assert "sza0010" not in active_codes
+    assert "sza0006" not in active_codes
+    assert "sza0010" in KSH_RETIRED_SEEDS
+    assert "sza0006" in KSH_RETIRED_SEEDS
+
+    freight = next(table for table in KSH_RAIL_TABLES if table.code == "sza0009")
+    assert freight.dataset_id == "ksh_rail_freight"
+
+
+class _FakeXlsxResponse:
+    def __init__(self, content, status=200, content_type="application/octet-stream"):
+        self.content = content
+        self.status_code = status
+        self.headers = {"Content-Type": content_type}
+
+
+class _FakeKshSession:
+    def __init__(self, routes):
+        self.routes = routes
+        self.calls = []
+
+    def get(self, url, timeout=None, headers=None):
+        self.calls.append(url)
+        for code, response in self.routes.items():
+            if code in url:
+                return response
+        raise AssertionError(f"unexpected url: {url}")
+
+
+def test_ksh_ingest_lands_valid_xlsx_and_skips_404_and_empty_200():
+    broken = {
+        "sza0016": _FakeXlsxResponse(b"", status=404),
+        "sza0030": _FakeXlsxResponse(b"<html>error</html>", status=200, content_type="text/html"),
+    }
+    routes = {
+        table.code: broken.get(table.code, _FakeXlsxResponse(_XLSX_BYTES))
+        for table in KSH_RAIL_TABLES
+    }
+    session = _FakeKshSession(routes)
+    lander = _RecordingLander()
+
+    count = ksh.ingest(lander, session=session)
+
+    landed_ids = {artifact.dataset_id for artifact in lander.landed}
+    assert count == len(KSH_RAIL_TABLES) - 2
+    assert "ksh_rail_freight" in landed_ids
+    assert "ksh_rail_passenger" not in landed_ids
+    assert "ksh_rail_network" not in landed_ids
+
+    freight = next(artifact for artifact in lander.landed if artifact.dataset_id == "ksh_rail_freight")
+    assert freight.extra["stadat_code"] == "sza0009"
+    assert freight.extra["discovery"] == "curated_rail_table"
+    assert freight.filename == "sza0009.xlsx"
