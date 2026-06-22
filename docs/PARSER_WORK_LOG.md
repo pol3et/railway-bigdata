@@ -1,6 +1,6 @@
 # Parser Work Log
 
-Last updated: 2026-06-21
+Last updated: 2026-06-22
 
 Purpose: make the parser state easy to split between classmates before pushing
 the project to GitHub. This log records what each parser collects, how it stores
@@ -56,9 +56,10 @@ Current repo-command live evidence:
 
 Interpretation:
 
-- Currently live-usable raw collection is proven for RSS and one KSH table.
-- Eurostat and World Bank can collect catalogues but need parser fixes before
-  their dataset/series pulls can be called working.
+- Currently live-usable raw collection is proven for RSS, KSH, and a bounded
+  direct Eurostat dataset probe.
+- World Bank can collect catalogues but needs parser fixes before its
+  indicator series pulls can be called working.
 - GDELT, Statistics Austria, UIC, and historical GDELT need source-specific
   fixes or rate-limit handling before classmates rely on them.
 
@@ -74,9 +75,10 @@ Update 2026-06-22 — `parser/eurostat-live-datasets`:
   - byte count: 552
   - content type: `text/tab-separated-values`
   - URL: `https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/enpe_rail_go/?format=TSV&compressed=true`
-- Verification:
-  - `python -m pytest tests/test_bronze_characterization.py -q` → 5 passed
-  - `python -m pytest -q` → 15 passed, 1 xfailed
+- Verification on the post-PR-1 branch:
+  - `python -m pytest tests/test_bronze_characterization.py -q` -> 6 passed
+  - `python -m pytest -q` -> 24 passed, 1 xfailed for documented GAP-004
+  - Bounded direct probe for `enpe_rail_go` -> HTTP 200, 552 bytes, `text/tab-separated-values`
 - Note: no raw Eurostat artifact was committed; this was a bounded direct live probe.
 
 
@@ -143,7 +145,7 @@ Parallel owner tasks:
 
 | Owner track | Files | Expected behavior | Verification |
 |---|---|---|---|
-| Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | Verified by direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; tests pass (`15 passed, 1 xfailed`). |
+| Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | Verified by direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; post-PR-1 tests pass with the documented GAP-004 xfail. |
 | World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | Unit test with API error JSON; bounded live evidence for one known rail indicator. |
 | RSS owner | `bronze/sources/rss_media.py` | Feed registry health is checked; at least HU and AT feeds land when reachable. | Mocked HTTP tests plus bounded live feed manifest. |
 | GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded live query handles 429 with retry/backoff and never starts long backfill accidentally. | Mocked 429 test, safe CLI flags, bounded live success or documented rate-limit failure. |
