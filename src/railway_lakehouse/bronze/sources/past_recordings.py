@@ -84,7 +84,7 @@ def backfill_doc_api(
     end: dt.date,
     target: int,
     *,
-    max_pages: int | None = None,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
     session: requests.Session | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
@@ -162,7 +162,7 @@ def backfill_master_v1(
     end: dt.date,
     target: int,
     *,
-    max_pages: int | None = None,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
     session: requests.Session | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
@@ -223,7 +223,7 @@ def ingest(
     engine: str = "doc_api",
     start: dt.date | None = None,
     end: dt.date | None = None,
-    max_pages: int | None = None,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
     dry_run: bool = False,
     session: requests.Session | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
@@ -232,6 +232,8 @@ def ingest(
 ) -> int:
     """Entry point used by run.py or the CLI. Defaults: DOC API, 50k articles,
     last ~10y window (DOC 2.0 coverage). For deep history use engine='master_v1'."""
+    if max_pages is None:
+        max_pages = DEFAULT_MAX_PAGES
     if engine == "master_v1":
         start = start or dt.date(1990, 1, 1)
         end = end or dt.date(2015, 1, 1)

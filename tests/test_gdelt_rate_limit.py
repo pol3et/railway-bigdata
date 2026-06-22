@@ -143,6 +143,24 @@ def test_past_recordings_doc_api_dry_run_makes_no_requests_or_landing():
     assert lander.landed == []
 
 
+def test_past_recordings_ingest_defaults_to_one_history_page():
+    session = _GdeltSession([_GdeltResponse(429, b"rate limited")])
+    lander = _RecordingLander()
+
+    got = past_recordings.ingest(
+        lander,
+        start=dt.date(2024, 1, 1),
+        end=dt.date(2024, 4, 1),
+        target_articles=10,
+        session=session,
+        max_retries=0,
+    )
+
+    assert got == 0
+    assert len(session.calls) == 1
+    assert lander.landed == []
+
+
 def test_past_recordings_cli_defaults_to_one_history_page_and_accepts_dry_run():
     args = past_recordings._parse_args(["--dry-run"])
 
