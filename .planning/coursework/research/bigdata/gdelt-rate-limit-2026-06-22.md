@@ -63,6 +63,11 @@ External findings:
   `status=failed`, `artifact_count=0`, `byte_count=0`.
 - The live probe landed no artifacts. HU returned HTTP 429 after configured
   retry handling. AT failed with a remote disconnect.
+- Decision after the live probe: keep GDELT marked not working for current live
+  Bronze collection. This is not a Silver blocker because no raw GDELT Bronze
+  artifact exists to parse. It is also not an MVP dataset blocker because RSS
+  can supply the first news path and proven stats sources can supply the first
+  Gold/Spark path.
 
 No scheduler, MinIO, Spark job, first-class GDELT live-check collector, or long
 historical backfill was run.
