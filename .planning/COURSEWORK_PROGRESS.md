@@ -183,3 +183,99 @@ Next:
 - Push the documentation update directly to `main`.
 - Implement KSH scheduler wiring under GAP-005.
 - Implement KSH Silver XLSX parser/tests under GAP-006.
+
+## 2026-06-22 - Undone Task Triage
+
+Status: done for planning/status answer; no source behavior changed.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/undone-task-triage-2026-06-22.md`.
+- Local files read first: `README.md`, `TASK.md`, `docs/PROGRESS_LOG.md`, `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`, `docs/WORKSTREAMS.md`, `docs/TEST_FIRST_INTEGRATION_PLAN.md`, `.planning/COURSEWORK_PROGRESS.md`, relevant Bronze source modules, `src/railway_lakehouse/bronze/live_check.py`, `src/railway_lakehouse/bronze/run.py`, Silver/Gold modules, and Bronze tests.
+- External primary-source checks covered GDELT DOC/rate-limit context, Statistik Austria Open.data/catalog/formats, and UIC RAILISA/resources.
+
+Findings:
+
+- Missing from the supplied list: fixture-backed Bronze reads, scheduler wiring, Silver persistence/output contracts, Gold load/write evidence, Spark evidence, report/presentation work, and live-check collector support beyond RSS/KSH.
+- Highest-leverage next work is a minimal vertical slice from already proven sources before waiting for all parser hardening.
+- Parser hardening tasks can run in parallel, but PRs will collide around `docs/PARSER_WORK_LOG.md`, `docs/GAP_REGISTER.md`, `tests/test_bronze_characterization.py`, and `tests/test_bronze_live_check.py`.
+
+Evidence:
+
+- No tests, source edits, live collectors, Spark jobs, MinIO, or historical backfills were run for this triage.
+
+Next:
+
+- Take the vertical slice first: GAP-004, minimal GAP-006, GAP-007, then GAP-009.
+- Run GDELT, RSS, Statistik Austria, and UIC parser fixes as independent PRs with small doc/test updates.
+
+## 2026-06-22 - GDELT Rate-Limit Handling
+
+Status: done for mocked rate-limit and historical safety coverage; latest bounded recent GDELT live probe failed without artifacts.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/gdelt-rate-limit-2026-06-22.md`.
+- Local files read first: `README.md`, `TASK.md`, `docs/PROGRESS_LOG.md`, `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`, `docs/CODEMAP.md`, `docs/DATA_CONTRACTS.md`, `docs/WORKSTREAMS.md`, `docs/VERIFICATION.md`, `WIRING.md`, `src/railway_lakehouse/bronze/sources/gdelt.py`, `src/railway_lakehouse/bronze/sources/past_recordings.py`, and `tests/test_bronze_characterization.py`.
+- External official GDELT pages confirmed DOC 2.0 JSON support and the 200-record documented `MAXRECORDS` bound.
+
+Changed:
+
+- Added `src/railway_lakehouse/bronze/sources/gdelt_common.py` for shared GDELT retry and request-bound helpers.
+- Updated recent GDELT ingestion to retry HTTP 429, respect `Retry-After`, use a project user agent, and cap DOC API requests at 200 records.
+- Updated historical GDELT DOC/GKG collection with the same retry helper, injectable test hooks, `--dry-run`, and bounded `--max-pages` CLI behavior.
+- Added GDELT/past-recordings mocked HTTP tests in `tests/test_bronze_characterization.py`.
+- Generated bounded recent GDELT evidence manifest at `output/evidence/gdelt-live-check-2026-06-22/manifest.json`.
+- Updated parser, verification, wiring, gap, and progress docs.
+- Decision: recent GDELT is marked not working for live Bronze collection now,
+  but it does not block the Bronze MVP because other sources have usable
+  bounded evidence.
+
+Evidence:
+
+- `python -m pytest -q tests\test_bronze_characterization.py -k "gdelt or past_recordings"` passed: 6 passed, 17 deselected.
+- `python -m pytest -q tests\test_bronze_characterization.py` passed: 23 passed.
+- Bounded recent GDELT live retry probe wrote `output/evidence/gdelt-live-check-2026-06-22/manifest.json`: `status=failed`, `artifact_count=0`, `byte_count=0`, with failures for HU HTTP 429 and AT `RemoteDisconnected`.
+- Decision: GDELT remains not working for live Bronze collection now, but it does not block the MVP Bronze/Gold/Spark path because RSS can supply first news evidence and proven stats sources can supply the first dataset. It is not a Silver blocker until raw GDELT ArtList JSON exists.
+- `python -m pytest -q` passed: 43 passed, 1 xfailed for documented GAP-004.
+- `python -m compileall src tests` passed.
+- `git diff --check` passed.
+
+Next:
+
+- Keep GDELT as fix-if-time parser hardening unless the report specifically needs GDELT news coverage.
+- Keep historical GDELT backfills behind explicit `--max-pages` / evidence-plan bounds.
+
+## 2026-06-22 - UIC Refresh Public Publications
+
+Status: done for `parser/uic-refresh` public-publication Bronze scope; subscribed RAILISA CSV/Excel/API access remains blocked on credentials/subscription.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/uic-refresh-2026-06-22.md`.
+- Local files read first: `docs/GAP_REGISTER.md`, `docs/CODEMAP.md`, `docs/DATA_CONTRACTS.md`, `docs/PARSER_WORK_LOG.md`, `docs/PROGRESS_LOG.md`, `.planning/COURSEWORK_PROGRESS.md`, `WIRING.md`, `src/railway_lakehouse/bronze/sources/uic.py`, `src/railway_lakehouse/bronze/live_check.py`, and related Bronze tests.
+- External primary-source checks covered UIC statistics, RAILISA list/download, RAILISA resources, and the RAILISA API guide.
+
+Changed:
+
+- Refreshed `src/railway_lakehouse/bronze/sources/uic.py` from stale public XLS seeds to current public RAILISA PDF resources.
+- Added UIC PDF validation and source-level mocked tests.
+- Added explicit `uic` support to `src/railway_lakehouse/bronze/live_check.py` and mocked live-check coverage.
+- Generated bounded UIC evidence manifest at `output/evidence/uic-live-check-2026-06-22/manifest.json`.
+- Updated parser, gap, verification, code map, wiring, and progress docs.
+- Decision: UIC public PDF collection is complete for Bronze; extracting facts
+  from those PDFs belongs to Silver parser work.
+
+Evidence:
+
+- Direct probe: UIC `help_resource/?id=12` and `help_resource/?id=14` returned HTTP 200 PDF bytes; stale XLS seed returned HTTP 404 HTML.
+- `python -m pytest -q tests\test_bronze_live_check.py` passed: 9 passed.
+- UIC-specific source/live-check tests passed: 4 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources uic --out output/evidence/uic-live-check-2026-06-22 --max-artifacts 2 --timeout-seconds 30` passed with `artifact_count=2`, `byte_count=2109240`, and 0 failures.
+- `python -m compileall .` passed.
+- `python -m pytest -q` passed: 43 passed, 1 xfailed for documented GAP-004.
+
+Next:
+
+- Decide whether scheduled Bronze stats should include UIC public PDFs before closing the UIC part of GAP-005.
+- Plan Silver UIC parsing against public PDF evidence or subscribed RAILISA CSV/Excel exports if credentials become available.

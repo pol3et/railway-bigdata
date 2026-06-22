@@ -18,13 +18,15 @@ CSV master-file lists, not the DOC API. This module therefore has two engines:
   * doc_api   — paginated DOC 2.0 ArtList queries (rich, recent history)
   * master_v1 — fetch GDELT 1.0/GKG master file list and land the raw daily
                 CSV.zip files (deep history 1979-2016), unparsed
-Pick with --engine; default 'doc_api'. Both stop at --target-articles.
+Pick with --engine; default 'doc_api'. Both stop at --target-articles and
+the CLI also applies --max-pages as a safety bound.
 
-Usage:
-    python -m railway_lakehouse.bronze.sources.past_recordings
-    python -m railway_lakehouse.bronze.sources.past_recordings --target-articles 100000
+Safe default usage:
+    python -m railway_lakehouse.bronze.sources.past_recordings --dry-run
+    python -m railway_lakehouse.bronze.sources.past_recordings --max-pages 3
+    python -m railway_lakehouse.bronze.sources.past_recordings --target-articles 100000 --max-pages 0
     python -m railway_lakehouse.bronze.sources.past_recordings --engine master_v1 \
-        --start 1990-01-01 --end 2014-12-31
+        --start 1990-01-01 --end 2014-12-31 --max-pages 30
 """
 import sys
 import json
@@ -32,21 +34,31 @@ import time
 import logging
 import argparse
 import datetime as dt
+from collections.abc import Callable
 
 import requests
 
 from ..lander import RawArtifact, RawLander
 from ..config import NATIONAL_SCOPE
+from .gdelt_common import (
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_SLEEP_SECONDS,
+    DOC_API,
+    DOC_API_MAX_RECORDS,
+    REQUEST_HEADERS,
+    bounded_max_records,
+    get_with_rate_limit_retries,
+)
 
 logger = logging.getLogger("bronze.sources.past_recordings")
 
 # Multilingual rail terms — MUST match gdelt.py so history == live collection.
 RAIL_TERMS = ['rail', 'railway', 'vasút', 'MÁV', 'GYSEV', 'Bahn', 'ÖBB', 'Eisenbahn']
-DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 GKG_MASTERLIST = "http://data.gdeltproject.org/gkg/index.html"   # 1.0 GKG daily files
 HTTP_TIMEOUT = 120
 DEFAULT_TARGET = 50_000
-PAGE_SIZE = 250                 # DOC API max records per call
+PAGE_SIZE = DOC_API_MAX_RECORDS
+DEFAULT_MAX_PAGES = 1
 SLEEP_BETWEEN = 1.0             # be polite to the public API
 
 
@@ -66,28 +78,54 @@ def _month_windows(start: dt.date, end: dt.date):
         cur = nxt
 
 
-def backfill_doc_api(lander: RawLander, start: dt.date, end: dt.date,
-                     target: int) -> int:
+def backfill_doc_api(
+    lander: RawLander,
+    start: dt.date,
+    end: dt.date,
+    target: int,
+    *,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
+    session: requests.Session | None = None,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
+    sleep: Callable[[float], object] = time.sleep,
+    dry_run: bool = False,
+) -> int:
     """Paginate DOC 2.0 ArtList over [start,end]; land each raw JSON page.
     Returns approximate number of article records landed (page_count*page_size
     lower-bounded by actual returned sizes)."""
     query = _build_query()
+    session = session or requests.Session()
+    max_pages = _normalize_optional_limit(max_pages)
     got = 0
+    pages_attempted = 0
     for w_start, w_end in _month_windows(start, end):
-        if got >= target:
+        if got >= target or _limit_reached(pages_attempted, max_pages):
             break
+        pages_attempted += 1
         params = {
             "query": query,
             "mode": "ArtList",
             "format": "json",
-            "maxrecords": PAGE_SIZE,
+            "maxrecords": bounded_max_records(PAGE_SIZE),
             "startdatetime": w_start.strftime("%Y%m%d000000"),
             "enddatetime": w_end.strftime("%Y%m%d000000"),
             "sort": "datedesc",
         }
+        if dry_run:
+            logger.info("DRY RUN DOC API %s..%s params=%s", w_start, w_end, params)
+            continue
         try:
-            r = requests.get(DOC_API, params=params, timeout=HTTP_TIMEOUT,
-                             headers={"User-Agent": "railway-lakehouse-bronze/1.0"})
+            r = get_with_rate_limit_retries(
+                session.get,
+                DOC_API,
+                params=params,
+                timeout=HTTP_TIMEOUT,
+                headers=REQUEST_HEADERS,
+                max_retries=max_retries,
+                retry_sleep_seconds=retry_sleep_seconds,
+                sleep=sleep,
+            )
         except requests.RequestException as e:
             logger.warning("DOC API failed for %s..%s: %s", w_start, w_end, e)
             continue
@@ -112,25 +150,54 @@ def backfill_doc_api(lander: RawLander, start: dt.date, end: dt.date,
         got += n_page if n_page else PAGE_SIZE  # lower-bound when count unknown
         logger.info("DOC API %s..%s: +%d (total ~%d / %d)",
                     w_start, w_end, n_page, got, target)
-        time.sleep(SLEEP_BETWEEN)
+        if got < target and not _limit_reached(pages_attempted, max_pages):
+            sleep(SLEEP_BETWEEN)
     logger.info("DOC API backfill done: ~%d article records landed", got)
     return got
 
 
-def backfill_master_v1(lander: RawLander, start: dt.date, end: dt.date,
-                       target: int) -> int:
+def backfill_master_v1(
+    lander: RawLander,
+    start: dt.date,
+    end: dt.date,
+    target: int,
+    *,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
+    session: requests.Session | None = None,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
+    sleep: Callable[[float], object] = time.sleep,
+    dry_run: bool = False,
+) -> int:
     """Deep history (1979-2016): land raw GDELT 1.0 GKG daily CSV.zip files
     verbatim. We do not parse them — Silver filters to rail/HU/AT. 'target' here
     bounds the number of daily files (each holds many thousands of records)."""
+    session = session or requests.Session()
+    max_pages = _normalize_optional_limit(max_pages)
     landed_files = 0
+    pages_attempted = 0
     day = start
     while day < end and landed_files < target:
+        if _limit_reached(pages_attempted, max_pages):
+            break
+        pages_attempted += 1
         # GDELT 1.0 GKG daily file naming: YYYYMMDD.gkg.csv.zip
         fname = f"{day:%Y%m%d}.gkg.csv.zip"
         url = f"http://data.gdeltproject.org/gkg/{fname}"
+        if dry_run:
+            logger.info("DRY RUN GKG v1 %s", url)
+            day += dt.timedelta(days=1)
+            continue
         try:
-            r = requests.get(url, timeout=HTTP_TIMEOUT,
-                             headers={"User-Agent": "railway-lakehouse-bronze/1.0"})
+            r = get_with_rate_limit_retries(
+                session.get,
+                url,
+                timeout=HTTP_TIMEOUT,
+                headers=REQUEST_HEADERS,
+                max_retries=max_retries,
+                retry_sleep_seconds=retry_sleep_seconds,
+                sleep=sleep,
+            )
         except requests.RequestException as e:
             logger.warning("GKG v1 %s failed: %s", url, e)
             day += dt.timedelta(days=1); continue
@@ -144,24 +211,71 @@ def backfill_master_v1(lander: RawLander, start: dt.date, end: dt.date,
             landed_files += 1
             logger.info("GKG v1: landed %s (%d files)", fname, landed_files)
         day += dt.timedelta(days=1)
-        time.sleep(SLEEP_BETWEEN)
+        if landed_files < target and not _limit_reached(pages_attempted, max_pages):
+            sleep(SLEEP_BETWEEN)
     logger.info("GKG v1 backfill done: %d daily files landed", landed_files)
     return landed_files
 
 
-def ingest(lander: RawLander, target_articles: int = DEFAULT_TARGET,
-           engine: str = "doc_api", start: dt.date | None = None,
-           end: dt.date | None = None) -> int:
+def ingest(
+    lander: RawLander,
+    target_articles: int = DEFAULT_TARGET,
+    engine: str = "doc_api",
+    start: dt.date | None = None,
+    end: dt.date | None = None,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
+    dry_run: bool = False,
+    session: requests.Session | None = None,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
+    sleep: Callable[[float], object] = time.sleep,
+) -> int:
     """Entry point used by run.py or the CLI. Defaults: DOC API, 50k articles,
     last ~10y window (DOC 2.0 coverage). For deep history use engine='master_v1'."""
+    if max_pages is None:
+        max_pages = DEFAULT_MAX_PAGES
     if engine == "master_v1":
         start = start or dt.date(1990, 1, 1)
         end = end or dt.date(2015, 1, 1)
-        return backfill_master_v1(lander, start, end, target_articles)
+        return backfill_master_v1(
+            lander,
+            start,
+            end,
+            target_articles,
+            max_pages=max_pages,
+            session=session,
+            max_retries=max_retries,
+            retry_sleep_seconds=retry_sleep_seconds,
+            sleep=sleep,
+            dry_run=dry_run,
+        )
     # doc_api default
     end = end or dt.date.today()
     start = start or (end - dt.timedelta(days=365 * 10))
-    return backfill_doc_api(lander, start, end, target_articles)
+    return backfill_doc_api(
+        lander,
+        start,
+        end,
+        target_articles,
+        max_pages=max_pages,
+        session=session,
+        max_retries=max_retries,
+        retry_sleep_seconds=retry_sleep_seconds,
+        sleep=sleep,
+        dry_run=dry_run,
+    )
+
+
+def _normalize_optional_limit(value: int | None) -> int | None:
+    if value is None or value == 0:
+        return None
+    if value < 0:
+        raise ValueError("limit must be non-negative")
+    return value
+
+
+def _limit_reached(count: int, limit: int | None) -> bool:
+    return limit is not None and count >= limit
 
 
 def _parse_args(argv):
@@ -171,6 +285,13 @@ def _parse_args(argv):
     p.add_argument("--engine", choices=["doc_api", "master_v1"], default="doc_api")
     p.add_argument("--start", type=lambda s: dt.date.fromisoformat(s), default=None)
     p.add_argument("--end", type=lambda s: dt.date.fromisoformat(s), default=None)
+    p.add_argument(
+        "--max-pages",
+        type=int,
+        default=DEFAULT_MAX_PAGES,
+        help="maximum DOC pages or GKG daily file attempts; use 0 for unbounded",
+    )
+    p.add_argument("--dry-run", action="store_true", help="log planned requests without fetching or landing")
     return p.parse_args(argv)
 
 
@@ -180,7 +301,7 @@ def main(argv=None):
     a = _parse_args(argv if argv is not None else sys.argv[1:])
     lander = RawLander()
     n = ingest(lander, target_articles=a.target_articles, engine=a.engine,
-               start=a.start, end=a.end)
+               start=a.start, end=a.end, max_pages=a.max_pages, dry_run=a.dry_run)
     logger.info("past_recordings complete: ~%d records/files landed via %s", n, a.engine)
 
 

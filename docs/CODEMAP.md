@@ -44,10 +44,10 @@ Path: `src/railway_lakehouse/bronze/`
 | `sources/rss_media.py` | Lands full RSS feeds for configured media and official operator sources. |
 | `sources/ksh.py` | Curated Hungarian KSH STADAT rail table fetcher; validates XLSX workbook containers and lands six live-confirmed raw files through `RawArtifact`. |
 | `sources/statistik_austria.py` | Austrian statistics fetcher seeds; lands JSON/CSV raw files through `RawArtifact`. |
-| `sources/uic.py` | UIC statistics resource fetcher seeds; lands raw spreadsheet files. |
+| `sources/uic.py` | UIC RAILISA public statistical publication fetcher; validates and lands raw PDF files, with subscribed CSV/Excel/API access documented as a boundary. |
 | `sources/past_recordings.py` | One-off historical GDELT backfill with DOC API and GKG v1 modes. |
 
-Current status: Bronze code is consolidated under one package. `parser/ksh-stadat` Bronze source work is complete and live-validated. GAP-005 remains because KSH and the other new national/historical source adapters are present but not scheduled by `bronze/run.py`.
+Current status: Bronze code is consolidated under one package. `parser/ksh-stadat` Bronze source work is complete and live-validated, and `parser/uic-refresh` now lands current public UIC publication PDFs with bounded live evidence. GAP-005 remains because KSH, UIC, and the other new national/historical source adapters are present but not scheduled by `bronze/run.py`.
 
 ## Silver
 
