@@ -42,12 +42,12 @@ Path: `src/railway_lakehouse/bronze/`
 | `sources/worldbank.py` | Discovers rail indicators and lands raw World Bank JSON time series. |
 | `sources/gdelt.py` | Pulls recent GDELT DOC API article lists for scoped railway queries. |
 | `sources/rss_media.py` | Lands full RSS feeds for configured media and official operator sources. |
-| `sources/ksh.py` | Curated Hungarian KSH STADAT rail table fetcher; validates XLSX bytes and lands configured raw files through `RawArtifact`. |
+| `sources/ksh.py` | Curated Hungarian KSH STADAT rail table fetcher; validates XLSX workbook containers and lands six live-confirmed raw files through `RawArtifact`. |
 | `sources/statistik_austria.py` | Austrian statistics fetcher seeds; lands JSON/CSV raw files through `RawArtifact`. |
 | `sources/uic.py` | UIC statistics resource fetcher seeds; lands raw spreadsheet files. |
 | `sources/past_recordings.py` | One-off historical GDELT backfill with DOC API and GKG v1 modes. |
 
-Current status: Bronze code is consolidated under one package. GAP-005 remains because the new national/historical source adapters are present but not scheduled by `bronze/run.py`.
+Current status: Bronze code is consolidated under one package. `parser/ksh-stadat` Bronze source work is complete and live-validated. GAP-005 remains because KSH and the other new national/historical source adapters are present but not scheduled by `bronze/run.py`.
 
 ## Silver
 
@@ -62,7 +62,7 @@ Path: `src/railway_lakehouse/silver/`
 | `stats/merge.py` | Deterministic readers, cached crosswalk, and long-format stats merge. |
 | `news/extract.py` | Article-to-`NewsFeature` extraction via Ollama plus GDELT passthrough. |
 
-Current status: transformation logic is characterized by unit tests. Bronze/Silver storage integration remains GAP-006.
+Current status: transformation logic is characterized by unit tests. Bronze/Silver storage integration remains GAP-006, including the open KSH XLSX -> `StatFact` parser/tests follow-up.
 
 ## Gold
 
@@ -80,6 +80,8 @@ Current status: deterministic Gold logic is characterized by unit tests. Silver-
 | File | Responsibility |
 |---|---|
 | `tests/test_bronze_characterization.py` | Bronze metadata, discovery, and GDELT query behavior. |
+| `tests/test_bronze_live_check.py` | Local Bronze live-check manifest, source-result, RSS, and KSH collector behavior with mocked HTTP. |
+| `tests/test_bronze_live_check_integration.py` | Deterministic integration fixture for KSH live-check manifest, raw Bronze file, and metadata writing. |
 | `tests/test_silver_characterization.py` | Silver stats melt/crosswalk/merge and news validation/extraction behavior. |
 | `tests/test_gold_characterization.py` | Gold conflict resolution, pivot, news aggregation, zero fill, Parquet write. |
 | `tests/test_pipeline_gaps.py` | Strict expected failure for GAP-004 pipeline Bronze read stubs. |

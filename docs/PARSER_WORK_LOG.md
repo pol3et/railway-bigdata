@@ -57,6 +57,30 @@ Current KSH correction evidence:
   `output/evidence/ksh-live-check-2026-06-22-current/bronze/` tree by that
   command and are omitted from Git per the raw-data policy.
 
+### Task Status - `parser/ksh-stadat`
+
+This is the task that PR #4 addressed. Its Bronze parser scope is done:
+
+- checked the seeded KSH STADAT table IDs against the current source module;
+- retired stale or mislabelled seeds: `sza0010`, `sza0006`, and the old
+  `sza0009` passenger label;
+- corrected `sza0009` to `ksh_rail_freight`;
+- expanded the active set to six title-verified rail or rail-bearing XLSX
+  tables;
+- added mocked HTTP coverage for KSH ingest and live-check behavior;
+- added a deterministic integration fixture for local KSH live-check manifest,
+  raw Bronze artifact, and metadata writing;
+- committed current live-check evidence at
+  `output/evidence/ksh-live-check-2026-06-22-current/manifest.json`;
+- prepared the Silver parser plan below: KSH XLSX -> `StatFact`.
+
+Still open and intentionally separate from the Bronze task:
+
+- GAP-005: schedule KSH through `src/railway_lakehouse/bronze/run.py`;
+- GAP-006: implement the deterministic Silver KSH XLSX parser;
+- add Silver stats parser tests that prove KSH XLSX rows become `StatFact`
+  rows before KSH contributes to Gold.
+
 ## Bounded Live Check Summary
 
 | Parser | Live status | Evidence | Current diagnosis | Next owner task |
@@ -65,7 +89,7 @@ Current KSH correction evidence:
 | World Bank | live-ok | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. Confirmed series probed live 2026-06-22: `IS.RRS.TOTL.KM` (HTTP 200, 17,556 obs), `IS.RRS.GOOD.MT.K6` (HTTP 200, HU 2021 = 11345.601), `IS.RRS.PASG.KM` (HTTP 200, HU 2021 = 5435.389). Evidence: `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. | Root cause confirmed: the API returns HTTP 200 even for archived ids; `BM.GSR.TRAN.CD` yields a 128-byte `{"message": ...}` envelope, so a status check could not catch it. Discovery now anchors on the word `rail*` (no longer matches `trail`/`trailer`/`curtail`), pulls a confirmed allowlist regardless of discovery, and `series_has_observations()` validates the payload before landing. | Wave 3: World Bank JSON -> StatFact (`silver/stats/merge.py::read_worldbank_json`). |
 | GDELT recent | failed live probe | No artifact landed. | DOC API returned HTTP 429 for bounded query. | Add rate-limit handling/backoff and retry; keep bounded `maxrecords` in tests. |
 | RSS media | live-ok | Repo command landed `hu_telex.xml`, `hu_index.xml`, `hu_hvg.xml`, `hu_24hu.xml`, and `hu_portfolio.xml` under `output/evidence/live-bronze/bronze/news/rss/...`; 223,154 bytes total. | Direct feed fetch works for five Hungarian feeds in the bounded command. | Add feed health tests, expand to AT feeds, and document feed drift handling. |
-| KSH STADAT | live-ok | Current-code live-check manifest: `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts, 92,509 bytes, and 0 failures. Seed/title audit manifest: `output/evidence/ksh-live-check-2026-06-22/manifest.json`. | The earlier three seeds were reachable but mislabelled: `sza0010` is inland waterway goods, `sza0006` is road goods, and `sza0009` is rail freight, not passenger. The active seed set now uses six title-verified rail tables and rejects empty, malformed, or non-XLSX HTTP-200 bodies. | Wave 3: KSH XLSX -> `StatFact` using the table-specific plan below. |
+| KSH STADAT | live-ok | Current-code live-check manifest: `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts, 92,509 bytes, and 0 failures. Seed/title audit manifest: `output/evidence/ksh-live-check-2026-06-22/manifest.json`. | `parser/ksh-stadat` Bronze scope is done. The earlier three seeds were reachable but mislabelled: `sza0010` is inland waterway goods, `sza0006` is road goods, and `sza0009` is rail freight, not passenger. The active seed set now uses six title-verified rail tables and rejects empty, malformed, or non-XLSX HTTP-200 bodies. | Open follow-up: Wave 3 Silver KSH XLSX -> `StatFact` parser and tests. |
 | Statistik Austria | failed live probe | No artifact landed. | Configured OGD JSON URL returned HTTP 200 with 0 bytes. | Refresh OGD IDs/API path and add a test that fails on empty 200 responses. |
 | UIC | failed live probe | No artifact landed. | Configured XLS URL returned HTTP 404. | Refresh UIC resource URLs or document access limits/subscription boundaries. |
 | GDELT history | failed live probe | No artifact landed. | Bounded DOC history probe also returned HTTP 429. | Keep default backfill disabled; add rate-limit handling and a safe `--max-pages`/`--dry-run` mode. |
@@ -206,7 +230,7 @@ Parallel owner tasks:
 | World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | DONE 2026-06-22: word-anchored discovery, confirmed allowlist, `series_has_observations()`/`is_error_payload()` validation; mocked-HTTP error-payload test; live evidence in `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. |
 | RSS owner | `bronze/sources/rss_media.py` | Feed registry health is checked; at least HU and AT feeds land when reachable. | Mocked HTTP tests plus bounded live feed manifest. |
 | GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded live query handles 429 with retry/backoff and never starts long backfill accidentally. | Mocked 429 test, safe CLI flags, bounded live success or documented rate-limit failure. |
-| KSH owner | `bronze/sources/ksh.py` | All seeded STADAT tables are verified or marked stale. | DONE 2026-06-22: retired two non-rail seeds, corrected `sza0009` to freight, added six curated rail tables, XLSX workbook-container validation, mocked tests, seed/title audit manifest `output/evidence/ksh-live-check-2026-06-22/manifest.json`, and current-code live-check manifest `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts / 0 failures. |
+| KSH owner | `bronze/sources/ksh.py` | All seeded STADAT tables are verified or marked stale. | DONE 2026-06-22 for `parser/ksh-stadat` Bronze scope: retired two non-rail seeds, corrected `sza0009` to freight, added six curated rail tables, XLSX workbook-container validation, mocked tests, seed/title audit manifest `output/evidence/ksh-live-check-2026-06-22/manifest.json`, and current-code live-check manifest `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts / 0 failures. Silver XLSX -> `StatFact` remains Wave 3. |
 | Statistik Austria owner | `bronze/sources/statistik_austria.py` | Refresh OGD IDs/API path and reject empty 200 responses. | Mocked empty-response test plus bounded live JSON/CSV artifact. |
 | UIC owner | `bronze/sources/uic.py` | Refresh reachable resources or document access/subscription limits. | Mocked 404 test plus bounded live artifact or explicit access note. |
 
@@ -256,6 +280,10 @@ Tasks:
 
 Owner: Silver stats owner. Start: ready now for a bounded implementation
 against the six live-confirmed KSH Bronze artifacts.
+
+Status: not implemented yet. The plan exists because `parser/ksh-stadat`
+completed the Bronze source work; the Silver parser and Silver parser tests
+remain GAP-006 follow-up work.
 
 Target row shape: `geo=HU`, `year`, canonical `feature`, numeric `value`,
 `unit`, `source_system=ksh`, `source_dataset`, and STADAT provenance such as

@@ -407,3 +407,34 @@ Next:
 
 - Push PR #4, mark it ready when branch checks are green, and merge.
 - Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
+
+## 2026-06-22 - KSH STADAT Task Status Docs
+
+Status: done for documentation; no source behavior changed.
+
+Changed:
+
+- `.planning/coursework/research/bigdata/ksh-stadat-doc-status-2026-06-22.md`
+- `docs/CODEMAP.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PARSER_WORK_LOG.md`
+- `docs/PROGRESS_LOG.md`
+- `docs/WORKSTREAMS.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+
+- PR #4 was the `parser/ksh-stadat` task for the Bronze KSH STADAT source.
+- The Bronze scope is complete: seeded IDs were checked, stale/mislabelled seeds were retired, mocked HTTP tests exist, and current live-check evidence is committed.
+- KSH scheduler wiring remains GAP-005.
+- KSH XLSX -> `StatFact` parsing and Silver parser tests remain GAP-006.
+
+Evidence:
+
+- Local status search used `rg` across `README.md`, `TASK.md`, `docs/`, `.planning/`, and `WIRING.md`.
+- `git diff --check` passed.
+
+Next:
+
+- Implement KSH scheduler wiring under GAP-005.
+- Implement KSH Silver XLSX parser/tests under GAP-006.

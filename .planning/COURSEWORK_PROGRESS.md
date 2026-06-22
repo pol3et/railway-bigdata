@@ -156,3 +156,30 @@ Next:
 
 - Push PR #4, confirm GitHub has no failing checks, and merge.
 - KSH still needs scheduler wiring under GAP-005.
+
+## 2026-06-22 - KSH STADAT Task Status Docs
+
+Status: done for doc clarification; no runtime behavior changed.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/ksh-stadat-doc-status-2026-06-22.md`.
+- Local files read first: `docs/PARSER_WORK_LOG.md`, `docs/WORKSTREAMS.md`, `docs/GAP_REGISTER.md`, `docs/CODEMAP.md`, `docs/PROGRESS_LOG.md`, `.planning/COURSEWORK_PROGRESS.md`, prior KSH research notes, and `WIRING.md`.
+- No external docs were needed because this change only reconciles repo status documentation.
+
+Changed:
+
+- Added an explicit `parser/ksh-stadat` task-status section to `docs/PARSER_WORK_LOG.md`.
+- Marked KSH Bronze source work complete while keeping GAP-005 scheduler wiring and GAP-006 Silver parser/tests open.
+- Updated `docs/WORKSTREAMS.md`, `docs/GAP_REGISTER.md`, and `docs/CODEMAP.md` to reflect the same boundary.
+
+Evidence:
+
+- Local status search used `rg` across `README.md`, `TASK.md`, `docs/`, `.planning/`, and `WIRING.md`.
+- `git diff --check` passed.
+
+Next:
+
+- Push the documentation update directly to `main`.
+- Implement KSH scheduler wiring under GAP-005.
+- Implement KSH Silver XLSX parser/tests under GAP-006.

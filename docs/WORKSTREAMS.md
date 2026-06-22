@@ -31,6 +31,8 @@ Owns:
 Remaining:
 
 - GAP-005: schedule KSH, Statistik Austria, UIC, and historical GDELT without changing raw landing semantics.
+- `parser/ksh-stadat` Bronze source work is complete; KSH itself still needs
+  scheduler wiring before it runs in the normal Bronze job.
 
 ## 3. Silver Stats Preprocessing
 
@@ -43,6 +45,8 @@ Owns:
 Remaining:
 
 - GAP-006: read Bronze fixtures/storage and write auditable Silver outputs.
+- KSH-specific follow-up: implement KSH XLSX -> `StatFact` parsing and Silver
+  parser tests against the six live-confirmed STADAT tables.
 
 ## 4. Silver News / Feature Audit
 
