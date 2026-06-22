@@ -381,6 +381,8 @@ def test_is_valid_artifact_response_treats_empty_200_as_failure():
     assert is_valid_artifact_response(200, b"") is False    # the headline bug
     assert is_valid_artifact_response(200, None) is False
     assert is_valid_artifact_response(404, b"data") is False
+    assert is_valid_artifact_response(200, b"<html>error</html>", "text/html", "ods") is False
+    assert is_valid_artifact_response(200, b"not-a-zip", "application/octet-stream", "ods") is False
 
 
 def test_ingest_lands_real_resources_and_skips_empty_200():
@@ -399,3 +401,11 @@ def test_ingest_lands_real_resources_and_skips_empty_200():
     lander2 = _RecordingLander()
     assert stat_at.ingest(lander2, session=empty) == 0
     assert lander2.landed == []
+
+    # non-empty HTTP-200 HTML must not be recorded as a real ODS artifact
+    html = _FakeKshSession(
+        {r.url: _FakeXlsxResponse(b"<html>error</html>", status=200, content_type="text/html")
+         for r in STAT_RAIL_RESOURCES})
+    lander3 = _RecordingLander()
+    assert stat_at.ingest(lander3, session=html) == 0
+    assert lander3.landed == []

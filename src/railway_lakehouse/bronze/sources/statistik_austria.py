@@ -136,14 +136,28 @@ STAT_RAIL_ACCESS_NOTES = {
 }
 
 
-def is_valid_artifact_response(status: int, content: bytes | None) -> bool:
-    """A landable response: HTTP 200 with a non-empty body.
+def is_valid_artifact_response(
+    status: int,
+    content: bytes | None,
+    content_type: str = "",
+    kind: str | None = None,
+) -> bool:
+    """A landable response: HTTP 200 with non-empty bytes of the expected shape.
 
     The headline failure this guards against is the portal answering HTTP 200
     with ZERO bytes (wrong URL shape / missing dataset). An empty 200 is a
-    failure, never a success.
+    failure, never a success. HTML error pages are also failures, even when
+    returned as HTTP 200.
     """
-    return status == 200 and bool(content)
+    if status != 200 or not content:
+        return False
+    normalized_type = content_type.lower()
+    sample = content[:256].lstrip().lower()
+    if "html" in normalized_type or sample.startswith(b"<!doctype html") or sample.startswith(b"<html"):
+        return False
+    if kind == "ods":
+        return content.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"))
+    return True
 
 
 def ingest(lander, session: requests.Session | None = None) -> int:
@@ -161,16 +175,17 @@ def ingest(lander, session: requests.Session | None = None) -> int:
                            res.dataset_id, res.url, e)
             continue
 
-        if not is_valid_artifact_response(r.status_code, r.content):
+        content_type = r.headers.get("Content-Type", res.content_type)
+        if not is_valid_artifact_response(r.status_code, r.content, content_type, res.kind):
             logger.warning(
-                "StatAustria %s -> HTTP %s, %d bytes; skipping (empty/!=200)",
-                res.dataset_id, r.status_code, len(r.content or b""))
+                "StatAustria %s -> HTTP %s, %d bytes, content-type=%s; skipping invalid artifact",
+                res.dataset_id, r.status_code, len(r.content or b""), content_type)
             continue
 
         lander.land(RawArtifact(
             domain="stats", source="statistik_austria", dataset_id=res.dataset_id,
             filename=res.filename, content=r.content, source_url=res.url,
-            content_type=r.headers.get("Content-Type", res.content_type),
+            content_type=content_type,
             http_status=r.status_code,
             extra={"agency": "Statistik Austria", "country": "AT",
                    "resource_kind": res.kind, "note": res.note},
