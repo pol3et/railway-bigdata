@@ -71,24 +71,43 @@ deliberately-malformed LLM output, and the Ollama client's request shape + loose
   tables exactly as the Bronze `RawLander` does.
 
 ## Model choice
-`OLLAMA_MODEL` defaults to `qwen3:8b`. It replaces the older `llama3.1:8b`
-placeholder because the Silver LLM tasks are multilingual HU/DE/EN label and
-article extraction, not generic chat. Official Ollama metadata puts
-`llama3.1:8b` at 4.9 GB and `qwen3:8b` at 5.2 GB, so this keeps the same
-local-memory class while using a Qwen model family that advertises broad
-multilingual instruction-following coverage.
+`OLLAMA_MODEL` defaults to `qwen3.5:9b-q8_0`. This replaces the older
+`llama3.1:8b` placeholder and the interim `qwen3:8b` choice because the Silver
+LLM tasks are multilingual HU/DE/EN label and article extraction, not generic
+chat. Official Ollama metadata lists `qwen3.5:9b-q8_0` as an 11 GB, 256K
+context, Q8_0 tag; this is the quality-first quantized 9B choice.
 
-Use `OLLAMA_MODEL=qwen3.5:9b` when the local machine can afford the larger
-6.6 GB model and the team wants the newer Qwen line for higher-quality
-extraction. Use Gemma only as an explicit experiment or low-memory alternative:
-`gemma3:4b` is smaller, while current Gemma 4 local models are larger and add
-thinking/multimodal behavior we do not need for validated JSON extraction.
-Keep `temperature=0` for reproducibility.
+Use `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` when the 11 GB Q8_0 model is too large.
+Ollama lists that tag as 6.6 GB with the same 256K context window. Qwen docs
+list Q8_0, Q5_K_M, and Q4_K_M as common GGUF/llama.cpp presets and warn that
+lower-bit quantization can reduce accuracy, so Q4_K_M is the practical memory
+fallback rather than the no-loss recommendation.
+
+The client uses `/api/chat`, not `/api/generate`, for JSON extraction. It sends
+the JSON schema in `format`, keeps `temperature=0`, bounds `num_ctx` and
+`num_predict`, and sets top-level `think: false` by default. Ollama documents
+`think` as a top-level chat/generate field, and Qwen 3.5 issue evidence shows
+that placing `think` inside `options` can silently fail.
+
+vLLM remains a later throughput option, not the default runtime. Qwen and vLLM
+docs support structured/JSON output, but vLLM adds serving/GPU setup and has
+Qwen structured-output/thinking edge cases. The current coursework pipeline
+needs simple local validated extraction more than batched high-throughput
+serving.
 
 Sources checked on 2026-06-22:
 
 - <https://ollama.com/library/llama3.1:8b>
 - <https://ollama.com/library/qwen3:8b>
 - <https://ollama.com/library/qwen3.5>
+- <https://ollama.com/library/qwen3.5/tags>
+- <https://ollama.com/library/qwen3.5:9b-q8_0>
+- <https://ollama.com/library/qwen3.5:9b-q4_K_M>
+- <https://docs.ollama.com/api/chat>
+- <https://docs.ollama.com/capabilities/structured-outputs>
+- <https://docs.ollama.com/capabilities/thinking>
+- <https://qwen.readthedocs.io/en/latest/quantization/llama.cpp.html>
+- <https://qwen.readthedocs.io/en/latest/deployment/vllm.html>
+- <https://docs.vllm.ai/en/stable/features/structured_outputs>
 - <https://ollama.com/library/gemma3>
 - <https://ollama.com/library/gemma4>

@@ -62,11 +62,13 @@ Current files:
 
 Boundary: deterministic code handles numeric tables. Ollama may extract unstructured article facts or propose label mappings, but all output is validated.
 
-Model default: local Ollama uses `qwen3:8b` unless `OLLAMA_MODEL` overrides it.
-This is the same local-memory class as the previous `llama3.1:8b` placeholder,
-but better aligned to the multilingual HU/DE/EN extraction tasks. `qwen3.5:9b`
-is the preferred higher-quality local option when 6.6 GB model memory is
-acceptable.
+Model default: local Ollama uses `qwen3.5:9b-q8_0` unless `OLLAMA_MODEL`
+overrides it. The default is quality-first for multilingual HU/DE/EN extraction
+and uses Ollama's 9B Q8_0 tag. Use `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` when the
+11 GB Q8_0 model is too large for the machine. The client calls `/api/chat`,
+passes JSON schema through `format`, sets deterministic output options, and
+sets top-level `think: false` by default so reasoning traces do not consume the
+JSON response budget.
 
 ### Gold: Analytical Dataset
 

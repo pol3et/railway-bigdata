@@ -719,7 +719,7 @@ Next:
 
 ## 2026-06-22 - Ollama Model Selection
 
-Status: done for default/model-selection docs; no live Ollama run was launched.
+Status: superseded by the later Qwen 3.5 runtime-config decision below; no live Ollama run was launched.
 
 Changed:
 - `.planning/coursework/research/bigdata/ollama-model-selection-2026-06-22.md`
@@ -748,3 +748,39 @@ Evidence:
 
 Next:
 - Keep live Ollama checks opt-in and record model pull/run evidence under `output/evidence/` before claiming live extraction quality.
+
+## 2026-06-22 - Qwen 3.5 Ollama Runtime Config
+
+Status: done for MCP-backed model/runtime selection; no live Ollama run was launched.
+
+Changed:
+- `.planning/coursework/research/bigdata/qwen35-ollama-runtime-config-2026-06-22.md`
+- `.planning/coursework/research/bigdata/ollama-model-selection-2026-06-22.md`
+- `src/railway_lakehouse/silver/config.py`
+- `src/railway_lakehouse/silver/ollama_client.py`
+- `tests/test_silver_characterization.py`
+- `docs/SILVER_DESIGN.md`
+- `docs/ARCHITECTURE.md`
+- `docs/WORK_SPLIT.md`
+- `docs/NEXT_SESSION_HANDOFF.md`
+- `README.md`
+
+Findings:
+- MCP-backed research selected `qwen3.5:9b-q8_0` as the quality-first default and `qwen3.5:9b-q4_K_M` as the lower-memory fallback.
+- Ollama lists `qwen3.5:9b-q8_0` as 11 GB and `qwen3.5:9b-q4_K_M` as 6.6 GB, both with 256K context windows.
+- Qwen quantization docs list Q8_0, Q5_K_M, and Q4_K_M as common GGUF/llama.cpp presets and warn lower-bit quantization can reduce accuracy.
+- Ollama docs support JSON schema through `format`, recommend low temperature for deterministic structured output, and define `think` as a top-level field.
+- The Silver Ollama client now uses `/api/chat`, top-level `think: false`, bounded `num_ctx` and `num_predict`, and exact-tag model health checks.
+- vLLM stays out of the default runtime because this project needs simple validated local extraction, not high-throughput serving yet.
+
+Evidence:
+- MCP providers used: Tavily, Exa, and Firecrawl. Ref was attempted but credit-blocked.
+- Sources checked: official Ollama Qwen 3.5 tags/API/structured-output/thinking docs, Qwen quantization and vLLM docs, vLLM structured-output docs, and related Ollama/vLLM issues.
+- `python -m pytest -q tests\test_silver_characterization.py` passed: 7 passed.
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
+- `python -m pytest -q` passed: 58 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Next:
+- Before claiming live model readiness, run an opt-in evidence command that pulls/runs `qwen3.5:9b-q8_0` or the documented `qwen3.5:9b-q4_K_M` fallback and writes output under `output/evidence/`.

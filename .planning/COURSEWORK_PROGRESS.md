@@ -480,7 +480,7 @@ Next:
 
 ## 2026-06-22 - Ollama Model Selection
 
-Status: done for default/model-selection docs.
+Status: superseded by the later Qwen 3.5 runtime-config decision below.
 
 Research:
 - Required local research note:
@@ -514,3 +514,43 @@ Boundary:
 Next:
 - Record live Ollama model pull/run evidence under `output/evidence/` before
   claiming live extraction quality.
+
+## 2026-06-22 - Qwen 3.5 Ollama Runtime Config
+
+Status: done for MCP-backed model/runtime selection.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/qwen35-ollama-runtime-config-2026-06-22.md`.
+- Local files reviewed first: `src/railway_lakehouse/silver/config.py`,
+  `src/railway_lakehouse/silver/ollama_client.py`,
+  `src/railway_lakehouse/silver/stats/merge.py`,
+  `src/railway_lakehouse/silver/news/extract.py`,
+  `tests/test_silver_characterization.py`, and `docs/SILVER_DESIGN.md`.
+- MCP providers used: Tavily, Exa, and Firecrawl. Ref was attempted but
+  credit-blocked.
+
+Decision:
+- Default Ollama model is now `qwen3.5:9b-q8_0`.
+- `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` is the documented lower-memory fallback.
+- Ollama remains the default runtime; vLLM is deferred until the project needs
+  high-throughput serving.
+- The client now uses `/api/chat`, JSON schema `format`, top-level
+  `think: false`, `temperature=0`, `OLLAMA_NUM_CTX=8192`, and
+  `OLLAMA_NUM_PREDICT=1024`.
+
+Evidence:
+- `python -m pytest -q tests\test_silver_characterization.py` passed:
+  7 passed.
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
+- `python -m pytest -q` passed: 58 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Boundary:
+- No live Ollama service, model download, live extraction, MinIO, Spark, or
+  live collector run was executed for this runtime-config update.
+
+Next:
+- Record live Ollama pull/run evidence under `output/evidence/` before claiming
+  live Qwen extraction quality.

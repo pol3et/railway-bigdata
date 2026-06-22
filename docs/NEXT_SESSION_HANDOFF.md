@@ -56,10 +56,11 @@ Active teammate branch mapping:
 
 Ollama model decision:
 
-- Default local model is `qwen3:8b`, replacing the older `llama3.1:8b`
-  placeholder.
-- Use `OLLAMA_MODEL=qwen3.5:9b` only when the local machine can afford the
-  larger model.
+- Default local model is `qwen3.5:9b-q8_0`, replacing both the older
+  `llama3.1:8b` placeholder and the interim `qwen3:8b` choice.
+- Use `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` when the 11 GB Q8_0 model is too large.
+- The Ollama client uses `/api/chat` with schema `format`, deterministic
+  options, and top-level `think: false` by default.
 - LLM use remains bounded to cached label mapping and validated article
   extraction; numeric rows stay deterministic.
 

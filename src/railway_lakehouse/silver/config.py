@@ -3,9 +3,12 @@ import os
 
 # --- Ollama ---
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:8b")      # override with any local model
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:9b-q8_0")
 OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 OLLAMA_NUM_RETRIES = int(os.environ.get("OLLAMA_NUM_RETRIES", "3"))
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
+OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "1024"))
+OLLAMA_THINK = os.environ.get("OLLAMA_THINK", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 # --- Lakehouse (MinIO), mirrors Bronze ---
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "http://localhost:9000")

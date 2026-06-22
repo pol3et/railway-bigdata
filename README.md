@@ -51,7 +51,7 @@ web sources
   -> report + presentation
 ```
 
-Current implementation uses Python, MinIO/S3-style paths, pandas transformations, Ollama for bounded JSON extraction, and a planned Spark/lakehouse integration track. The default local Ollama model is `qwen3:8b`, with `OLLAMA_MODEL` available for overrides such as `qwen3.5:9b` on stronger machines.
+Current implementation uses Python, MinIO/S3-style paths, pandas transformations, Ollama for bounded JSON extraction, and a planned Spark/lakehouse integration track. The default local Ollama model is `qwen3.5:9b-q8_0`; use `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` when memory is tighter.
 
 ## Development Rule
 

@@ -48,7 +48,8 @@ Sources:
 
 ## Decision
 
-Set the project default to `qwen3:8b`.
+Initial decision, later superseded in the same session: set the project default
+to `qwen3:8b`.
 
 Rationale:
 
@@ -64,6 +65,14 @@ Document Gemma as an explicit experiment or low-memory alternative rather than
 the default. Gemma 3 is compact, but the current Gemma 4 local models are larger
 and include thinking/multimodal behavior that is not needed for deterministic
 JSON extraction.
+
+## Superseded By Follow-Up Research
+
+Follow-up MCP-backed research selected `qwen3.5:9b-q8_0` as the final
+quality-first default and `qwen3.5:9b-q4_K_M` as the lower-memory fallback.
+See:
+
+- `.planning/coursework/research/bigdata/qwen35-ollama-runtime-config-2026-06-22.md`
 
 ## Boundaries
 
