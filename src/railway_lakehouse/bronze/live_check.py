@@ -19,7 +19,7 @@ from typing import Callable, Iterable, Mapping
 import requests
 
 from .lander import RawArtifact
-from .sources import ksh, rss_media
+from .sources import ksh, rss_media, uic
 
 logger = logging.getLogger("bronze.live_check")
 
@@ -287,13 +287,70 @@ def collect_ksh(
     return _source_result("ksh", lander.artifacts[start_count:], statuses, failures)
 
 
+def collect_uic(
+    *,
+    lander: LocalBronzeLander,
+    max_artifacts: int,
+    timeout_seconds: int,
+) -> SourceResult:
+    failures: list[dict] = []
+    statuses: list[int] = []
+    start_count = len(lander.artifacts)
+
+    for resource in uic.UIC_PUBLIC_RESOURCES[:max_artifacts]:
+        try:
+            response = requests.get(resource.url, timeout=timeout_seconds, headers={"User-Agent": USER_AGENT})
+        except requests.RequestException as exc:
+            failures.append({"dataset_id": resource.dataset_id, "url": resource.url, "error": str(exc)})
+            continue
+
+        statuses.append(response.status_code)
+        if not uic.is_valid_resource_response(response.status_code, response.content, resource.expected_format):
+            failures.append(
+                {
+                    "dataset_id": resource.dataset_id,
+                    "url": resource.url,
+                    "http_status": response.status_code,
+                    "bytes": len(response.content or b""),
+                    "error": f"non-200, empty, or non-{resource.expected_format} response",
+                }
+            )
+            continue
+
+        lander.land(
+            RawArtifact(
+                domain="stats",
+                source="uic",
+                dataset_id=resource.dataset_id,
+                filename=resource.filename,
+                content=response.content,
+                source_url=resource.url,
+                content_type=response.headers.get("Content-Type", "application/pdf"),
+                http_status=response.status_code,
+                extra={
+                    "agency": "UIC",
+                    "scope": "international",
+                    "publication_title": resource.title,
+                    "publication_year": resource.publication_year,
+                    "feature_hint": resource.feature_hint,
+                    "source_format": resource.expected_format,
+                    "access_level": resource.access_level,
+                    "discovery": "railisa_public_resource",
+                    "railisa_access_note": uic.RAILISA_ACCESS_NOTE,
+                },
+            )
+        )
+
+    return _source_result("uic", lander.artifacts[start_count:], statuses, failures)
+
+
 def parse_sources(raw_sources: str) -> list[str]:
     return _normalize_sources(raw_sources.split(","))
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a bounded local Bronze live check.")
-    parser.add_argument("--sources", default=",".join(DEFAULT_SOURCES), help="Comma-separated sources: rss,ksh")
+    parser.add_argument("--sources", default=",".join(DEFAULT_SOURCES), help="Comma-separated sources: rss,ksh,uic")
     parser.add_argument("--out", default="output/evidence/live-bronze", help="Local evidence output directory")
     parser.add_argument(
         "--max-artifacts",
@@ -387,6 +444,7 @@ def _default_collectors() -> dict[str, Collector]:
     return {
         "rss": collect_rss,
         "ksh": collect_ksh,
+        "uic": collect_uic,
     }
 
 

@@ -2,26 +2,33 @@ import hashlib
 import io
 import json
 import zipfile
+import datetime as dt
 
 import pytest
 
 from railway_lakehouse.bronze.lander import RawArtifact, build_meta_dict
-from railway_lakehouse.bronze.sources import ksh
-from railway_lakehouse.bronze.sources import statistik_austria as stat_at
+from railway_lakehouse.bronze.sources import gdelt, ksh, past_recordings, statistik_austria as stat_at, uic
+from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
+from railway_lakehouse.bronze.sources.gdelt import build_query
+from railway_lakehouse.bronze.sources.rss_media import _all_feeds
+from railway_lakehouse.bronze.sources import worldbank
 from railway_lakehouse.bronze.sources.statistik_austria import (
     STAT_RAIL_RESOURCES,
     is_valid_artifact_response,
     ogd_csv_url,
     ogd_json_url,
 )
-from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
-from railway_lakehouse.bronze.sources.gdelt import build_query
-from railway_lakehouse.bronze.sources import worldbank
 from railway_lakehouse.bronze.sources.ksh import (
     KSH_RAIL_TABLES,
     KSH_RETIRED_SEEDS,
     is_valid_table_response,
     looks_like_xlsx,
+)
+from railway_lakehouse.bronze.sources.uic import (
+    UIC_PUBLIC_RESOURCES,
+    UicResource,
+    is_valid_resource_response,
+    looks_like_pdf,
 )
 from railway_lakehouse.bronze.sources.worldbank import (
     KNOWN_RAIL_INDICATORS,
@@ -104,6 +111,136 @@ def test_gdelt_query_includes_rail_terms_and_country_restriction():
     assert "train" in query
     assert "Bahn" in query
     assert "MAV" in query
+
+
+class _GdeltResponse:
+    def __init__(self, status_code, content=b'{"articles":[]}', headers=None, url="https://api.gdeltproject.org/test"):
+        self.status_code = status_code
+        self.content = content
+        self.headers = headers or {}
+        self.url = url
+
+
+class _GdeltSession:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def get(self, url, params=None, timeout=None, headers=None):
+        self.calls.append({"url": url, "params": params, "timeout": timeout, "headers": headers})
+        if not self.responses:
+            raise AssertionError("unexpected GDELT request")
+        response = self.responses.pop(0)
+        response.url = f"{url}?call={len(self.calls)}"
+        return response
+
+
+def test_gdelt_ingest_retries_429_and_lands_raw_success(monkeypatch):
+    monkeypatch.setattr(gdelt, "NATIONAL_SCOPE", ["HU"])
+    session = _GdeltSession(
+        [
+            _GdeltResponse(429, b"rate limited", headers={"Retry-After": "0.25"}),
+            _GdeltResponse(200, b'{"articles":[{"title":"rail"}]}'),
+        ]
+    )
+    lander = _RecordingLander()
+    sleeps = []
+
+    paths = gdelt.ingest(
+        lander,
+        session=session,
+        timespan="1d",
+        max_retries=1,
+        retry_sleep_seconds=0.1,
+        sleep=sleeps.append,
+    )
+
+    assert sleeps == [0.25]
+    assert len(session.calls) == 2
+    assert all(call["params"]["maxrecords"] == gdelt.DOC_API_MAX_RECORDS for call in session.calls)
+    assert session.calls[0]["headers"]["User-Agent"].startswith("railway-lakehouse")
+    assert paths == ["bronze/news/gdelt/HU/gdelt_doc_HU_1d.json"]
+    artifact = lander.landed[0]
+    assert artifact.content == b'{"articles":[{"title":"rail"}]}'
+    assert artifact.extra["timespan"] == "1d"
+
+
+def test_gdelt_ingest_stops_after_retry_limit_without_landing(monkeypatch):
+    monkeypatch.setattr(gdelt, "NATIONAL_SCOPE", ["HU"])
+    session = _GdeltSession([_GdeltResponse(429, b"first"), _GdeltResponse(429, b"second")])
+    lander = _RecordingLander()
+    sleeps = []
+
+    paths = gdelt.ingest(
+        lander,
+        session=session,
+        max_retries=1,
+        retry_sleep_seconds=0.1,
+        sleep=sleeps.append,
+    )
+
+    assert paths == []
+    assert lander.landed == []
+    assert len(session.calls) == 2
+    assert sleeps == [0.1]
+
+
+def test_past_recordings_doc_api_honors_max_pages_and_retries_429():
+    session = _GdeltSession(
+        [
+            _GdeltResponse(429, b"rate limited", headers={"Retry-After": "0.2"}),
+            _GdeltResponse(200, b'{"articles":[{"url":"https://example.test/rail"}]}'),
+            _GdeltResponse(200, b'{"articles":[{"url":"https://example.test/second"}]}'),
+        ]
+    )
+    lander = _RecordingLander()
+    sleeps = []
+
+    got = past_recordings.backfill_doc_api(
+        lander,
+        start=dt.date(2024, 1, 1),
+        end=dt.date(2024, 4, 1),
+        target=10,
+        max_pages=1,
+        session=session,
+        max_retries=1,
+        retry_sleep_seconds=0.1,
+        sleep=sleeps.append,
+    )
+
+    assert got == 1
+    assert sleeps == [0.2]
+    assert len(session.calls) == 2
+    assert session.calls[0]["params"]["maxrecords"] == gdelt.DOC_API_MAX_RECORDS
+    assert len(lander.landed) == 1
+    assert lander.landed[0].content == b'{"articles":[{"url":"https://example.test/rail"}]}'
+    assert lander.landed[0].extra["window_start"] == "2024-01-01"
+
+
+def test_past_recordings_doc_api_dry_run_makes_no_requests_or_landing():
+    session = _GdeltSession([])
+    lander = _RecordingLander()
+
+    got = past_recordings.backfill_doc_api(
+        lander,
+        start=dt.date(2024, 1, 1),
+        end=dt.date(2024, 4, 1),
+        target=10,
+        max_pages=2,
+        session=session,
+        dry_run=True,
+    )
+
+    assert got == 0
+    assert session.calls == []
+    assert lander.landed == []
+
+
+def test_past_recordings_cli_defaults_to_one_history_page_and_accepts_dry_run():
+    args = past_recordings._parse_args(["--dry-run"])
+
+    assert args.dry_run is True
+    assert args.max_pages == 1
 
 
 def test_discover_rail_datasets_strips_quoted_dataset_codes():
@@ -364,48 +501,159 @@ def test_ksh_ingest_lands_valid_xlsx_and_skips_404_and_empty_200():
     assert freight.filename == "sza0009.xlsx"
 
 
-# --- Statistik Austria: correct OGD URL shape + empty-200 = failure ----------
+def test_rss_feed_registry_includes_hu_and_at_feeds():
+    feeds = _all_feeds()
+    feed_ids = {feed_id for feed_id, _url, _geo in feeds}
+    geos = {geo for _feed_id, _url, geo in feeds}
+
+    assert "HU" in geos
+    assert "AT" in geos
+    assert "hu_telex" in feed_ids
+    assert "at_orf" in feed_ids
+    assert all(url.startswith("https://") for _feed_id, url, _geo in feeds)
+
+
+# --- Statistik Austria: correct OGD URL shape + response validation ----------
 
 
 def test_ogd_json_url_uses_query_param_not_path_segment():
-    # The 0-byte bug came from a path-segment URL; the API needs ?dataset=.
     url = ogd_json_url("OGD_demo_X_1")
+
     assert url == "https://data.statistik.gv.at/ogd/json?dataset=OGD_demo_X_1"
     assert "?dataset=" in url
     assert "/ogd/json/OGD_demo_X_1" not in url
     assert ogd_csv_url("OGD_demo_X_1").endswith("/data/OGD_demo_X_1.csv")
 
 
-def test_is_valid_artifact_response_treats_empty_200_as_failure():
+def test_is_valid_artifact_response_rejects_empty_html_and_non_ods():
     assert is_valid_artifact_response(200, b"PK\x03\x04data") is True
-    assert is_valid_artifact_response(200, b"") is False    # the headline bug
+    assert is_valid_artifact_response(200, b"") is False
     assert is_valid_artifact_response(200, None) is False
     assert is_valid_artifact_response(404, b"data") is False
     assert is_valid_artifact_response(200, b"<html>error</html>", "text/html", "ods") is False
     assert is_valid_artifact_response(200, b"not-a-zip", "application/octet-stream", "ods") is False
 
 
-def test_ingest_lands_real_resources_and_skips_empty_200():
-    # all configured rail resources return real ODS bytes -> all landed
+def test_statistik_austria_ingest_lands_ods_and_skips_invalid_200():
     good = _FakeKshSession(
-        {r.url: _FakeXlsxResponse(b"PK\x03\x04ods-bytes") for r in STAT_RAIL_RESOURCES})
+        {resource.url: _FakeXlsxResponse(b"PK\x03\x04ods-bytes") for resource in STAT_RAIL_RESOURCES}
+    )
     lander = _RecordingLander()
-    assert stat_at.ingest(lander, session=good) == len(STAT_RAIL_RESOURCES)
-    assert ({a.dataset_id for a in lander.landed}
-            == {r.dataset_id for r in STAT_RAIL_RESOURCES})
-    assert "stat_at_rail_freight" in {a.dataset_id for a in lander.landed}
 
-    # every empty 200 must be skipped (regression guard for the 0-byte bug)
+    assert stat_at.ingest(lander, session=good) == len(STAT_RAIL_RESOURCES)
+    assert {artifact.dataset_id for artifact in lander.landed} == {
+        resource.dataset_id for resource in STAT_RAIL_RESOURCES
+    }
+    assert "stat_at_rail_freight" in {artifact.dataset_id for artifact in lander.landed}
+
     empty = _FakeKshSession(
-        {r.url: _FakeXlsxResponse(b"", status=200) for r in STAT_RAIL_RESOURCES})
+        {resource.url: _FakeXlsxResponse(b"", status=200) for resource in STAT_RAIL_RESOURCES}
+    )
     lander2 = _RecordingLander()
     assert stat_at.ingest(lander2, session=empty) == 0
     assert lander2.landed == []
 
-    # non-empty HTTP-200 HTML must not be recorded as a real ODS artifact
     html = _FakeKshSession(
-        {r.url: _FakeXlsxResponse(b"<html>error</html>", status=200, content_type="text/html")
-         for r in STAT_RAIL_RESOURCES})
+        {
+            resource.url: _FakeXlsxResponse(
+                b"<html>error</html>", status=200, content_type="text/html"
+            )
+            for resource in STAT_RAIL_RESOURCES
+        }
+    )
     lander3 = _RecordingLander()
     assert stat_at.ingest(lander3, session=html) == 0
     assert lander3.landed == []
+
+
+# --- UIC: public publication resources + response validation -----------------
+
+def test_uic_public_resources_use_current_free_pdf_endpoints():
+    assert {resource.dataset_id for resource in UIC_PUBLIC_RESOURCES} >= {
+        "uic_traffic_trends_2024",
+        "uic_railway_statistics_synopsis_2025",
+    }
+    assert all(resource.url.startswith("https://uic-stats.uic.org/resources/help_resource/") for resource in UIC_PUBLIC_RESOURCES)
+    assert all(resource.filename.endswith(".pdf") for resource in UIC_PUBLIC_RESOURCES)
+    assert all(resource.access_level == "public_free_pdf" for resource in UIC_PUBLIC_RESOURCES)
+
+
+def test_uic_pdf_validation_rejects_html_empty_and_non_200():
+    pdf = b"%PDF-1.7\nraw uic publication bytes"
+
+    assert looks_like_pdf(pdf) is True
+    assert looks_like_pdf(b"<!DOCTYPE html><html>subscription</html>") is False
+    assert looks_like_pdf(b"") is False
+    assert looks_like_pdf(None) is False
+
+    assert is_valid_resource_response(200, pdf, "pdf") is True
+    assert is_valid_resource_response(404, pdf, "pdf") is False
+    assert is_valid_resource_response(200, b"", "pdf") is False
+    assert is_valid_resource_response(200, b"<html>not a pdf</html>", "pdf") is False
+
+
+class _FakeUicResponse:
+    def __init__(self, content, status=200, content_type="application/pdf"):
+        self.content = content
+        self.status_code = status
+        self.headers = {"Content-Type": content_type}
+
+
+class _FakeUicSession:
+    def __init__(self, routes):
+        self.routes = routes
+        self.calls = []
+
+    def get(self, url, timeout=None, headers=None):
+        self.calls.append(url)
+        return self.routes[url]
+
+
+def test_uic_ingest_lands_valid_public_pdfs_and_skips_html_or_404(monkeypatch):
+    resources = [
+        UicResource(
+            dataset_id="uic_valid_publication",
+            url="https://uic-stats.uic.org/resources/help_resource/?id=valid",
+            filename="uic_valid_publication.pdf",
+            title="Valid UIC publication",
+            publication_year=2025,
+            feature_hint="rail_network_length_km",
+        ),
+        UicResource(
+            dataset_id="uic_html_body",
+            url="https://uic-stats.uic.org/resources/help_resource/?id=html",
+            filename="uic_html_body.pdf",
+            title="HTML body",
+            publication_year=2025,
+            feature_hint="rail_passenger_km",
+        ),
+        UicResource(
+            dataset_id="uic_missing",
+            url="https://uic-stats.uic.org/resources/help_resource/?id=missing",
+            filename="uic_missing.pdf",
+            title="Missing",
+            publication_year=2025,
+            feature_hint="rail_freight_tonne_km",
+        ),
+    ]
+    monkeypatch.setattr(uic, "UIC_PUBLIC_RESOURCES", resources)
+    session = _FakeUicSession(
+        {
+            resources[0].url: _FakeUicResponse(b"%PDF-1.7\nvalid"),
+            resources[1].url: _FakeUicResponse(b"<html>login</html>", content_type="text/html"),
+            resources[2].url: _FakeUicResponse(b"%PDF-1.7\nmissing", status=404),
+        }
+    )
+    lander = _RecordingLander()
+
+    count = uic.ingest(lander, session=session)
+
+    assert count == 1
+    [artifact] = lander.landed
+    assert artifact.dataset_id == "uic_valid_publication"
+    assert artifact.filename == "uic_valid_publication.pdf"
+    assert artifact.content == b"%PDF-1.7\nvalid"
+    assert artifact.extra["agency"] == "UIC"
+    assert artifact.extra["scope"] == "international"
+    assert artifact.extra["access_level"] == "public_free_pdf"
+    assert "subscription" in artifact.extra["railisa_access_note"].lower()

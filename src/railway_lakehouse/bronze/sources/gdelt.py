@@ -12,14 +12,24 @@ Weekly run uses the GDELT 2.0 DOC API (realtime, last 5 years). The deep
 job (not included here) -- different schema, handled at Silver.
 """
 import logging
+import time
+from collections.abc import Callable
+
 import requests
 
 from ..lander import RawLander, RawArtifact
 from ..config import NATIONAL_SCOPE, RAIL_TERMS
+from .gdelt_common import (
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_SLEEP_SECONDS,
+    DOC_API,
+    DOC_API_MAX_RECORDS,
+    REQUEST_HEADERS,
+    bounded_max_records,
+    get_with_rate_limit_retries,
+)
 
 logger = logging.getLogger("bronze.gdelt")
-
-DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 
 
 def build_query(geo: str) -> str:
@@ -30,21 +40,46 @@ def build_query(geo: str) -> str:
     return f"({or_block}) sourcecountry:{geo}"
 
 
-def ingest(lander: RawLander, session: requests.Session | None = None,
-           timespan: str = "1w") -> list[str]:
+def build_doc_params(
+    geo: str,
+    *,
+    timespan: str = "1w",
+    max_records: int = DOC_API_MAX_RECORDS,
+) -> dict:
+    return {
+        "query": build_query(geo),
+        "mode": "ArtList",
+        "format": "json",
+        "timespan": timespan,
+        "maxrecords": bounded_max_records(max_records),
+        "sort": "datedesc",
+    }
+
+
+def ingest(
+    lander: RawLander,
+    session: requests.Session | None = None,
+    timespan: str = "1w",
+    max_records: int = DOC_API_MAX_RECORDS,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_sleep_seconds: float = DEFAULT_RETRY_SLEEP_SECONDS,
+    sleep: Callable[[float], object] = time.sleep,
+) -> list[str]:
     session = session or requests.Session()
     landed = []
     for geo in NATIONAL_SCOPE:
-        params = {
-            "query": build_query(geo),
-            "mode": "ArtList",
-            "format": "json",
-            "timespan": timespan,
-            "maxrecords": 250,
-            "sort": "datedesc",
-        }
+        params = build_doc_params(geo, timespan=timespan, max_records=max_records)
         try:
-            r = session.get(DOC_API, params=params, timeout=60)
+            r = get_with_rate_limit_retries(
+                session.get,
+                DOC_API,
+                params=params,
+                timeout=60,
+                headers=REQUEST_HEADERS,
+                max_retries=max_retries,
+                retry_sleep_seconds=retry_sleep_seconds,
+                sleep=sleep,
+            )
             if r.status_code != 200 or not r.content:
                 logger.warning("GDELT %s: HTTP %s", geo, r.status_code)
                 continue

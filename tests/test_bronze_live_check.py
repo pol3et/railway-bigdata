@@ -10,6 +10,7 @@ from railway_lakehouse.bronze import live_check
 from railway_lakehouse.bronze.live_check import (
     collect_ksh,
     collect_rss,
+    collect_uic,
     LocalBronzeLander,
     SourceResult,
     run_live_check,
@@ -281,6 +282,51 @@ def test_collect_ksh_lands_successes_and_records_failures(monkeypatch, tmp_path)
     assert result.http_statuses == [200, 200]
     assert result.failures[0]["dataset_id"] == "empty_table"
     assert lander.artifacts[0]["dataset_id"] == "ok_table"
+
+
+def test_collect_uic_lands_successes_and_records_failures(monkeypatch, tmp_path):
+    class Response:
+        def __init__(self, status_code, content, content_type="application/pdf"):
+            self.status_code = status_code
+            self.content = content
+            self.headers = {"Content-Type": content_type}
+
+    resources = [
+        live_check.uic.UicResource(
+            dataset_id="ok_publication",
+            url="https://uic-stats.uic.org/resources/help_resource/?id=ok",
+            filename="ok_publication.pdf",
+            title="OK publication",
+            publication_year=2025,
+            feature_hint="rail_network_length_km",
+        ),
+        live_check.uic.UicResource(
+            dataset_id="html_publication",
+            url="https://uic-stats.uic.org/resources/help_resource/?id=html",
+            filename="html_publication.pdf",
+            title="HTML publication",
+            publication_year=2025,
+            feature_hint="rail_passenger_km",
+        ),
+    ]
+
+    def fake_get(url, timeout, headers):
+        if url.endswith("id=ok"):
+            return Response(200, b"%PDF-1.7\nok")
+        return Response(200, b"<html>not a pdf</html>", content_type="text/html")
+
+    monkeypatch.setattr(live_check.uic, "UIC_PUBLIC_RESOURCES", resources)
+    monkeypatch.setattr(live_check.requests, "get", fake_get)
+    lander = LocalBronzeLander(tmp_path, run_id="run-001", clock=lambda: FIXED_NOW)
+
+    result = collect_uic(lander=lander, max_artifacts=2, timeout_seconds=3)
+
+    assert result.status == "partial"
+    assert result.artifact_count == 1
+    assert result.http_statuses == [200, 200]
+    assert result.failures[0]["dataset_id"] == "html_publication"
+    assert result.failures[0]["error"] == "non-200, empty, or non-pdf response"
+    assert lander.artifacts[0]["dataset_id"] == "ok_publication"
 
 
 def test_main_returns_nonzero_when_any_selected_source_fails(monkeypatch, tmp_path):
