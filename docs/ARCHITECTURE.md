@@ -62,6 +62,12 @@ Current files:
 
 Boundary: deterministic code handles numeric tables. Ollama may extract unstructured article facts or propose label mappings, but all output is validated.
 
+Model default: local Ollama uses `qwen3:8b` unless `OLLAMA_MODEL` overrides it.
+This is the same local-memory class as the previous `llama3.1:8b` placeholder,
+but better aligned to the multilingual HU/DE/EN extraction tasks. `qwen3.5:9b`
+is the preferred higher-quality local option when 6.6 GB model memory is
+acceptable.
+
 ### Gold: Analytical Dataset
 
 Purpose: build a wide feature matrix at `(geo, year)` grain for analysis and modeling.

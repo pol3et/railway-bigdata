@@ -71,6 +71,24 @@ deliberately-malformed LLM output, and the Ollama client's request shape + loose
   tables exactly as the Bronze `RawLander` does.
 
 ## Model choice
-`OLLAMA_MODEL` defaults to `llama3.1:8b`. For multilingual (HU/DE) extraction quality, a model
-with strong Hungarian/German coverage helps; the client is model-agnostic, so swap via the env
-var. Keep `temperature=0` for reproducibility.
+`OLLAMA_MODEL` defaults to `qwen3:8b`. It replaces the older `llama3.1:8b`
+placeholder because the Silver LLM tasks are multilingual HU/DE/EN label and
+article extraction, not generic chat. Official Ollama metadata puts
+`llama3.1:8b` at 4.9 GB and `qwen3:8b` at 5.2 GB, so this keeps the same
+local-memory class while using a Qwen model family that advertises broad
+multilingual instruction-following coverage.
+
+Use `OLLAMA_MODEL=qwen3.5:9b` when the local machine can afford the larger
+6.6 GB model and the team wants the newer Qwen line for higher-quality
+extraction. Use Gemma only as an explicit experiment or low-memory alternative:
+`gemma3:4b` is smaller, while current Gemma 4 local models are larger and add
+thinking/multimodal behavior we do not need for validated JSON extraction.
+Keep `temperature=0` for reproducibility.
+
+Sources checked on 2026-06-22:
+
+- <https://ollama.com/library/llama3.1:8b>
+- <https://ollama.com/library/qwen3:8b>
+- <https://ollama.com/library/qwen3.5>
+- <https://ollama.com/library/gemma3>
+- <https://ollama.com/library/gemma4>

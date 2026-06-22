@@ -126,7 +126,8 @@ Goal: convert news records into validated `NewsFeature` rows.
 Owns:
 
 - article input schema,
-- Ollama prompt boundary,
+- Ollama prompt boundary, with `qwen3:8b` as the default local model and
+  `OLLAMA_MODEL=qwen3.5:9b` as the higher-quality override,
 - validation,
 - event taxonomy,
 - operator taxonomy,

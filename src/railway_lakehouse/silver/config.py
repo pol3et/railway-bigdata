@@ -3,7 +3,7 @@ import os
 
 # --- Ollama ---
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")   # any local model
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:8b")      # override with any local model
 OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 OLLAMA_NUM_RETRIES = int(os.environ.get("OLLAMA_NUM_RETRIES", "3"))
 

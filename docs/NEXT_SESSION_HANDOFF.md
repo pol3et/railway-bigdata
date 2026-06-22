@@ -54,6 +54,15 @@ Active teammate branch mapping:
 - `silver/stats-worldbank-eurostat`: GAP-006 Silver Stats World Bank/Eurostat slice.
 - Neither branch closes GAP-007 unless it also wires Gold loading and records Gold evidence.
 
+Ollama model decision:
+
+- Default local model is `qwen3:8b`, replacing the older `llama3.1:8b`
+  placeholder.
+- Use `OLLAMA_MODEL=qwen3.5:9b` only when the local machine can afford the
+  larger model.
+- LLM use remains bounded to cached label mapping and validated article
+  extraction; numeric rows stay deterministic.
+
 ## Required Reading
 
 1. `AGENTS.md`

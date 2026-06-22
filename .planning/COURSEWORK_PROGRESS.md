@@ -477,3 +477,40 @@ Findings:
 Next:
 - Validate teammate PRs against GAP-006 closure criteria.
 - Keep GAP-007 as the follow-up integration point after Silver outputs persist.
+
+## 2026-06-22 - Ollama Model Selection
+
+Status: done for default/model-selection docs.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/ollama-model-selection-2026-06-22.md`.
+- Local files reviewed first: `src/railway_lakehouse/silver/config.py`,
+  `src/railway_lakehouse/silver/ollama_client.py`,
+  `src/railway_lakehouse/silver/stats/merge.py`,
+  `src/railway_lakehouse/silver/news/extract.py`,
+  `src/railway_lakehouse/pipeline.py`, `docs/SILVER_DESIGN.md`,
+  `docs/ARCHITECTURE.md`, and `docs/WORK_SPLIT.md`.
+- External docs checked: official Ollama pages for `llama3.1:8b`,
+  `qwen3:8b`, `qwen3.5`, `gemma3`, and `gemma4`.
+
+Decision:
+- Default Ollama model is now `qwen3:8b`.
+- `qwen3.5:9b` is documented as the higher-quality local override when
+  6.6 GB model memory is acceptable.
+- Gemma is documented as an explicit experiment or low-memory alternative.
+
+Evidence:
+- `python -m pytest -q tests\test_silver_characterization.py tests\test_pipeline_gaps.py`
+  passed: 8 passed.
+- `python -m pytest -q` passed: 56 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Boundary:
+- No live Ollama service, model download, live extraction, MinIO, Spark, or
+  live collector run was executed for this model-selection update.
+
+Next:
+- Record live Ollama model pull/run evidence under `output/evidence/` before
+  claiming live extraction quality.

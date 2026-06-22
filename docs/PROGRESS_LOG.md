@@ -716,3 +716,35 @@ Evidence:
 Next:
 - Review teammate PRs against the GAP-006 closure criteria before marking GAP-006 closed.
 - Keep GAP-007 separate until Gold can load the persisted Silver outputs.
+
+## 2026-06-22 - Ollama Model Selection
+
+Status: done for default/model-selection docs; no live Ollama run was launched.
+
+Changed:
+- `.planning/coursework/research/bigdata/ollama-model-selection-2026-06-22.md`
+- `src/railway_lakehouse/silver/config.py`
+- `docs/SILVER_DESIGN.md`
+- `docs/ARCHITECTURE.md`
+- `docs/WORK_SPLIT.md`
+- `docs/NEXT_SESSION_HANDOFF.md`
+- `README.md`
+
+Findings:
+- The previous `llama3.1:8b` default was a conservative placeholder, not a course-specific model choice.
+- Official Ollama metadata checked on 2026-06-22 puts `llama3.1:8b` at 4.9 GB and `qwen3:8b` at 5.2 GB, so `qwen3:8b` keeps the same local-memory class.
+- The project default is now `qwen3:8b` because the LLM tasks are multilingual HU/DE/EN label mapping and article extraction.
+- `OLLAMA_MODEL=qwen3.5:9b` is documented as the higher-quality local override when the 6.6 GB model fits the machine.
+- Gemma remains an explicit experiment or lower-memory alternative, not the default, because current Gemma 4 local models are larger for this validated JSON-extraction use case.
+- This does not prove a live Ollama service, model download, or live extraction quality.
+
+Evidence:
+- Local research used `src/railway_lakehouse/silver/config.py`, `src/railway_lakehouse/silver/ollama_client.py`, `src/railway_lakehouse/silver/stats/merge.py`, `src/railway_lakehouse/silver/news/extract.py`, `src/railway_lakehouse/pipeline.py`, `docs/SILVER_DESIGN.md`, `docs/ARCHITECTURE.md`, and `docs/WORK_SPLIT.md`.
+- External research used official Ollama model pages for `llama3.1:8b`, `qwen3:8b`, `qwen3.5`, `gemma3`, and `gemma4`.
+- `python -m pytest -q tests\test_silver_characterization.py tests\test_pipeline_gaps.py` passed: 8 passed.
+- `python -m pytest -q` passed: 56 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Next:
+- Keep live Ollama checks opt-in and record model pull/run evidence under `output/evidence/` before claiming live extraction quality.
