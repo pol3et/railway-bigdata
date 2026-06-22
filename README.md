@@ -16,8 +16,8 @@ python -m pytest -q
 Current verification result for this scaffold:
 
 - `python -m pip install --no-cache-dir -e ".[test]"` passed.
-- `python -m pytest -q -m unit` passed with 15 tests.
-- `python -m pytest -q` passed with 15 tests and 1 expected failure for GAP-004.
+- `python -m pytest -q` passed with 33 tests and 1 expected failure for GAP-004.
+- `python -m compileall .` passed.
 
 ## Current Status
 

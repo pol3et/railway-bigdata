@@ -328,3 +328,43 @@ Evidence:
 Next:
 
 - Prioritize a minimal Gold Parquet dataset from proven sources before waiting for every parser to be perfect.
+
+## 2026-06-22 - KSH STADAT Seed Correction PR
+
+Status: done for KSH Bronze seed correction; scheduler and Silver parsing remain open.
+
+Changed:
+
+- `.planning/coursework/research/bigdata/ksh-stadat-seeds-2026-06-22.md`
+- `README.md`
+- `WIRING.md`
+- `docs/CODEMAP.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PARSER_WORK_LOG.md`
+- `docs/VERIFICATION.md`
+- `output/evidence/ksh-live-check-2026-06-22/manifest.json`
+- `src/railway_lakehouse/bronze/live_check.py`
+- `src/railway_lakehouse/bronze/sources/ksh.py`
+- `tests/test_bronze_characterization.py`
+- `tests/test_bronze_live_check.py`
+
+Findings:
+
+- The supplied patch did not apply cleanly to current `main` because `docs/PARSER_WORK_LOG.md` and `tests/test_bronze_characterization.py` had newer Eurostat/World Bank context.
+- The KSH intent was integrated against the current docs and code: retire non-rail/mislabelled seeds, use six curated STADAT rail or rail-bearing tables, and reject empty or non-XLSX HTTP-200 responses before Bronze landing.
+- `src/railway_lakehouse/bronze/run.py` still does not schedule KSH, so GAP-005 remains open.
+- KSH Silver XLSX parsing remains Wave 3 work.
+
+Evidence:
+
+- `python -m pytest -q tests\test_bronze_characterization.py` passed: 15 passed.
+- `python -m pytest -q tests\test_bronze_live_check.py` passed: 8 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/runtime/ksh-live-check-validation --max-artifacts 6 --timeout-seconds 30` passed with `artifact_count=6`, `byte_count=92509`, KSH `passed`, and 0 failures.
+- `python -m pytest -q` passed: 33 passed, 1 xfailed for documented GAP-004.
+- `python -m compileall .` passed.
+- `python -m json.tool output\evidence\ksh-live-check-2026-06-22\manifest.json` passed.
+
+Next:
+
+- Push the PR branch and run the requested read-only `ship-it:ship-pr` review.
+- Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.

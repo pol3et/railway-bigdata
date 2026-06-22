@@ -92,3 +92,35 @@ Evidence:
 Next:
 
 - Produce a minimal analysis-ready dataset from proven sources first; treat full parser completion as the next reliability milestone.
+
+## 2026-06-22 - KSH STADAT Seed Correction PR
+
+Status: done for KSH Bronze seed correction; broader pipeline remains open.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/ksh-stadat-seeds-2026-06-22.md`.
+- Local files read first: `README.md`, `TASK.md`, `docs/PROGRESS_LOG.md`, `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`, `docs/CODEMAP.md`, `docs/DATA_CONTRACTS.md`, `docs/WORKSTREAMS.md`, `docs/VERIFICATION.md`, `docs/ARCHITECTURE.md`, `WIRING.md`, `.planning/COURSEWORK_PROGRESS.md`, `src/railway_lakehouse/bronze/sources/ksh.py`, `src/railway_lakehouse/bronze/live_check.py`, and related tests.
+- No Linear ticket was used; intent came from the supplied patch plus repo docs/code.
+- No external docs were needed because the work used current repo contracts and a bounded current-code live check.
+
+Changed:
+
+- Corrected KSH STADAT seed metadata in `src/railway_lakehouse/bronze/sources/ksh.py`.
+- Updated local KSH live-check collection in `src/railway_lakehouse/bronze/live_check.py`.
+- Added unit coverage in `tests/test_bronze_characterization.py` and `tests/test_bronze_live_check.py`.
+- Updated roadmap/status docs and committed `output/evidence/ksh-live-check-2026-06-22/manifest.json`.
+
+Evidence:
+
+- `python -m pytest -q tests\test_bronze_characterization.py` passed: 15 passed.
+- `python -m pytest -q tests\test_bronze_live_check.py` passed: 8 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/runtime/ksh-live-check-validation --max-artifacts 6 --timeout-seconds 30` passed with `artifact_count=6`, `byte_count=92509`, KSH `passed`, and 0 failures.
+- `python -m pytest -q` passed: 33 passed, 1 xfailed for documented GAP-004.
+- `python -m compileall .` passed.
+- `python -m json.tool output\evidence\ksh-live-check-2026-06-22\manifest.json` passed.
+
+Next:
+
+- KSH still needs scheduler wiring under GAP-005.
+- Silver stats still needs a deterministic KSH XLSX parser before KSH contributes to Gold.

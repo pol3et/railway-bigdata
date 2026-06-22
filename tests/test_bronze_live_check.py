@@ -249,15 +249,15 @@ def test_collect_ksh_lands_successes_and_records_failures(monkeypatch, tmp_path)
 
     def fake_get(url, timeout, headers):
         if url.endswith("ok.xlsx"):
-            return Response(200, b"xlsx")
+            return Response(200, b"PK\x03\x04xlsx")
         return Response(200, b"")
 
     monkeypatch.setattr(
         live_check.ksh,
         "KSH_RAIL_TABLES",
         [
-            ("ok_table", "ok.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "ok.xlsx"),
-            ("empty_table", "empty.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "empty.xlsx"),
+            live_check.ksh.KshTable("ok_table", "ok", "OK rail table", "rail_feature"),
+            live_check.ksh.KshTable("empty_table", "empty", "Empty rail table", "rail_feature"),
         ],
     )
     monkeypatch.setattr(live_check.requests, "get", fake_get)

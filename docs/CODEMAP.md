@@ -42,7 +42,7 @@ Path: `src/railway_lakehouse/bronze/`
 | `sources/worldbank.py` | Discovers rail indicators and lands raw World Bank JSON time series. |
 | `sources/gdelt.py` | Pulls recent GDELT DOC API article lists for scoped railway queries. |
 | `sources/rss_media.py` | Lands full RSS feeds for configured media and official operator sources. |
-| `sources/ksh.py` | Hungarian statistics fetcher seeds; lands configured raw files through `RawArtifact`. |
+| `sources/ksh.py` | Curated Hungarian KSH STADAT rail table fetcher; validates XLSX bytes and lands configured raw files through `RawArtifact`. |
 | `sources/statistik_austria.py` | Austrian statistics fetcher seeds; lands JSON/CSV raw files through `RawArtifact`. |
 | `sources/uic.py` | UIC statistics resource fetcher seeds; lands raw spreadsheet files. |
 | `sources/past_recordings.py` | One-off historical GDELT backfill with DOC API and GKG v1 modes. |

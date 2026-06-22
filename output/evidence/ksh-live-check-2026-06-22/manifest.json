@@ -1,0 +1,86 @@
+{
+  "source": "ksh",
+  "branch": "parser/ksh-stadat",
+  "checked_utc": "2026-06-22",
+  "scope": "Bounded live verification of seeded KSH STADAT table codes against their published titles. No collector run, no MinIO.",
+  "method": "Each code checked via https://www.ksh.hu/stadat_files/sza/en/<code>.html (title) and the .xlsx existence. Titles were taken from the canonical HTML preview.",
+  "key_finding": "The three previous seeds were not stale but mislabelled; two of three were not rail. Corrected the seed set to six title-verified rail tables.",
+  "retired_seeds": [
+    {
+      "code": "sza0010",
+      "old_dataset_id": "ksh_rail_freight",
+      "actual_title": "Inland waterway transport of goods by insignia of vessel",
+      "rail": false
+    },
+    {
+      "code": "sza0006",
+      "old_dataset_id": "ksh_transport_network",
+      "actual_title": "National road goods transport by sector classification of carrier and by customer",
+      "rail": false
+    },
+    {
+      "code": "sza0009",
+      "old_dataset_id": "ksh_rail_passenger",
+      "actual_title": "Rail goods transport by direction of traffic",
+      "rail": true,
+      "note": "Real rail table but mislabelled as passenger; it is freight. Re-seeded as ksh_rail_freight."
+    }
+  ],
+  "confirmed_rail_tables": [
+    {
+      "dataset_id": "ksh_rail_freight",
+      "code": "sza0009",
+      "title": "Rail goods transport by direction of traffic",
+      "http_status": 200,
+      "rail": true,
+      "sample": "2024 grand total 45,708 thousand tonnes; tonne-km series present",
+      "feature_hint": "rail_freight_tonnes, rail_freight_tonne_km"
+    },
+    {
+      "dataset_id": "ksh_rail_passenger",
+      "code": "sza0016",
+      "title": "Interurban passenger transport by mode of transport",
+      "http_status": 200,
+      "rail": true,
+      "sample": "2025 train = 412.7M passengers, 16,657M passenger-km (train column)",
+      "feature_hint": "rail_passengers, rail_passenger_km"
+    },
+    {
+      "dataset_id": "ksh_rail_rolling_stock",
+      "code": "sza0028",
+      "title": "Rolling stock of public railways",
+      "http_status": 200,
+      "rail": true,
+      "sample": "2024 locomotives 1,277; passenger carriages 2,448; freight wagons 9,958",
+      "feature_hint": "rail_rolling_stock"
+    },
+    {
+      "dataset_id": "ksh_rail_network",
+      "code": "sza0030",
+      "title": "Road and rail network",
+      "http_status": 200,
+      "rail": true,
+      "sample": "2024 standard-gauge railway 7,395 km; electrified line 3,367 km",
+      "feature_hint": "rail_network_length_km, rail_electrified_km"
+    },
+    {
+      "dataset_id": "ksh_rail_lines_regional",
+      "code": "sza0041",
+      "title": "Length of railway lines by county and region",
+      "http_status": 200,
+      "rail": true,
+      "sample": "2024 country total 7,395 km, by county/region",
+      "feature_hint": "rail_network_length_km (regional)"
+    },
+    {
+      "dataset_id": "ksh_rail_narrow_gauge",
+      "code": "sza0071",
+      "title": "Narrow gauge railway lines",
+      "http_status": 200,
+      "rail": true,
+      "sample": "2024 operated length 288 km; 1,209,478 passengers; 15,636 thousand passenger-km",
+      "feature_hint": "rail_network_length_km, rail_passengers (narrow gauge)"
+    }
+  ],
+  "result": "6/6 confirmed rail tables live (HTTP 200, real data). Parser re-seeded and now validates XLSX magic bytes so a wrong-but-200 response is rejected instead of landed."
+}

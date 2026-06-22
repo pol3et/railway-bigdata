@@ -4,24 +4,32 @@
 
 Deterministic characterization tests now exist under `tests/`.
 
-Fresh results from 2026-06-21:
+Fresh results from 2026-06-22:
 
 ```bash
-python -m pip install --no-cache-dir -e ".[test]"
-python -m pytest -q -m unit
 python -m pytest -q
-python -m pip check
 python -m compileall .
 ```
 
 Observed results:
 
-- Editable install passed.
-- Unit suite passed: 15 passed, 1 deselected.
-- Full suite passed: 15 passed, 1 xfailed.
+- Full suite passed: 33 passed, 1 xfailed.
 - Expected failure: `tests/test_pipeline_gaps.py::test_pipeline_storage_read_stubs_are_not_wired`, mapped to GAP-004.
-- `python -m pip check` reported no broken requirements.
 - Compileall passed.
+
+Additional KSH validation from 2026-06-22:
+
+```bash
+python -m pytest -q tests\test_bronze_characterization.py
+python -m pytest -q tests\test_bronze_live_check.py
+python -m railway_lakehouse.bronze.live_check --sources ksh --out output/runtime/ksh-live-check-validation --max-artifacts 6 --timeout-seconds 30
+```
+
+Observed results:
+
+- Bronze characterization passed: 15 passed.
+- Bronze live-check unit tests passed: 8 passed.
+- Bounded KSH live check passed with 6 artifacts, 92,509 bytes, and 0 failures.
 
 ## Safe Checks Now
 
