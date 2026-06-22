@@ -57,6 +57,11 @@ rule+LLM crosswalk (LLM stubbed), the merge into one unified table, schema valid
 deliberately-malformed LLM output, and the Ollama client's request shape + loose-JSON parsing
 (code fences / leading prose tolerated).
 
+Additional Silver news parser coverage now includes deterministic article-record parsing:
+RSS XML feeds are converted into `ArticleRecord` rows, GDELT ArtList JSON payloads are
+converted into the same `ArticleRecord` shape, and RSS article records can be passed into
+the existing `extract_batch()` / `NewsFeature` extraction path with Ollama mocked in tests.
+
 ## Known limitations / what you must wire
 - **Ollama cannot run in the build sandbox** (local server + model download, network-locked), so
   live extraction/crosswalk calls were not executed — only the deterministic logic and a mocked
