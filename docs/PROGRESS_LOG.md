@@ -586,3 +586,68 @@ Evidence:
 Next:
 - Keep GAP-004 as the next vertical-slice priority: fixture-backed Bronze storage reads.
 - Treat GDELT live collection as optional hardening unless a future bounded probe lands real artifacts.
+
+## 2026-06-22 - Current State And Next Plan
+
+Status: done for planning/status review; no source behavior changed.
+
+Changed:
+- `.planning/coursework/research/bigdata/current-state-next-plan-2026-06-22.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- Local `main` is at `2dc5091`, matching `origin/main`; PR #5, PR #6, and PR #7 are present in history.
+- The classmate's plan is directionally right: run Silver news, Silver stats, and GAP-004 fixture E2E in parallel; delay Spark until Gold Parquet exists.
+- Corrections: World Bank and Eurostat already have primitive Silver readers; Gold pivot/write logic already exists; the missing work is fixture-backed reading, concrete RSS/article records, source-specific `StatFact` fixtures, persistence, and evidence outputs.
+- Current blockers remain GAP-004, GAP-006, GAP-007, GAP-009, and GAP-011. GDELT should stay non-blocking because the latest bounded live probe landed no artifacts.
+
+Evidence:
+- `python -m pytest -q` passed: 53 passed, 1 xfailed for GAP-004.
+- `python -m compileall src tests` passed.
+- External source check used Apache Spark's official Parquet documentation for the planned Gold Parquet -> Spark path.
+- No live collectors, MinIO, Ollama, Spark jobs, or long historical backfills were run.
+
+Next:
+- Split Stage A into three branches: `silver/news-rss-article-records`, `silver/stats-worldbank-eurostat`, and `pipeline/fixture-e2e-gap004`.
+- Treat `silver/stats-ksh-xlsx` as the next stats parser after shared `StatFact` conventions are stable.
+
+## 2026-06-22 - Owner Recommendation Follow-Up
+
+Status: done for planning clarification; no source behavior changed.
+
+Findings:
+- Highest-priority owner task is `pipeline/fixture-e2e-gap004`: close the strict pipeline xfail with a deterministic no-network Bronze fixture -> Silver -> Gold Parquet path.
+- This blocks final Gold/Spark/report evidence, but it does not block classmates from starting isolated Silver parser branches.
+- Safe parallel branches are `silver/news-rss-article-records` and `silver/stats-worldbank-eurostat`; both should use fixtures and avoid changing `pipeline.py` until the GAP-004 branch defines the integration contract.
+
+Evidence:
+- Local status review used `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`, `.planning/coursework/research/bigdata/current-state-next-plan-2026-06-22.md`, and `rg` over docs/source/tests.
+- No tests, source edits, live collectors, MinIO, Ollama, Spark jobs, or historical backfills were run for this clarification.
+
+Next:
+- User should take `pipeline/fixture-e2e-gap004`.
+- Classmates can start RSS news and World Bank/Eurostat stats parser fixture work in parallel.
+
+## 2026-06-22 - GAP-005 Scheduler Decision
+
+Status: done for planning clarification; no source behavior changed.
+
+Changed:
+- `.planning/coursework/research/bigdata/gap005-scheduler-decision-2026-06-22.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- GAP-005 should be deferred from the primary owner path. The primary owner should finish GAP-004 first because fixture-backed Bronze -> Silver -> Gold is the course-score bottleneck.
+- GAP-005 can be taken by a classmate in parallel as a small Bronze-only PR if it wires KSH, Statistik Austria, and UIC public PDF sources into the stats batch without changing raw landing semantics.
+- Historical GDELT must stay out of automatic scheduler runs; long backfill remains opt-in only.
+- GAP-005 does not block `silver/news-rss-article-records` or `silver/stats-worldbank-eurostat`.
+
+Evidence:
+- Local status review used `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`, `src/railway_lakehouse/bronze/run.py`, and local `rg` searches.
+- No source code, tests, live collectors, scheduler, MinIO, Ollama, Spark jobs, or historical backfills were run.
+
+Next:
+- Keep user focused on `pipeline/fixture-e2e-gap004`.
+- Offer GAP-005 to another classmate only if they keep it bounded and mocked-test-only.

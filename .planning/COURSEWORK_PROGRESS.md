@@ -314,3 +314,94 @@ Evidence:
 Next:
 - Continue with GAP-004 fixture-backed Bronze reads, then minimal Silver/Gold
   persistence and Spark evidence.
+
+## 2026-06-22 - Current State And Next Plan
+
+Status: done for planning/status review; no source behavior changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/current-state-next-plan-2026-06-22.md`.
+- Local files read first: `README.md`, `docs/GAP_REGISTER.md`,
+  `docs/PARSER_WORK_LOG.md`, `docs/WORKSTREAMS.md`, `docs/PROGRESS_LOG.md`,
+  `.planning/COURSEWORK_PROGRESS.md`, `pyproject.toml`, pipeline, Bronze,
+  Silver, Gold, and related tests.
+- External source checked: Apache Spark official Parquet docs for the future
+  Gold Parquet -> Spark evidence path.
+
+Findings:
+- Local `main` is current at `2dc5091` and contains PR #5, PR #6, and PR #7.
+- The proposed stage plan is mostly correct, but Stage A should emphasize
+  fixture-backed inputs and persistence contracts, not rewriting already-tested
+  Gold/Silver primitives.
+- Parallel Stage A branches should be: RSS article records, World Bank/Eurostat
+  `StatFact` fixtures, and GAP-004 no-network Bronze -> Silver -> Gold wiring.
+- Spark remains blocked on Gold Parquet evidence; report/presentation claims
+  remain blocked on generated outputs.
+
+Evidence:
+- `python -m pytest -q` passed: 53 passed, 1 xfailed for GAP-004.
+- `python -m compileall src tests` passed.
+- No live collectors, MinIO, Ollama, Spark jobs, or long historical backfills were run.
+
+Next:
+- Start `pipeline/fixture-e2e-gap004` immediately.
+- Start `silver/news-rss-article-records` and `silver/stats-worldbank-eurostat`
+  in parallel.
+- Start KSH XLSX parsing after the first stats parser branch establishes shared
+  fixture conventions.
+
+## 2026-06-22 - Owner Recommendation Follow-Up
+
+Status: done for planning clarification; no source behavior changed.
+
+Research:
+- Local files reviewed: `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`,
+  `.planning/coursework/research/bigdata/current-state-next-plan-2026-06-22.md`,
+  plus `rg` over docs/source/tests for GAP-004, GAP-006, GAP-007, RSS, World
+  Bank, Eurostat, Gold Parquet, and Spark.
+- No new external docs were needed because this answer assigns ownership based
+  on current repo gaps and previously recorded evidence.
+
+Findings:
+- The user should own `pipeline/fixture-e2e-gap004` because it is the main
+  dependency for closing the first vertical slice.
+- Classmates are not blocked from working on Silver parser fixtures in parallel.
+- Spark/report/presentation remain blocked on generated Gold Parquet evidence.
+
+Evidence:
+- No tests, source edits, live collectors, MinIO, Ollama, Spark jobs, or long
+  historical backfills were run for this clarification.
+
+Next:
+- Start GAP-004 branch and define the fixture/input-output contract for the
+  parallel Silver parser branches.
+
+## 2026-06-22 - GAP-005 Scheduler Decision
+
+Status: done for planning clarification; no source behavior changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/gap005-scheduler-decision-2026-06-22.md`.
+- Local files reviewed: `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`,
+  `src/railway_lakehouse/bronze/run.py`, current planning notes, and `rg`
+  search results for GAP-005/scheduler/source-adapter references.
+- No new external docs were needed because this is an internal scheduling and
+  ownership decision based on current repo state.
+
+Findings:
+- Defer GAP-005 from the user's critical path; GAP-004 remains the main owner
+  task.
+- GAP-005 can run in parallel if assigned to someone else as a narrow
+  Bronze-only PR.
+- Historical GDELT must not be wired into automatic scheduled runs.
+
+Evidence:
+- No source code, tests, live collectors, scheduler, MinIO, Ollama, Spark jobs,
+  or long historical backfills were run.
+
+Next:
+- Primary owner starts GAP-004.
+- Optional parallel owner can wire KSH, Statistik Austria, and UIC public PDFs
+  into `bronze/run.py` with mocked unit tests.
