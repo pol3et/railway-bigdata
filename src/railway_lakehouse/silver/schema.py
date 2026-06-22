@@ -19,6 +19,21 @@ class StatFact:
         return asdict(self)
 
 
+
+@dataclass
+class ArticleRecord:
+    article_id: str
+    source: str
+    title: str
+    url: str
+    published_date: Optional[str]
+    body: Optional[str] = None
+
+    def to_row(self) -> dict:
+        return asdict(self)
+
+
+
 # ---------- per-article news features ----------
 @dataclass
 class NewsFeature:
