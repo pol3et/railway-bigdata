@@ -7,11 +7,17 @@ import datetime as dt
 import pytest
 
 from railway_lakehouse.bronze.lander import RawArtifact, build_meta_dict
-from railway_lakehouse.bronze.sources import gdelt, ksh, past_recordings, uic
+from railway_lakehouse.bronze.sources import gdelt, ksh, past_recordings, statistik_austria as stat_at, uic
 from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
 from railway_lakehouse.bronze.sources.gdelt import build_query
 from railway_lakehouse.bronze.sources.rss_media import _all_feeds
 from railway_lakehouse.bronze.sources import worldbank
+from railway_lakehouse.bronze.sources.statistik_austria import (
+    STAT_RAIL_RESOURCES,
+    is_valid_artifact_response,
+    ogd_csv_url,
+    ogd_json_url,
+)
 from railway_lakehouse.bronze.sources.ksh import (
     KSH_RAIL_TABLES,
     KSH_RETIRED_SEEDS,
@@ -505,6 +511,59 @@ def test_rss_feed_registry_includes_hu_and_at_feeds():
     assert "hu_telex" in feed_ids
     assert "at_orf" in feed_ids
     assert all(url.startswith("https://") for _feed_id, url, _geo in feeds)
+
+
+# --- Statistik Austria: correct OGD URL shape + response validation ----------
+
+
+def test_ogd_json_url_uses_query_param_not_path_segment():
+    url = ogd_json_url("OGD_demo_X_1")
+
+    assert url == "https://data.statistik.gv.at/ogd/json?dataset=OGD_demo_X_1"
+    assert "?dataset=" in url
+    assert "/ogd/json/OGD_demo_X_1" not in url
+    assert ogd_csv_url("OGD_demo_X_1").endswith("/data/OGD_demo_X_1.csv")
+
+
+def test_is_valid_artifact_response_rejects_empty_html_and_non_ods():
+    assert is_valid_artifact_response(200, b"PK\x03\x04data") is True
+    assert is_valid_artifact_response(200, b"") is False
+    assert is_valid_artifact_response(200, None) is False
+    assert is_valid_artifact_response(404, b"data") is False
+    assert is_valid_artifact_response(200, b"<html>error</html>", "text/html", "ods") is False
+    assert is_valid_artifact_response(200, b"not-a-zip", "application/octet-stream", "ods") is False
+
+
+def test_statistik_austria_ingest_lands_ods_and_skips_invalid_200():
+    good = _FakeKshSession(
+        {resource.url: _FakeXlsxResponse(b"PK\x03\x04ods-bytes") for resource in STAT_RAIL_RESOURCES}
+    )
+    lander = _RecordingLander()
+
+    assert stat_at.ingest(lander, session=good) == len(STAT_RAIL_RESOURCES)
+    assert {artifact.dataset_id for artifact in lander.landed} == {
+        resource.dataset_id for resource in STAT_RAIL_RESOURCES
+    }
+    assert "stat_at_rail_freight" in {artifact.dataset_id for artifact in lander.landed}
+
+    empty = _FakeKshSession(
+        {resource.url: _FakeXlsxResponse(b"", status=200) for resource in STAT_RAIL_RESOURCES}
+    )
+    lander2 = _RecordingLander()
+    assert stat_at.ingest(lander2, session=empty) == 0
+    assert lander2.landed == []
+
+    html = _FakeKshSession(
+        {
+            resource.url: _FakeXlsxResponse(
+                b"<html>error</html>", status=200, content_type="text/html"
+            )
+            for resource in STAT_RAIL_RESOURCES
+        }
+    )
+    lander3 = _RecordingLander()
+    assert stat_at.ingest(lander3, session=html) == 0
+    assert lander3.landed == []
 
 
 # --- UIC: public publication resources + response validation -----------------

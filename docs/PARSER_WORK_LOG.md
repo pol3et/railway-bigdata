@@ -72,6 +72,17 @@ Current RSS feed-health evidence:
 - Scope: local Bronze output mode only. Not launched: scheduler, MinIO,
   Ollama, Spark, or long historical backfill.
 
+Current Statistik Austria rail evidence:
+
+- Current-code live-check manifest:
+  `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json`
+- Current-code output: 5 rail `.ods` artifacts landed from statistik.at.
+- Scope note: OGD JSON/CSV helper URL shape is fixed, but the current OGD
+  catalogue has no rail dataset; rail passenger and network-length values still
+  need Eurostat or authenticated STATcube/PDF sources.
+- Validation note: empty HTTP-200 bodies and non-ODS/HTML HTTP-200 bodies are
+  rejected before raw landing.
+
 Current UIC public-publication evidence:
 
 - Required research note:
@@ -143,15 +154,16 @@ Still open and intentionally separate from the Bronze task:
 | GDELT recent | mocked-rate-limit-ok; live retry failed | Current-code manifest: `output/evidence/gdelt-live-check-2026-06-22/manifest.json` with 0 artifacts and 2 failures. | Recent DOC API fetch now retries HTTP 429, respects `Retry-After`, and caps `maxrecords` at the documented 200-record bound. The latest bounded probe still failed: HU returned HTTP 429 after retries and AT disconnected. | Keep marked not live-ok until a future bounded probe lands a current artifact or the API limit is documented as unavailable for this environment. |
 | RSS media | partial live-ok | Current-code manifest: `output/evidence/rss-feed-health-2026-06-22/manifest.json` with 9 artifacts, 496,138 bytes, and 1 failure. | HU and AT feed collection works for 9/10 bounded attempts. `hu_origo` returned HTTP 404 and should be treated as stale/broken until refreshed or removed. | Prepare RSS XML -> article records for Silver; optionally refresh/remove `hu_origo` and continue feed health checks. |
 | KSH STADAT | live-ok | Current-code live-check manifest: `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts, 92,509 bytes, and 0 failures. Seed/title audit manifest: `output/evidence/ksh-live-check-2026-06-22/manifest.json`. | `parser/ksh-stadat` Bronze scope is done. The earlier three seeds were reachable but mislabelled: `sza0010` is inland waterway goods, `sza0006` is road goods, and `sza0009` is rail freight, not passenger. The active seed set now uses six title-verified rail tables and rejects empty, malformed, or non-XLSX HTTP-200 bodies. | Open follow-up: Wave 3 Silver KSH XLSX -> `StatFact` parser and tests. |
-| Statistik Austria | failed live probe | No artifact landed. | Configured OGD JSON URL returned HTTP 200 with 0 bytes. | Refresh OGD IDs/API path and add a test that fails on empty 200 responses. |
+| Statistik Austria | live-ok for rail `.ods` | Current-code manifest: `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json` with 5 rail `.ods` artifacts. | OGD JSON now uses `?dataset=<id>` and empty/non-ODS HTTP-200 responses are rejected. The OGD catalogue has no rail dataset, so current rail evidence comes from statistik.at `.ods`; passenger and network-length values remain Eurostat/STATcube/PDF follow-up. | Wave 3: Statistik Austria `.ods` -> `StatFact` parser and tests. |
 | UIC | live-ok for public PDFs | Current-code live-check manifest: `output/evidence/uic-live-check-2026-06-22/manifest.json` with 2 artifacts, 2,109,240 bytes, and 0 failures. | Stale public XLS seeds were replaced with current free RAILISA resource PDFs. RAILISA CSV/Excel downloads and REST API access remain subscription/auth-bound. | Future Silver owner can parse the public synopsis PDF or use subscribed CSV/Excel exports if credentials become available. |
 | GDELT history | mocked-rate-limit-ok; live retry not rerun | No current live artifact landed. Prior bounded DOC history probe hit HTTP 429. | Historical DOC/GKG backfill now shares rate-limit retry handling and has safe CLI controls: `--dry-run`, default `--max-pages 1`, and explicit `--max-pages 0` for unbounded scans. | Run only a bounded live probe; do not start a long backfill without an explicit evidence plan. |
 
 Interpretation:
 
 - Currently live-usable raw collection is proven for RSS, six corrected KSH
-  rail tables, UIC public statistical publication PDFs, a bounded direct
-  Eurostat dataset probe, and World Bank rail series.
+  rail tables, Statistik Austria rail `.ods`, UIC public statistical
+  publication PDFs, a bounded direct Eurostat dataset probe, and World Bank
+  rail series.
 - Bronze MVP is not blocked by the failed recent GDELT live probe. Use the
   proven Bronze sources above for the first dataset, and keep GDELT as an
   optional hardening task if time remains.
@@ -161,11 +173,12 @@ Interpretation:
 - UIC public PDF collection is a Bronze success; extracting facts from those
   PDFs, or from subscribed RAILISA CSV/Excel exports, is Silver work.
 - Recent GDELT now has mocked retry coverage, but the latest bounded live
-  probe landed no artifacts. Historical GDELT has mocked
-  rate-limit and safety coverage but no live backfill evidence. Statistics
-  Austria still needs source-specific refresh. UIC public PDFs are
-  live-validated, but subscribed RAILISA data exports remain unavailable
-  without access.
+  probe landed no artifacts. Historical GDELT has mocked rate-limit and safety
+  coverage but no live backfill evidence. Statistik Austria `.ods` collection
+  is live-validated for rail freight/rolling-stock scope, while passenger and
+  network-length values still need Eurostat or authenticated STATcube/PDF
+  sources. UIC public PDFs are live-validated, but subscribed RAILISA data
+  exports remain unavailable without access.
 - GDELT is not a Silver blocker right now because there is no current Bronze
   GDELT artifact to parse. Treat it as optional Bronze parser hardening and
   start GDELT Silver parsing only after a future bounded probe lands raw
@@ -261,7 +274,7 @@ Update 2026-06-22 — `parser/uic-refresh`:
 | GDELT recent | `src/railway_lakehouse/bronze/sources/gdelt.py` | GDELT DOC 2.0 API | Recent rail-related news article lists for HU/AT source countries. | `bronze/news/gdelt/<geo>/ingest_date=YYYY-MM-DD/gdelt_doc_<geo>_<timespan>.json` plus `.meta.json`. | `silver/news/extract.py::gdelt_passthrough` or article extraction, then Gold news aggregation. | Query and mocked 429 retry behavior unit-tested; request size capped at 200 records. Latest bounded live retry failed with HU HTTP 429 and AT remote disconnect. |
 | RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | HU/AT media and official RSS feeds | Whole RSS feeds, unfiltered, to avoid losing sparse rail items. | `bronze/news/rss/<geo_outlet>/ingest_date=YYYY-MM-DD/<geo_outlet>.xml` plus `.meta.json`. | Future RSS parser should extract article records, then `silver/news/extract.py`. | Partial live-ok: current-code manifest records 9 artifacts, 496,138 bytes, and one stale/broken feed (`hu_origo` HTTP 404); registry unit test added. |
 | KSH | `src/railway_lakehouse/bronze/sources/ksh.py` | Hungarian Central Statistical Office STADAT files | Six title-verified rail or rail-bearing XLSX tables: freight, passenger by mode, rolling stock, road and rail network, regional line length, and narrow gauge. | `bronze/stats/ksh/<dataset_id>/ingest_date=YYYY-MM-DD/<code>.xlsx` plus `.meta.json`. | Future KSH parser should read XLSX and emit `StatFact` rows using the Wave 3 KSH plan. | Live-ok: 6/6 active tables verified by current-code live check; mocked validation tests added; active seeds reject empty, malformed, or non-XLSX HTTP-200 bodies. |
-| Statistik Austria | `src/railway_lakehouse/bronze/sources/statistik_austria.py` | Statistics Austria OGD JSON/CSV | Seeded Austrian transport/rail OGD datasets. | `bronze/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<ogd_id>.json|csv` plus `.meta.json`. | Future Austrian parser should read JSON-stat/CSV and emit `StatFact` rows. | Live seed failed empty; OGD IDs/API path need refresh. |
+| Statistik Austria | `src/railway_lakehouse/bronze/sources/statistik_austria.py` | statistik.at `.ods` rail files plus OGD JSON/CSV helpers | Rail freight and rolling-stock `.ods` files. | `bronze/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.ods` plus `.meta.json`. | Future parser should read `.ods` and emit `StatFact` rows (plan below). | Live-ok: real rail `.ods` landed; API path fixed (`?dataset=`); empty and non-ODS HTTP-200 bodies rejected; mocked tests added. OGD has no rail dataset; STATcube needs login. |
 | UIC | `src/railway_lakehouse/bronze/sources/uic.py` | UIC RAILISA public statistical publications | Current free UIC public PDFs: traffic trends and railway statistics synopsis. | `bronze/stats/uic/<dataset_id>/ingest_date=YYYY-MM-DD/<filename>.pdf` plus `.meta.json`. | Future UIC parser can extract facts from the public synopsis PDF, or use subscribed RAILISA CSV/Excel exports if access becomes available. | Live-ok for public PDFs: 2/2 current public resources verified by current-code live check; subscribed CSV/Excel/API access remains access-limited. |
 | GDELT history | `src/railway_lakehouse/bronze/sources/past_recordings.py` | GDELT DOC history and GKG v1 files | Historical rail-related news pages or raw GKG daily zip files. | `bronze/news/gdelt_history/<dataset_id>/ingest_date=YYYY-MM-DD/<file>` plus `.meta.json`. | Future history parser should normalize article records before `NewsFeature` extraction. | Mocked 429 retry behavior and safe `--dry-run` / `--max-pages` controls are tested. Live retry evidence still pending; long backfill remains opt-in only. |
 
@@ -329,7 +342,7 @@ Parallel owner tasks:
 | RSS owner | `bronze/sources/rss_media.py`, `tests/test_bronze_characterization.py` | Feed registry includes HU and AT feeds; bounded local check lands reachable feeds and records stale ones as failures. | DONE 2026-06-22 for feed registry + bounded health check: unit test added; manifest `output/evidence/rss-feed-health-2026-06-22/manifest.json` records 9 artifacts / 496,138 bytes / 1 failure (`hu_origo` HTTP 404). Follow-up: RSS XML -> article records in Silver and optional `hu_origo` refresh/removal. |
 | GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded query handles 429 with retry/backoff and never starts long backfill accidentally. | DONE for mocked coverage 2026-06-22: shared GDELT retry helper, `Retry-After` handling, 200-record DOC bound, historical `--dry-run`, and default `--max-pages 1`. Latest bounded live retry failed with HU HTTP 429 and AT remote disconnect. |
 | KSH owner | `bronze/sources/ksh.py` | All seeded STADAT tables are verified or marked stale. | DONE 2026-06-22 for `parser/ksh-stadat` Bronze scope: retired two non-rail seeds, corrected `sza0009` to freight, added six curated rail tables, XLSX workbook-container validation, mocked tests, seed/title audit manifest `output/evidence/ksh-live-check-2026-06-22/manifest.json`, and current-code live-check manifest `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts / 0 failures. Silver XLSX -> `StatFact` remains Wave 3. |
-| Statistik Austria owner | `bronze/sources/statistik_austria.py` | Refresh OGD IDs/API path and reject empty 200 responses. | Mocked empty-response test plus bounded live JSON/CSV artifact. |
+| Statistik Austria owner | `bronze/sources/statistik_austria.py` | Refresh OGD IDs/API path and reject empty or non-ODS HTTP-200 responses. | DONE 2026-06-22: API path fixed to `?dataset=`, empty/non-ODS 200 responses rejected, fictional ids removed, OGD-has-no-rail finding documented, real rail `.ods` landed, mocked tests added, evidence `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json`. |
 | UIC owner | `bronze/sources/uic.py`, `bronze/live_check.py` | Public UIC resources are refreshed, PDF-validated, and live-checkable; subscribed RAILISA exports are documented as access-limited. | DONE 2026-06-22 for public-publication Bronze scope: current free PDFs landed in bounded live check with 2 artifacts / 0 failures. Bulk CSV/Excel/API collection remains blocked on credentials/subscription. |
 
 ### Wave 2 - Turn Live Probe Into A Repo Command
@@ -369,7 +382,7 @@ Start only after the related Bronze parser has a real artifact.
 Tasks:
 
 - KSH XLSX -> `StatFact`
-- Statistics Austria JSON-stat/CSV -> `StatFact`
+- Statistics Austria `.ods` or future JSON-stat/CSV -> `StatFact`
 - UIC public PDF or subscribed RAILISA CSV/Excel -> `StatFact`
 - RSS XML -> article records -> `NewsFeature`
 - GDELT ArtList JSON -> article records or passthrough -> `NewsFeature`
@@ -410,6 +423,38 @@ Implementation notes:
 - `sza0009` and `sza0016` contain two related measure blocks in one sheet; split
   on the sub-header row rather than flattening all columns into one feature.
 - Keep raw Bronze files immutable; all parsing belongs in Silver.
+
+#### Wave 3 - Statistik Austria .ods -> StatFact Plan
+
+Owner: Silver stats owner. Start: ready now because bounded Bronze evidence
+contains rail `.ods` artifacts.
+
+Source: `bronze/stats/statistik_austria/stat_at_rail_freight/.../*.ods`
+and the rolling-stock `.ods` files. `.ods` is an OpenDocument zip; read with
+`pandas.read_excel(path, engine="odf")` if `odfpy` is available, or unzip and
+parse `content.xml`.
+
+Target `StatFact` rows: `geo="AT"`, `year`, `feature`, numeric `value`,
+`unit`, `source_system="statistik_austria"`, `source_dataset`, and source
+column/file provenance.
+
+| dataset_id | file | feature | unit |
+|---|---|---|---|
+| `stat_at_rail_freight` | Schienengüterverkehr nach Verkehrsbereich | `rail_freight_tonnes`, `rail_freight_tonne_km` | tonnes; tonne-km |
+| `stat_at_rail_locomotives` | Lokomotivbestände | `rail_rolling_stock` | count |
+| `stat_at_rail_railcars` | Schienentriebfahrzeugbestände | `rail_rolling_stock` | count |
+| `stat_at_rail_freight_wagons` | Schienengüterwägenbestände | `rail_rolling_stock` | count |
+| `stat_at_rail_passenger_carriages` | Personenwägenbestände | `rail_rolling_stock` | count |
+
+Implementation notes:
+
+- German number formatting uses decimal comma and thousands dot; coerce
+  carefully.
+- For freight, take the total row per year across traffic segments.
+- Rolling-stock files cover 2023 and 2024; emit one row per year.
+- Rail passenger transport and network length are not openly fetchable from
+  Statistik Austria without STATcube/PDF work; use Eurostat as the primary AT
+  source for those features.
 
 ### Wave 4 - Gold, Spark, And Report Evidence
 
