@@ -1,6 +1,6 @@
 # Parser Work Log
 
-Last updated: 2026-06-21
+Last updated: 2026-06-22
 
 Purpose: make the parser state easy to split between classmates before pushing
 the project to GitHub. This log records what each parser collects, how it stores
@@ -45,7 +45,7 @@ Current repo-command live evidence:
 
 | Parser | Live status | Evidence | Current diagnosis | Next owner task |
 |---|---|---|---|---|
-| Eurostat | partial | Catalogue landed: `stats/eurostat/_catalogue_toc/.../toc_en.txt`; 1,980,690 bytes. | Discovery found 183 codes, but first dataset fetches failed with quoted codes like `"enpe_rail"` causing 404. | Strip quotes/formatting from TOC codes, add a fixture test, then fetch one real TSV dataset. |
+| Eurostat | live-ok | Catalogue landed previously; bounded direct probe confirmed dataset fetch for `enpe_rail_go`: HTTP 200, 552 bytes, `text/tab-separated-values`. | Fixed quoted TOC dataset codes; discovery now returns 253 rail-related codes with `quoted_codes=[]`. First checked code `enpe_rail` still returns 404, but the next dataset `enpe_rail_go` downloads successfully. | Optional: add fixture test for quoted codes; next Silver owner can parse downloaded TSV shape. |
 | World Bank | partial | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. | First discovered series `BM.GSR.TRAN.CD` returned a 128-byte API error payload, so discovery is too broad or needs response validation. | Validate indicator responses and prefer confirmed rail indicator allowlist before claiming series collection. |
 | GDELT recent | failed live probe | No artifact landed. | DOC API returned HTTP 429 for bounded query. | Add rate-limit handling/backoff and retry; keep bounded `maxrecords` in tests. |
 | RSS media | live-ok | Repo command landed `hu_telex.xml`, `hu_index.xml`, `hu_hvg.xml`, `hu_24hu.xml`, and `hu_portfolio.xml` under `output/evidence/live-bronze/bronze/news/rss/...`; 223,154 bytes total. | Direct feed fetch works for five Hungarian feeds in the bounded command. | Add feed health tests, expand to AT feeds, and document feed drift handling. |
@@ -56,17 +56,38 @@ Current repo-command live evidence:
 
 Interpretation:
 
-- Currently live-usable raw collection is proven for RSS and one KSH table.
-- Eurostat and World Bank can collect catalogues but need parser fixes before
-  their dataset/series pulls can be called working.
+- Currently live-usable raw collection is proven for RSS, KSH, and a bounded
+  direct Eurostat dataset probe.
+- World Bank can collect catalogues but needs parser fixes before its
+  indicator series pulls can be called working.
 - GDELT, Statistics Austria, UIC, and historical GDELT need source-specific
   fixes or rate-limit handling before classmates rely on them.
+
+
+Update 2026-06-22 — `parser/eurostat-live-datasets`:
+
+- Fixed Eurostat TOC dataset code normalization by stripping wrapping single/double quotes.
+- Before fix, discovered codes included quoted values such as `"enpe_rail"` and `"enpe_rail_go"`.
+- After fix, `discover_rail_datasets()` returned 253 rail-related codes and `quoted_codes=[]`.
+- Bounded direct probe checked early discovered datasets and confirmed one real TSV response:
+  - dataset: `enpe_rail_go`
+  - HTTP status: 200
+  - byte count: 552
+  - content type: `text/tab-separated-values`
+  - URL: `https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/enpe_rail_go/?format=TSV&compressed=true`
+- Verification on the post-PR-1 branch:
+  - `python -m pytest tests/test_bronze_characterization.py -q` -> 6 passed
+  - `python -m pytest -q` -> 24 passed, 1 xfailed for documented GAP-004
+  - Bounded direct probe for `enpe_rail_go` -> HTTP 200, 552 bytes, `text/tab-separated-values`
+- Note: no raw Eurostat artifact was committed; this was a bounded direct live probe.
+
+
 
 ## Parser Inventory
 
 | Parser | Module | Source family | What it collects | Storage shape | Downstream transform | Status |
 |---|---|---|---|---|---|---|
-| Eurostat | `src/railway_lakehouse/bronze/sources/eurostat.py` | Eurostat catalogue and SDMX TSV API | Rail, regional transport, and transport safety statistical datasets. Lands catalogue plus raw gzipped TSV datasets. | `bronze/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<dataset_id>.tsv.gz` plus `.meta.json`. | `silver/stats/merge.py::read_eurostat_tsv`, then crosswalk to canonical features. | Unit-tested discovery; live catalogue partial; dataset URL cleanup needed. |
+| Eurostat | `src/railway_lakehouse/bronze/sources/eurostat.py` | Eurostat catalogue and SDMX TSV API | Rail, regional transport, and transport safety statistical datasets. Lands catalogue plus raw gzipped TSV datasets. | `bronze/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<dataset_id>.tsv.gz` plus `.meta.json`. | `silver/stats/merge.py::read_eurostat_tsv`, then crosswalk to canonical features. | Dataset code cleanup fixed; bounded direct probe confirms one real TSV dataset (`enpe_rail_go`, HTTP 200, 552 bytes). |
 | World Bank | `src/railway_lakehouse/bronze/sources/worldbank.py` | World Bank Indicators API | Indicator catalogue and all-country time series JSON for rail-related indicators. | `bronze/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json` plus `.meta.json`. | `silver/stats/merge.py::read_worldbank_json`, then crosswalk. | Unit-tested discovery fallback; live catalogue partial; indicator validation needed. |
 | GDELT recent | `src/railway_lakehouse/bronze/sources/gdelt.py` | GDELT DOC 2.0 API | Recent rail-related news article lists for HU/AT source countries. | `bronze/news/gdelt/<geo>/ingest_date=YYYY-MM-DD/gdelt_doc_<geo>_<timespan>.json` plus `.meta.json`. | `silver/news/extract.py::gdelt_passthrough` or article extraction, then Gold news aggregation. | Query unit-tested; live probe hit 429. |
 | RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | HU/AT media and official RSS feeds | Whole RSS feeds, unfiltered, to avoid losing sparse rail items. | `bronze/news/rss/<geo_outlet>/ingest_date=YYYY-MM-DD/<geo_outlet>.xml` plus `.meta.json`. | Future RSS parser should extract article records, then `silver/news/extract.py`. | Live-ok for Telex and Index feeds; direct unit tests still needed. |
@@ -124,7 +145,7 @@ Parallel owner tasks:
 
 | Owner track | Files | Expected behavior | Verification |
 |---|---|---|---|
-| Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Strip quoted TOC codes and land at least one real TSV dataset in a bounded run. | Unit fixture for quoted codes, then bounded live evidence artifact. |
+| Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | Verified by direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; post-PR-1 tests pass with the documented GAP-004 xfail. |
 | World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | Unit test with API error JSON; bounded live evidence for one known rail indicator. |
 | RSS owner | `bronze/sources/rss_media.py` | Feed registry health is checked; at least HU and AT feeds land when reachable. | Mocked HTTP tests plus bounded live feed manifest. |
 | GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded live query handles 429 with retry/backoff and never starts long backfill accidentally. | Mocked 429 test, safe CLI flags, bounded live success or documented rate-limit failure. |

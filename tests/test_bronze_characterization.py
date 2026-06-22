@@ -84,3 +84,14 @@ def test_gdelt_query_includes_rail_terms_and_country_restriction():
     assert "train" in query
     assert "Bahn" in query
     assert "MAV" in query
+
+
+def test_discover_rail_datasets_strips_quoted_dataset_codes():
+    toc_text = "\n".join(
+        [
+            'Railway passenger transport\t"rail_pa_typepas"',
+            "Rail freight transport\t'rail_go_typeall'",
+        ]
+    )
+
+    assert discover_rail_datasets(toc_text) == ["rail_go_typeall", "rail_pa_typepas"]
