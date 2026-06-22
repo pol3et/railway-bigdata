@@ -7,6 +7,13 @@ import pytest
 
 from railway_lakehouse.bronze.lander import RawArtifact, build_meta_dict
 from railway_lakehouse.bronze.sources import ksh
+from railway_lakehouse.bronze.sources import statistik_austria as stat_at
+from railway_lakehouse.bronze.sources.statistik_austria import (
+    STAT_RAIL_RESOURCES,
+    is_valid_artifact_response,
+    ogd_csv_url,
+    ogd_json_url,
+)
 from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
 from railway_lakehouse.bronze.sources.gdelt import build_query
 from railway_lakehouse.bronze.sources import worldbank
@@ -355,3 +362,40 @@ def test_ksh_ingest_lands_valid_xlsx_and_skips_404_and_empty_200():
     assert freight.extra["stadat_code"] == "sza0009"
     assert freight.extra["discovery"] == "curated_rail_table"
     assert freight.filename == "sza0009.xlsx"
+
+
+# --- Statistik Austria: correct OGD URL shape + empty-200 = failure ----------
+
+
+def test_ogd_json_url_uses_query_param_not_path_segment():
+    # The 0-byte bug came from a path-segment URL; the API needs ?dataset=.
+    url = ogd_json_url("OGD_demo_X_1")
+    assert url == "https://data.statistik.gv.at/ogd/json?dataset=OGD_demo_X_1"
+    assert "?dataset=" in url
+    assert "/ogd/json/OGD_demo_X_1" not in url
+    assert ogd_csv_url("OGD_demo_X_1").endswith("/data/OGD_demo_X_1.csv")
+
+
+def test_is_valid_artifact_response_treats_empty_200_as_failure():
+    assert is_valid_artifact_response(200, b"PK\x03\x04data") is True
+    assert is_valid_artifact_response(200, b"") is False    # the headline bug
+    assert is_valid_artifact_response(200, None) is False
+    assert is_valid_artifact_response(404, b"data") is False
+
+
+def test_ingest_lands_real_resources_and_skips_empty_200():
+    # all configured rail resources return real ODS bytes -> all landed
+    good = _FakeKshSession(
+        {r.url: _FakeXlsxResponse(b"PK\x03\x04ods-bytes") for r in STAT_RAIL_RESOURCES})
+    lander = _RecordingLander()
+    assert stat_at.ingest(lander, session=good) == len(STAT_RAIL_RESOURCES)
+    assert ({a.dataset_id for a in lander.landed}
+            == {r.dataset_id for r in STAT_RAIL_RESOURCES})
+    assert "stat_at_rail_freight" in {a.dataset_id for a in lander.landed}
+
+    # every empty 200 must be skipped (regression guard for the 0-byte bug)
+    empty = _FakeKshSession(
+        {r.url: _FakeXlsxResponse(b"", status=200) for r in STAT_RAIL_RESOURCES})
+    lander2 = _RecordingLander()
+    assert stat_at.ingest(lander2, session=empty) == 0
+    assert lander2.landed == []

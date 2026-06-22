@@ -1,0 +1,37 @@
+{
+  "source": "statistik_austria",
+  "branch": "parser/statistik-austria-refresh",
+  "checked_utc": "2026-06-22",
+  "scope": "Diagnose the HTTP-200/0-byte failure, find the correct API shape, and locate a real openly-fetchable rail artifact.",
+  "root_causes": [
+    "Wrong API shape: OGD JSON is addressed by query param (?dataset=<id>), not a path segment (/ogd/json/<id>). The path form returns HTTP 200 with an EMPTY body, so a status-only check passed on nothing.",
+    "Fictional ids: OGD_verkehr_ein_VERK_1 / OGD_verkehr_gut_GUET_1 are not in the catalogue."
+  ],
+  "api_shape_confirmed": {
+    "ogd_json": "https://data.statistik.gv.at/ogd/json?dataset=<OGD_ID>",
+    "ogd_csv": "https://data.statistik.gv.at/data/<OGD_ID>.csv",
+    "example_working_nonrail": "OGD_gvd_waren_GVD_W_2 (inland waterway) returns real JSON manifest with CSV resources"
+  },
+  "catalogue_finding": "data.statistik.gv.at OGD has NO rail dataset. Full catalogue (~315 datasets) checked 2026-06-22 contains only road (OGD_gvk_fahrt_2010_*, OGD_gvk_ware_2010_*), inland-waterway (OGD_gvd_waren_*, OGD_gvd_fahrten_*) and road-accident (OGDEXT_UNFALLSRV_*) transport datasets.",
+  "rail_open_data_locations": {
+    "ods_download": "statistik.at file downloads (the openly fetchable rail artifacts)",
+    "statcube_login_required": "STATcube opendatabase ids desgv_daten_international / desgv_daten (interactive login; not usable unattended)",
+    "rail_passenger": "Personenverkehr Schiene published only as STATcube tables/PDF (no .ods/OGD); headline 2024 = 351.4M passengers (+6.9% vs 2023)"
+  },
+  "landed_artifacts": [
+    {
+      "dataset_id": "stat_at_rail_freight",
+      "url": "https://www.statistik.at/fileadmin/pages/86/Schienengueterverkehr_nach_Verkehrsbereich_2025.ods",
+      "http_status": 200, "format": "ods",
+      "title": "Schienengüterverkehr nach Verkehrsbereich (rail freight by transport segment)",
+      "feature": "rail_freight_tonnes, rail_freight_tonne_km",
+      "validation_values": {"freight_2025_tonnes_mio": 96.2, "freight_2025_tonne_km_bn": 21.5}
+    },
+    {"dataset_id": "stat_at_rail_locomotives", "url": "https://www.statistik.at/fileadmin/pages/79/Lokomotivbestaende_2023_und_2024.ods", "http_status": 200, "format": "ods", "title": "Lokomotivbestände 2023/2024", "feature": "rail_rolling_stock"},
+    {"dataset_id": "stat_at_rail_railcars", "url": "https://www.statistik.at/fileadmin/pages/79/Schienentriebfahrzeugbestaende_2023_und_2024.ods", "http_status": 200, "format": "ods", "title": "Schienentriebfahrzeugbestände 2023/2024", "feature": "rail_rolling_stock"},
+    {"dataset_id": "stat_at_rail_freight_wagons", "url": "https://www.statistik.at/fileadmin/pages/79/Schienengueterwaegenbestaende_2023_und_2024.ods", "http_status": 200, "format": "ods", "title": "Schienengüterwägenbestände 2023/2024", "feature": "rail_rolling_stock"},
+    {"dataset_id": "stat_at_rail_passenger_carriages", "url": "https://www.statistik.at/fileadmin/pages/79/Personenwaegenbestaende_2023_und_2024.ods", "http_status": 200, "format": "ods", "title": "Personenwägenbestände 2023/2024", "feature": "rail_rolling_stock"}
+  ],
+  "rolling_stock_total_2024": 20863,
+  "result": "API path corrected to ?dataset=, empty-200 now treated as failure, fictional ids removed. Statistik Austria has no rail OGD dataset, so the parser lands 5 real rail .ods files from statistik.at: rail freight + 4 rolling-stock files (locomotives, railcars, freight wagons, passenger carriages). Rail PASSENGER transport and NETWORK length are not openly fetchable (STATcube login / Verkehrsstatistik PDF) -> Eurostat stays primary for those AT features."
+}
