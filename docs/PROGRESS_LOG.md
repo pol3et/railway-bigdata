@@ -263,3 +263,40 @@ Next:
 
 - Add mocked HTTP tests inside source-owner work for RSS feed drift and KSH stale table handling.
 - Decide whether to extend `live_check` to Eurostat after the quoted-code dataset URL bug is fixed.
+
+## 2026-06-22 - PR Review And Parser Merges
+
+Status: done.
+
+Changed:
+
+- `.planning/coursework/research/bigdata/pr-review-merge-2026-06-22.md`
+- `src/railway_lakehouse/bronze/live_check.py`
+- `src/railway_lakehouse/bronze/sources/eurostat.py`
+- `src/railway_lakehouse/bronze/sources/worldbank.py`
+- `tests/test_bronze_live_check.py`
+- `tests/test_bronze_characterization.py`
+- `docs/PARSER_WORK_LOG.md`
+- `docs/GAP_REGISTER.md`
+
+Findings:
+
+- Reviewed all open GitHub PRs one by one: PR #1, PR #2, and PR #3.
+- PR #1 needed fixes before merge: live-check preflight validation, rerun-safe output paths, nonzero failure exit code, additional collector tests, and clearer raw-evidence docs.
+- PR #2 needed documentation reconciliation after PR #1 and broader quoted Eurostat code test coverage.
+- PR #3 needed conflict resolution after PR #2 and final verification of the World Bank allowlist and API error-payload handling.
+- All PRs were merged and the open PR list is empty.
+
+Evidence:
+
+- PR #1 merged at `226df6fb8e7a8482c8046bba3f499662e2a2ca13`.
+- PR #2 merged at `4f0f17e337a25a7cd646203848e5f480e05a38d3`.
+- PR #3 merged at `20c86e5521e26ff8ff978f4bc471ab9e9ce6f476`.
+- `python -m pytest -q` passed after all merges: 29 passed, 1 xfailed.
+- `python -m compileall .` passed after all merges.
+- Bounded Eurostat direct probe returned HTTP 200 and 552 bytes for `enpe_rail_go`.
+- Bounded World Bank direct probe accepted `IS.RRS.TOTL.KM`, `IS.RRS.GOOD.MT.K6`, and `IS.RRS.PASG.KM`; rejected the `BM.GSR.TRAN.CD` error envelope.
+
+Next:
+
+- GAP-004 remains the expected xfail until Bronze storage reads are wired in `src/railway_lakehouse/pipeline.py`.

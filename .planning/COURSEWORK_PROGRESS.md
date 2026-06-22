@@ -35,3 +35,40 @@ Next:
 
 - Keep raw live artifacts local unless the course submission explicitly needs them committed.
 - Extend command coverage only after source-specific fixes are verified.
+
+## 2026-06-22 - PR Review And Parser Merges
+
+Status: done.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/pr-review-merge-2026-06-22.md`.
+- Local files read first: `README.md`, `TASK.md`, `docs/INDEX.md`, `docs/CODEMAP.md`, `docs/ARCHITECTURE.md`, `docs/DATA_CONTRACTS.md`, `docs/WORKSTREAMS.md`, `docs/AGENTIC_WORKFLOW.md`, `docs/VERIFICATION.md`, `docs/ORGANIZATION_PLAN.md`, `docs/PROGRESS_LOG.md`, `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`, and PR branch diffs.
+- No Linear task was used; PR intent was reconstructed from code, docs, tests, and live probe evidence.
+
+Changed:
+
+- `.planning/coursework/research/bigdata/pr-review-merge-2026-06-22.md`
+- `src/railway_lakehouse/bronze/live_check.py`
+- `src/railway_lakehouse/bronze/sources/eurostat.py`
+- `src/railway_lakehouse/bronze/sources/worldbank.py`
+- `tests/test_bronze_live_check.py`
+- `tests/test_bronze_characterization.py`
+- `docs/PARSER_WORK_LOG.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PROGRESS_LOG.md`
+
+Evidence:
+
+- PR #1 reviewed, fixed, verified, and merged at `226df6fb8e7a8482c8046bba3f499662e2a2ca13`.
+- PR #2 reviewed, fixed, verified, and merged at `4f0f17e337a25a7cd646203848e5f480e05a38d3`.
+- PR #3 reviewed, fixed, verified, and merged at `20c86e5521e26ff8ff978f4bc471ab9e9ce6f476`.
+- `python -m pytest -q tests\test_bronze_live_check.py` passed: 8 passed.
+- `python -m pytest -q tests\test_bronze_characterization.py` passed: 11 passed.
+- `python -m pytest -q` passed after all merges: 29 passed, 1 xfailed.
+- `python -m compileall .` passed after all merges.
+- `gh pr list --state open --json number,title,headRefName,author,isDraft,mergeStateStatus,reviewDecision,url` returned an empty list.
+
+Next:
+
+- Keep the GAP-004 xfail in place until fixture-backed Bronze storage reads are implemented and verified.

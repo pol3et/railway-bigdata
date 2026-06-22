@@ -1,6 +1,6 @@
 # Gap Register
 
-Date: 2026-06-21
+Date: 2026-06-22
 
 Source: `docs/MERGE_STRATEGY.md`, `docs/TEST_FIRST_INTEGRATION_PLAN.md`, and characterization-test results.
 
@@ -23,7 +23,7 @@ Status values:
 | GAP-007 | open | Workstream F - Gold Owner | S3 local fixture E2E | `gold/run.py` says Silver loads must be wired. | Gold can load Silver outputs and write analysis-ready Parquet. | Fixture Silver inputs produce Gold Parquet and recorded row/column counts. | `python -m pytest -q -m integration` |
 | GAP-008 | closed | Workstream B - QA / Gap Register Owner | S1 package/import contract | No `tests/` directory existed under `bigdata/course_proj`. | Deterministic tests cover current Bronze/Silver/Gold behavior and live checks are opt-in. | Closed 2026-06-21: unit tests exist, markers are registered, and expected failure references GAP-004. | `python -m pytest -q` |
 | GAP-009 | open | Workstream G - Spark / Big Data Owner | S5 Spark evidence | No current Spark job entrypoint exists under `bigdata/course_proj`. | Spark job reads Gold/Silver data and writes evidence outputs. | Spark command records version, row counts, generated files, and warnings/failures. | `python -m railway_lakehouse.spark_jobs.coverage --input output/evidence/live/railway_ml.parquet --out output/evidence/spark/` |
-| GAP-010 | in_progress | Workstream H - Live Ops / Real Data Owner | S4 live Bronze/Silver/Gold run | Bounded RSS/KSH Bronze command evidence exists at `output/evidence/live-bronze/manifest.json`; full Bronze/Silver/Gold live evidence is not complete. | Bounded fixture and live runs generate evidence under `output/evidence/`. | Commands, logs, row counts, and generated paths are recorded. | `python -m pytest -q -m integration` |
+| GAP-010 | in_progress | Workstream H - Live Ops / Real Data Owner | S4 live Bronze/Silver/Gold run | Bounded RSS/KSH Bronze command evidence exists at `output/evidence/live-bronze/manifest.json`; parser PR verification added bounded Eurostat and World Bank live probes. Full Bronze/Silver/Gold live evidence is not complete. | Bounded fixture and live runs generate evidence under `output/evidence/`. | Commands, logs, row counts, and generated paths are recorded. | `python -m pytest -q -m integration` |
 | GAP-011 | open | Workstream I - Report / Presentation Owner | S5 Spark evidence | Report/presentation deliverables have not started beyond organization notes. | Report and presentation use only verified outputs and documented gaps. | Drafts link every data claim to evidence artifacts. | Manual review of `output/report/` and `output/presentation/` |
 
 ## Test Failure Mapping
@@ -41,3 +41,9 @@ Update this section after each test run.
 | `python -m pytest -q tests\test_bronze_live_check.py` | passed: 3 passed | GAP-010 | Local Bronze lander, manifest writer, and bounded runner behavior are unit-tested without network or MinIO. |
 | `python -m pytest -q` | passed: 18 passed, 1 xfailed | GAP-004 / GAP-010 | Full suite passed; existing `test_pipeline_storage_read_stubs_are_not_wired` remains the expected GAP-004 xfail. |
 | `python -m railway_lakehouse.bronze.live_check --sources rss,ksh --out output/evidence/live-bronze --max-artifacts 5` | passed | GAP-010 | Manifest `output/evidence/live-bronze/manifest.json`; RSS passed with 5 artifacts, KSH passed with 3 artifacts, 264,670 total bytes, no source failures. |
+| `python -m pytest -q tests\test_bronze_live_check.py` | passed: 8 passed | GAP-010 | PR #1 follow-up added rerun-safe output, preflight validation, collector response, and failure-exit coverage. |
+| `python -m pytest -q tests\test_bronze_characterization.py` | passed: 11 passed | GAP-005 / GAP-010 | Eurostat quoted-code parsing and World Bank indicator validation are covered after PR #2 and PR #3. |
+| Eurostat direct probe for `enpe_rail_go` | passed: HTTP 200, 552 bytes | GAP-010 | Bounded probe used `https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/enpe_rail_go/?format=TSV&compressed=true`. |
+| World Bank bounded direct probe | passed | GAP-010 | Accepted `IS.RRS.TOTL.KM`, `IS.RRS.GOOD.MT.K6`, and `IS.RRS.PASG.KM`; rejected `BM.GSR.TRAN.CD` as an API error envelope. |
+| `python -m pytest -q` | passed: 29 passed, 1 xfailed | GAP-004 / GAP-010 | Final suite after merging PR #1, PR #2, and PR #3; the only expected failure is `test_pipeline_storage_read_stubs_are_not_wired` for GAP-004. |
+| `python -m compileall .` | passed | GAP-001 / GAP-002 | Final syntax/import-bytecode sweep after all PR merges passed. |
