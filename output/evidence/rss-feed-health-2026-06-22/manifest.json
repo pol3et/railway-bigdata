@@ -1,0 +1,128 @@
+{
+  "run_id": "live-check-20260622-120431",
+  "timestamp_utc": "2026-06-22T12:04:31.477144+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "rss",
+      "status": "partial",
+      "artifact_count": 9,
+      "byte_count": 496138,
+      "http_statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        404,
+        200,
+        200,
+        200,
+        200
+      ],
+      "failures": [
+        {
+          "dataset_id": "hu_origo",
+          "url": "https://www.origo.hu/contentpartner/rss/hircentrum/origo.xml",
+          "http_status": 404,
+          "bytes": 9,
+          "error": "empty or non-200 response"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_telex",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_telex/ingest_date=2026-06-22/hu_telex.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_telex/ingest_date=2026-06-22/hu_telex.xml.meta.json",
+      "bytes": 38781,
+      "sha256": "0495bb120a80d64507f85d1e12fd2461ec2ec81dc9339ba514f93a64e5526187",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_index",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_index/ingest_date=2026-06-22/hu_index.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_index/ingest_date=2026-06-22/hu_index.xml.meta.json",
+      "bytes": 32151,
+      "sha256": "7af192616cd5199a8a24bc31d1b301b310c8df20c3bd3acf1bade5a1c5ededf2",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_hvg",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_hvg/ingest_date=2026-06-22/hu_hvg.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_hvg/ingest_date=2026-06-22/hu_hvg.xml.meta.json",
+      "bytes": 75984,
+      "sha256": "f42a99e71ba184538a6107bef5f6ec43f401a9a8148af0007079fd8a0ed427a3",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_24hu",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_24hu/ingest_date=2026-06-22/hu_24hu.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_24hu/ingest_date=2026-06-22/hu_24hu.xml.meta.json",
+      "bytes": 40199,
+      "sha256": "19eb3fd414203932a1f7498d77c2b47cd9c5d5f228c199cb366679039176ec7a",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_portfolio",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_portfolio/ingest_date=2026-06-22/hu_portfolio.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_portfolio/ingest_date=2026-06-22/hu_portfolio.xml.meta.json",
+      "bytes": 25240,
+      "sha256": "c0ffab403780afcf959193bb09bfd4db8c0fb07d2ec1add52eb8dc040a8536fb",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_magyarnemzet",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_magyarnemzet/ingest_date=2026-06-22/hu_magyarnemzet.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_magyarnemzet/ingest_date=2026-06-22/hu_magyarnemzet.xml.meta.json",
+      "bytes": 24590,
+      "sha256": "4c0b0d7b4b29fbbf425f624034b99daa83b6f222bf60a8a7726cb763e31897c8",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "hu_nepszava",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_nepszava/ingest_date=2026-06-22/hu_nepszava.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/hu_nepszava/ingest_date=2026-06-22/hu_nepszava.xml.meta.json",
+      "bytes": 35287,
+      "sha256": "3f6517ad8ca685aeb665217aa6fb3ea432870e3c779cc18da183cc414dfd3efa",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "at_orf",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/at_orf/ingest_date=2026-06-22/at_orf.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/at_orf/ingest_date=2026-06-22/at_orf.xml.meta.json",
+      "bytes": 13692,
+      "sha256": "f0ba4d7779ee51bc2d0775905b156aa68fa439346196d16952956353ada5750e",
+      "http_status": 200
+    },
+    {
+      "source": "rss",
+      "domain": "news",
+      "dataset_id": "at_derstandard",
+      "path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/at_derstandard/ingest_date=2026-06-22/at_derstandard.xml",
+      "meta_path": "output/evidence/rss-feed-health-2026-06-22/bronze/news/rss/at_derstandard/ingest_date=2026-06-22/at_derstandard.xml.meta.json",
+      "bytes": 210214,
+      "sha256": "65ba34525e3450b68851d1ca830a00d6c48b612f8cb911ddb557bfba76337bca",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 9,
+  "byte_count": 496138
+}
