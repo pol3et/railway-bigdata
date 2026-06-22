@@ -8,7 +8,6 @@ from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
 from railway_lakehouse.bronze.sources.gdelt import build_query
 from railway_lakehouse.bronze.sources import worldbank
 from railway_lakehouse.bronze.sources.worldbank import (
-    CONFIRMED_RAIL_INDICATORS,
     KNOWN_RAIL_INDICATORS,
     discover_rail_indicators,
     is_error_payload,
@@ -89,6 +88,17 @@ def test_gdelt_query_includes_rail_terms_and_country_restriction():
     assert "train" in query
     assert "Bahn" in query
     assert "MAV" in query
+
+
+def test_discover_rail_datasets_strips_quoted_dataset_codes():
+    toc_text = "\n".join(
+        [
+            'Railway passenger transport\t"rail_pa_typepas"',
+            "Rail freight transport\t'rail_go_typeall'",
+        ]
+    )
+
+    assert discover_rail_datasets(toc_text) == ["rail_go_typeall", "rail_pa_typepas"]
 
 
 # --- World Bank: discovery precision + response validation -------------------
