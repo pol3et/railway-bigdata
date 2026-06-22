@@ -16,8 +16,9 @@ python -m pytest -q
 Current verification result for this scaffold:
 
 - `python -m pip install --no-cache-dir -e ".[test]"` passed.
-- `python -m pytest -q` passed with 33 tests and 1 expected failure for GAP-004.
-- `python -m compileall .` passed.
+- `python -m pytest -q` passed with 56 tests.
+- `python -m compileall src tests` passed.
+- GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
 
 ## Current Status
 
@@ -26,8 +27,8 @@ The project now has one installable source tree:
 - `src/railway_lakehouse/bronze/` contains raw ingestion, landing, scheduler, and source adapters.
 - `src/railway_lakehouse/silver/` contains stats/news normalization and validation logic.
 - `src/railway_lakehouse/gold/` contains deterministic feature matrix builders and Parquet writing.
-- `src/railway_lakehouse/pipeline.py` imports through the package root but still has explicit Bronze read stubs.
-- `tests/` contains deterministic characterization tests plus one strict expected failure tied to `docs/GAP_REGISTER.md`.
+- `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze fixtures via `--bronze-root`; live MinIO runs are still unproven.
+- `tests/` contains deterministic characterization and integration tests, including the GAP-004 fixture E2E path.
 
 ## Start Here
 
@@ -50,8 +51,8 @@ web sources
   -> report + presentation
 ```
 
-Current implementation uses Python, MinIO/S3-style paths, pandas transformations, Ollama for bounded JSON extraction, and a planned Spark/lakehouse integration track.
+Current implementation uses Python, MinIO/S3-style paths, pandas transformations, Ollama for bounded JSON extraction, and a planned Spark/lakehouse integration track. The default local Ollama model is `qwen3.5:9b-q8_0`; use `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` when memory is tighter.
 
 ## Development Rule
 
-Do not claim the project runs end to end until `src/railway_lakehouse/pipeline.py` has real Bronze/Silver storage wiring and the command output is captured under `output/evidence/`.
+Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven path is deterministic fixture Bronze -> Silver -> Gold only.

@@ -45,6 +45,8 @@ Owns:
 Remaining:
 
 - GAP-006: read Bronze fixtures/storage and write auditable Silver outputs.
+- Active branch `silver/stats-worldbank-eurostat`: GAP-006 Silver Stats slice
+  for Eurostat TSV and World Bank JSON fixtures/storage.
 - KSH-specific follow-up: implement KSH XLSX -> `StatFact` parsing and Silver
   parser tests against the six live-confirmed STADAT tables.
 
@@ -59,6 +61,8 @@ Owns:
 Remaining:
 
 - GAP-006: persist Silver news outputs and count extraction failures.
+- Active branch `silver/news-rss-article-records`: GAP-006 Silver News slice
+  for RSS XML/article-record fixtures and validated news output accounting.
 
 ## 5. Gold And Analysis
 
@@ -70,6 +74,8 @@ Owns:
 Remaining:
 
 - GAP-007: load Silver outputs and produce fixture-backed Gold Parquet evidence.
+- The two active Silver branches are inputs to GAP-007 but do not close it
+  unless they also wire Gold loading and record Gold row/column evidence.
 
 ## 6. Spark / Big Data Jobs
 
@@ -95,7 +101,7 @@ Owns:
 
 Remaining:
 
-- GAP-004 and GAP-010: fixture E2E first, then live bounded runs.
+- GAP-010: expand from fixture evidence to bounded live Bronze/Silver/Gold evidence.
 
 ## 8. Report And Presentation
 

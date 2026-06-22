@@ -314,3 +314,277 @@ Evidence:
 Next:
 - Continue with GAP-004 fixture-backed Bronze reads, then minimal Silver/Gold
   persistence and Spark evidence.
+
+## 2026-06-22 - Current State And Next Plan
+
+Status: done for planning/status review; no source behavior changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/current-state-next-plan-2026-06-22.md`.
+- Local files read first: `README.md`, `docs/GAP_REGISTER.md`,
+  `docs/PARSER_WORK_LOG.md`, `docs/WORKSTREAMS.md`, `docs/PROGRESS_LOG.md`,
+  `.planning/COURSEWORK_PROGRESS.md`, `pyproject.toml`, pipeline, Bronze,
+  Silver, Gold, and related tests.
+- External source checked: Apache Spark official Parquet docs for the future
+  Gold Parquet -> Spark evidence path.
+
+Findings:
+- Local `main` is current at `2dc5091` and contains PR #5, PR #6, and PR #7.
+- The proposed stage plan is mostly correct, but Stage A should emphasize
+  fixture-backed inputs and persistence contracts, not rewriting already-tested
+  Gold/Silver primitives.
+- Parallel Stage A branches should be: RSS article records, World Bank/Eurostat
+  `StatFact` fixtures, and GAP-004 no-network Bronze -> Silver -> Gold wiring.
+- Spark remains blocked on Gold Parquet evidence; report/presentation claims
+  remain blocked on generated outputs.
+
+Evidence:
+- `python -m pytest -q` passed: 53 passed, 1 xfailed for GAP-004.
+- `python -m compileall src tests` passed.
+- No live collectors, MinIO, Ollama, Spark jobs, or long historical backfills were run.
+
+Next:
+- Start `pipeline/fixture-e2e-gap004` immediately.
+- Start `silver/news-rss-article-records` and `silver/stats-worldbank-eurostat`
+  in parallel.
+- Start KSH XLSX parsing after the first stats parser branch establishes shared
+  fixture conventions.
+
+## 2026-06-22 - Owner Recommendation Follow-Up
+
+Status: done for planning clarification; no source behavior changed.
+
+Research:
+- Local files reviewed: `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`,
+  `.planning/coursework/research/bigdata/current-state-next-plan-2026-06-22.md`,
+  plus `rg` over docs/source/tests for GAP-004, GAP-006, GAP-007, RSS, World
+  Bank, Eurostat, Gold Parquet, and Spark.
+- No new external docs were needed because this answer assigns ownership based
+  on current repo gaps and previously recorded evidence.
+
+Findings:
+- The user should own `pipeline/fixture-e2e-gap004` because it is the main
+  dependency for closing the first vertical slice.
+- Classmates are not blocked from working on Silver parser fixtures in parallel.
+- Spark/report/presentation remain blocked on generated Gold Parquet evidence.
+
+Evidence:
+- No tests, source edits, live collectors, MinIO, Ollama, Spark jobs, or long
+  historical backfills were run for this clarification.
+
+Next:
+- Start GAP-004 branch and define the fixture/input-output contract for the
+  parallel Silver parser branches.
+
+## 2026-06-22 - GAP-005 Scheduler Decision
+
+Status: done for planning clarification; no source behavior changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/gap005-scheduler-decision-2026-06-22.md`.
+- Local files reviewed: `docs/GAP_REGISTER.md`, `docs/PARSER_WORK_LOG.md`,
+  `src/railway_lakehouse/bronze/run.py`, current planning notes, and `rg`
+  search results for GAP-005/scheduler/source-adapter references.
+- No new external docs were needed because this is an internal scheduling and
+  ownership decision based on current repo state.
+
+Findings:
+- Defer GAP-005 from the user's critical path; GAP-004 remains the main owner
+  task.
+- GAP-005 can run in parallel if assigned to someone else as a narrow
+  Bronze-only PR.
+- Historical GDELT must not be wired into automatic scheduled runs.
+
+Evidence:
+- No source code, tests, live collectors, scheduler, MinIO, Ollama, Spark jobs,
+  or long historical backfills were run.
+
+Next:
+- Primary owner starts GAP-004.
+- Optional parallel owner can wire KSH, Statistik Austria, and UIC public PDFs
+  into `bronze/run.py` with mocked unit tests.
+
+## 2026-06-22 - GAP-004 Fixture Pipeline E2E
+
+Status: done for deterministic fixture-backed pipeline reads.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/pipeline-fixture-e2e-gap004-2026-06-22.md`.
+- Local files read first: `AGENTS.md`, `README.md`, `docs/GAP_REGISTER.md`,
+  `docs/VERIFICATION.md`, `docs/NEXT_SESSION_HANDOFF.md`,
+  `docs/DATA_CONTRACTS.md`, `src/railway_lakehouse/pipeline.py`, Bronze
+  lander/source files, Silver stats/news modules, Gold build/run modules, and
+  related tests.
+- No external docs were needed because this change used repo-local contracts and
+  did not make new Spark/API claims.
+
+Changed:
+- Added fixture-backed Bronze readers and local `--bronze-root` execution to
+  `src/railway_lakehouse/pipeline.py`.
+- Replaced the GAP-004 strict xfail with integration assertions in
+  `tests/test_pipeline_gaps.py`.
+- Added stable tiny Bronze fixtures under `tests/fixtures/bronze/**`.
+- Generated `output/evidence/fixture-e2e/railway_ml.parquet` and
+  `output/evidence/fixture-e2e/crosswalk_cache.json`.
+- Updated gap, verification, progress, and current-state docs.
+- Fixed the independent reviewer's low-risk `--news 0` edge case with a
+  regression test.
+
+Evidence:
+- RED before implementation: `python -m pytest -q tests\test_pipeline_gaps.py`
+  failed for the expected missing readers/CLI API.
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
+- `python -m pytest -q -m integration` passed: 4 passed, 52 deselected.
+- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction`
+  passed and wrote a 4-row, 3-column Gold Parquet artifact plus the
+  crosswalk cache.
+- `python -m pytest -q` passed: 56 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Boundaries:
+- GAP-004 is closed for deterministic fixture-backed Bronze reads.
+- Live MinIO, live collectors, Ollama service extraction, Silver persistence,
+  Gold storage loading, Spark, report, and presentation evidence remain open.
+
+Next:
+- Define minimal Silver/Gold persisted artifact contracts for GAP-006/GAP-007.
+- Use the generated Gold Parquet as the handoff input when starting Spark
+  evidence work.
+
+## 2026-06-22 - Active Silver Branch Gap Mapping
+
+Status: done for documentation; no source behavior changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/active-silver-branch-gap-map-2026-06-22.md`.
+- Local files reviewed: `docs/GAP_REGISTER.md`, `docs/WORKSTREAMS.md`,
+  `docs/WORK_SPLIT.md`, `docs/NEXT_SESSION_HANDOFF.md`, and
+  `docs/DATA_CONTRACTS.md`.
+- No external docs were needed because this is repo-local gap ownership mapping.
+
+Findings:
+- `silver/news-rss-article-records` is GAP-006, Silver News/RSS article-record
+  slice.
+- `silver/stats-worldbank-eurostat` is GAP-006, Silver Stats World
+  Bank/Eurostat slice.
+- Both can feed GAP-010 with bounded live evidence, but neither closes GAP-007
+  without Gold storage loading and Gold row/column evidence.
+
+Next:
+- Validate teammate PRs against GAP-006 closure criteria.
+- Keep GAP-007 as the follow-up integration point after Silver outputs persist.
+
+## 2026-06-22 - Ollama Model Selection
+
+Status: superseded by the later Qwen 3.5 runtime-config decision below.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/ollama-model-selection-2026-06-22.md`.
+- Local files reviewed first: `src/railway_lakehouse/silver/config.py`,
+  `src/railway_lakehouse/silver/ollama_client.py`,
+  `src/railway_lakehouse/silver/stats/merge.py`,
+  `src/railway_lakehouse/silver/news/extract.py`,
+  `src/railway_lakehouse/pipeline.py`, `docs/SILVER_DESIGN.md`,
+  `docs/ARCHITECTURE.md`, and `docs/WORK_SPLIT.md`.
+- External docs checked: official Ollama pages for `llama3.1:8b`,
+  `qwen3:8b`, `qwen3.5`, `gemma3`, and `gemma4`.
+
+Decision:
+- Default Ollama model is now `qwen3:8b`.
+- `qwen3.5:9b` is documented as the higher-quality local override when
+  6.6 GB model memory is acceptable.
+- Gemma is documented as an explicit experiment or low-memory alternative.
+
+Evidence:
+- `python -m pytest -q tests\test_silver_characterization.py tests\test_pipeline_gaps.py`
+  passed: 8 passed.
+- `python -m pytest -q` passed: 56 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Boundary:
+- No live Ollama service, model download, live extraction, MinIO, Spark, or
+  live collector run was executed for this model-selection update.
+
+Next:
+- Record live Ollama model pull/run evidence under `output/evidence/` before
+  claiming live extraction quality.
+
+## 2026-06-22 - Qwen 3.5 Ollama Runtime Config
+
+Status: done for MCP-backed model/runtime selection.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/qwen35-ollama-runtime-config-2026-06-22.md`.
+- Local files reviewed first: `src/railway_lakehouse/silver/config.py`,
+  `src/railway_lakehouse/silver/ollama_client.py`,
+  `src/railway_lakehouse/silver/stats/merge.py`,
+  `src/railway_lakehouse/silver/news/extract.py`,
+  `tests/test_silver_characterization.py`, and `docs/SILVER_DESIGN.md`.
+- MCP providers used: Tavily, Exa, and Firecrawl. Ref was attempted but
+  credit-blocked.
+
+Decision:
+- Default Ollama model is now `qwen3.5:9b-q8_0`.
+- `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` is the documented lower-memory fallback.
+- Ollama remains the default runtime; vLLM is deferred until the project needs
+  high-throughput serving.
+- The client now uses `/api/chat`, JSON schema `format`, top-level
+  `think: false`, `temperature=0`, `OLLAMA_NUM_CTX=8192`, and
+  `OLLAMA_NUM_PREDICT=1024`.
+
+Evidence:
+- `python -m pytest -q tests\test_silver_characterization.py` passed:
+  7 passed.
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
+- `python -m pytest -q` passed: 58 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Boundary:
+- No live Ollama service, model download, live extraction, MinIO, Spark, or
+  live collector run was executed for this runtime-config update.
+
+Next:
+- Record live Ollama pull/run evidence under `output/evidence/` before claiming
+  live Qwen extraction quality.
+
+## 2026-06-22 - PR #8 Review Follow-Up
+
+Status: done; actionable automated-review nits applied.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/pr8-review-followup-2026-06-22.md`.
+- Local files reviewed first: PR #8 review comment,
+  `src/railway_lakehouse/pipeline.py`, `tests/test_pipeline_gaps.py`,
+  `docs/VERIFICATION.md`, `docs/PIPELINE.md`, and `docs/GAP_REGISTER.md`.
+- No external docs were needed; this was repo-local review follow-up.
+
+Changed:
+- Hardened Bronze path parsing errors.
+- Added `--crosswalk-path` and updated evidence commands.
+- Normalized missing article bodies, fallback IDs, and flexible dates.
+- Updated fixture pipeline tests and docs.
+
+Evidence:
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 5 passed.
+- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction`
+  passed.
+- Parquet readback passed: `(4, 3)`.
+- `output/evidence/fixture-e2e/crosswalk_cache.json` contains
+  `Rail passengers total -> rail_passengers`.
+- `python -m pytest -q` passed: 60 passed.
+- `python -m pytest -q -m integration` passed: 6 passed, 54 deselected.
+- `python -m compileall src tests` passed.
+
+Boundary:
+- No live collectors, MinIO service, live Ollama model, Spark job, report, or
+  presentation output was executed for this review follow-up.

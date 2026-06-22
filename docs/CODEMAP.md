@@ -17,7 +17,7 @@ Scope: current filesystem under `bigdata/course_proj`.
 | `.gitignore` | Repo-local ignore rules. | Keeps runtime/cache artifacts out of commits. |
 | `WIRING.md` | Remaining source-scheduling note. | Now focused on GAP-005, not file copying. |
 | `docs/` | Durable documentation set. | Code map, architecture, contracts, verification, progress, gaps. |
-| `tests/` | Pytest characterization suite. | Deterministic tests plus strict expected failure for GAP-004. |
+| `tests/` | Pytest characterization and integration suite. | Deterministic tests include the GAP-004 fixture E2E path. |
 | `output/` | Student-facing evidence and notes. | Runtime scratch belongs under `output/runtime/`. |
 
 ## Source Package
@@ -27,7 +27,7 @@ Path: `src/railway_lakehouse/`
 | File | Responsibility |
 |---|---|
 | `__init__.py` | Package marker for editable installs. |
-| `pipeline.py` | End-to-end Bronze -> Silver -> Gold orchestration skeleton; Bronze read stubs remain GAP-004. |
+| `pipeline.py` | End-to-end Bronze -> Silver -> Gold orchestration skeleton with local fixture-backed Bronze reads. |
 
 ## Bronze
 
@@ -84,11 +84,10 @@ Current status: deterministic Gold logic is characterized by unit tests. Silver-
 | `tests/test_bronze_live_check_integration.py` | Deterministic integration fixture for KSH live-check manifest, raw Bronze file, and metadata writing. |
 | `tests/test_silver_characterization.py` | Silver stats melt/crosswalk/merge and news validation/extraction behavior. |
 | `tests/test_gold_characterization.py` | Gold conflict resolution, pivot, news aggregation, zero fill, Parquet write. |
-| `tests/test_pipeline_gaps.py` | Strict expected failure for GAP-004 pipeline Bronze read stubs. |
+| `tests/test_pipeline_gaps.py` | GAP-004 fixture-backed Bronze reader and Bronze -> Silver -> Gold integration coverage. |
 
 ## Missing Or Not Yet Implemented
 
 - No Spark job exists under `src/railway_lakehouse/spark_jobs/` yet.
-- No deterministic fixture E2E exists yet; current tests are unit-level plus one expected pipeline failure.
-- No live MinIO/Ollama/Spark evidence has been generated in this session.
+- Deterministic fixture E2E exists for GAP-004; live MinIO/Ollama/Spark evidence is still not generated.
 - Report and presentation outputs are not started beyond organization notes.

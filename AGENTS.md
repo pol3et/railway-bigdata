@@ -33,7 +33,7 @@ Current code now lives under one installable source tree:
 | `src/railway_lakehouse/bronze/` | Raw ingestion package with MinIO landing, scheduler, Eurostat/World Bank/GDELT/RSS sources, and national/historical add-ons. | Implemented; KSH/Statistik Austria/UIC/history scheduling remains GAP-005. |
 | `src/railway_lakehouse/silver/` | Stats normalization, LLM-bounded news extraction, schemas, Ollama client. | Core logic tested; storage reads/writes are not wired. |
 | `src/railway_lakehouse/gold/` | Deterministic feature matrix builder and Parquet writer. | Core logic tested; Silver storage reads are not wired. |
-| `src/railway_lakehouse/pipeline.py` | End-to-end orchestration skeleton. | Imports through `railway_lakehouse`; Bronze read stubs remain GAP-004. |
+| `src/railway_lakehouse/pipeline.py` | End-to-end orchestration skeleton with fixture-backed Bronze reads. | GAP-004 closed for deterministic local fixtures; live MinIO/Ollama/Spark path remains unproven. |
 | `docs/GAP_REGISTER.md` | Owner-ready gap register and test failure mapping. | Current split point for classmates. |
 
 Historical docs and `.planning/codebase/*.md` may mention `bigdata/course_proj/parser/`. That path is stale for the current tree unless it reappears in the filesystem.

@@ -9,6 +9,7 @@ We never push numeric table rows through it.
 Design choices that matter for a data pipeline:
   * deterministic decoding (temperature=0) so re-runs are reproducible;
   * JSON-constrained output (format="json", or a JSON schema on newer Ollama);
+  * Qwen thinking disabled at the top level so JSON budget goes to content;
   * bounded retries with backoff; a failed call returns None, never a guess;
   * the caller validates every payload against a schema (schema.py) — the LLM
     output is treated as untrusted until validated.
@@ -20,7 +21,15 @@ from typing import Any
 
 import requests
 
-from .config import OLLAMA_HOST, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_NUM_RETRIES
+from .config import (
+    OLLAMA_HOST,
+    OLLAMA_MODEL,
+    OLLAMA_TIMEOUT,
+    OLLAMA_NUM_RETRIES,
+    OLLAMA_NUM_CTX,
+    OLLAMA_NUM_PREDICT,
+    OLLAMA_THINK,
+)
 
 logger = logging.getLogger("silver.ollama")
 
@@ -28,22 +37,30 @@ logger = logging.getLogger("silver.ollama")
 def generate_json(prompt: str, *, model: str | None = None,
                   schema: dict | None = None, system: str | None = None,
                   temperature: float = 0.0) -> dict | list | None:
-    """Call Ollama /api/generate in JSON mode and return the parsed object.
+    """Call Ollama /api/chat in JSON mode and return the parsed object.
 
     Returns None on transport failure or unparseable output (caller decides what
     to do — we never fabricate a result). `schema`, if given, is passed as the
     `format` field (structured outputs on Ollama >= 0.5); otherwise format="json".
     """
-    url = f"{OLLAMA_HOST}/api/generate"
+    url = f"{OLLAMA_HOST}/api/chat"
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
     payload: dict[str, Any] = {
         "model": model or OLLAMA_MODEL,
-        "prompt": prompt,
+        "messages": messages,
         "stream": False,
         "format": schema if schema else "json",
-        "options": {"temperature": temperature},
+        "think": OLLAMA_THINK,
+        "options": {
+            "temperature": temperature,
+            "num_ctx": OLLAMA_NUM_CTX,
+            "num_predict": OLLAMA_NUM_PREDICT,
+        },
     }
-    if system:
-        payload["system"] = system
 
     last_err = None
     for attempt in range(1, OLLAMA_NUM_RETRIES + 1):
@@ -54,7 +71,7 @@ def generate_json(prompt: str, *, model: str | None = None,
                 logger.warning("Ollama %s (attempt %d/%d)", last_err, attempt, OLLAMA_NUM_RETRIES)
                 time.sleep(min(2 ** attempt, 10)); continue
             body = r.json()
-            text = body.get("response", "")
+            text = _response_text(body)
             return _parse_json_loose(text)
         except requests.RequestException as e:
             last_err = str(e)
@@ -63,6 +80,13 @@ def generate_json(prompt: str, *, model: str | None = None,
     logger.error("Ollama generate_json giving up after %d attempts: %s",
                  OLLAMA_NUM_RETRIES, last_err)
     return None
+
+
+def _response_text(body: dict[str, Any]) -> str:
+    message = body.get("message")
+    if isinstance(message, dict):
+        return str(message.get("content", ""))
+    return str(body.get("response", ""))
 
 
 def _parse_json_loose(text: str) -> dict | list | None:
@@ -101,7 +125,9 @@ def health_check() -> bool:
         r = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=10)
         if r.status_code != 200:
             return False
-        names = {m.get("name", "").split(":")[0] for m in r.json().get("models", [])}
-        return OLLAMA_MODEL.split(":")[0] in names
+        names = {m.get("name", "") for m in r.json().get("models", [])}
+        if ":" in OLLAMA_MODEL:
+            return OLLAMA_MODEL in names
+        return OLLAMA_MODEL in {name.split(":")[0] for name in names}
     except requests.RequestException:
         return False

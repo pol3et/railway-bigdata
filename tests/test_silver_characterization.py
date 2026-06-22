@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from railway_lakehouse.silver.news import extract as news_extract
+from railway_lakehouse.silver import ollama_client
 from railway_lakehouse.silver.schema import validate_news_feature
 from railway_lakehouse.silver.stats import merge as stats_merge
 
@@ -151,3 +152,51 @@ def test_extract_article_uses_mocked_ollama_output(monkeypatch):
     assert feature.event_type == "investment"
     assert feature.operators == ["RailCargo"]
     assert feature.confidence == 0.8
+
+
+def test_ollama_json_call_uses_chat_schema_and_disables_thinking(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"message": {"content": "{\"ok\": true}"}}
+
+    def fake_post(url, *, json, timeout):
+        calls.append({"url": url, "json": json, "timeout": timeout})
+        return FakeResponse()
+
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    monkeypatch.setattr(ollama_client.requests, "post", fake_post)
+    monkeypatch.setattr(ollama_client, "OLLAMA_MODEL", "qwen3.5:9b-q8_0")
+    monkeypatch.setattr(ollama_client, "OLLAMA_THINK", False)
+
+    result = ollama_client.generate_json("Return JSON.", schema=schema, system="Extract only.")
+
+    assert result == {"ok": True}
+    assert calls[0]["url"].endswith("/api/chat")
+    payload = calls[0]["json"]
+    assert payload["model"] == "qwen3.5:9b-q8_0"
+    assert payload["messages"] == [
+        {"role": "system", "content": "Extract only."},
+        {"role": "user", "content": "Return JSON."},
+    ]
+    assert payload["format"] == schema
+    assert payload["think"] is False
+    assert payload["options"]["temperature"] == 0.0
+    assert payload["options"]["num_ctx"] == ollama_client.OLLAMA_NUM_CTX
+    assert payload["options"]["num_predict"] == ollama_client.OLLAMA_NUM_PREDICT
+
+
+def test_ollama_health_check_requires_exact_tag_for_tagged_model(monkeypatch):
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"models": [{"name": "qwen3.5:9b-q4_K_M"}]}
+
+    monkeypatch.setattr(ollama_client, "OLLAMA_MODEL", "qwen3.5:9b-q8_0")
+    monkeypatch.setattr(ollama_client.requests, "get", lambda *args, **kwargs: FakeResponse())
+
+    assert ollama_client.health_check() is False

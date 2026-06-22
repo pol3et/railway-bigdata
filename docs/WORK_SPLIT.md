@@ -126,7 +126,8 @@ Goal: convert news records into validated `NewsFeature` rows.
 Owns:
 
 - article input schema,
-- Ollama prompt boundary,
+- Ollama prompt boundary, with `qwen3.5:9b-q8_0` as the quality-first default
+  and `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` as the lower-memory override,
 - validation,
 - event taxonomy,
 - operator taxonomy,
@@ -246,3 +247,15 @@ No one owns a gap by saying they will look at it. A person owns a gap only when 
 - expected test,
 - verification command,
 - sync point affected.
+
+## Active Branch Mapping - 2026-06-22
+
+| Branch | Owner surface | Gap | Expected handoff |
+|---|---|---|---|
+| `pipeline/fixture-e2e-gap004` | Pipeline fixture E2E | GAP-004 closed | Local Bronze fixture readers and fixture Gold evidence. |
+| `silver/news-rss-article-records` | Workstream E - Silver News / Feature Audit | GAP-006 | RSS/article Bronze fixtures become auditable Silver news rows or article records; extraction failures are visible. |
+| `silver/stats-worldbank-eurostat` | Workstream D - Silver Stats Owner | GAP-006 | World Bank JSON and Eurostat TSV fixtures/storage become `StatFact` rows with provenance and no LLM numeric rewriting. |
+
+`silver/news-rss-article-records` and `silver/stats-worldbank-eurostat` may
+contribute to GAP-010 if they record bounded live evidence, but they are not
+GAP-007 unless they also wire Gold loading from persisted Silver outputs.

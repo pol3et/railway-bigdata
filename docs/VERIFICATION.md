@@ -9,14 +9,32 @@ Fresh results from 2026-06-22:
 ```bash
 python -m pytest -q
 python -m compileall src tests
+git diff --check
 ```
 
 Observed results:
 
-- Full suite passed: 43 passed, 1 xfailed.
-- Expected failure: `tests/test_pipeline_gaps.py::test_pipeline_storage_read_stubs_are_not_wired`, mapped to GAP-004.
+- Full suite passed: 56 passed.
+- GAP-004 fixture pipeline tests passed; there is no current expected xfail.
 - Compileall passed.
 - `git diff --check` passed.
+
+Additional GAP-004 fixture E2E validation from 2026-06-22:
+
+```bash
+python -m pytest -q tests\test_pipeline_gaps.py
+python -m pytest -q -m integration
+python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction
+python -c "import pandas as pd; df=pd.read_parquet(r'output\evidence\fixture-e2e\railway_ml.parquet'); print(df.shape); print(df.to_string(index=False))"
+```
+
+Observed results:
+
+- Pipeline GAP test passed: 5 passed.
+- Integration marker suite passed: 6 passed, 54 deselected.
+- Fixture pipeline command wrote `output/evidence/fixture-e2e/railway_ml.parquet` and `output/evidence/fixture-e2e/crosswalk_cache.json`.
+- Parquet readback returned shape `(4, 3)` with `AT/HU` rows for `2020/2021`.
+- The fixture CLI run used `--skip-news-extraction`, so it did not prove a live Ollama service.
 
 Additional GDELT validation from 2026-06-22:
 
@@ -93,18 +111,22 @@ tests/
   test_silver_characterization.py
   test_gold_characterization.py
   test_pipeline_gaps.py
+  fixtures/bronze/
 ```
 
-The pipeline gap test is a strict `xfail`; if it starts passing, GAP-004 should be reviewed and closed only after fixture evidence is recorded.
+The pipeline gap test now closes GAP-004 with fixture-backed Bronze readers and a no-network Bronze -> Silver -> Gold integration path.
 
 ## Future Checks
 
 ### Integration Fixture E2E
 
-1. Land or load a tiny local fixture into a test Bronze area.
-2. Read it into Silver.
-3. Build Gold.
-4. Write a Parquet artifact under `output/evidence/fixture-e2e/`.
+Implemented for GAP-004 with repo-local input fixtures under `tests/fixtures/bronze/`.
+
+The evidence command is:
+
+```bash
+python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction
+```
 
 Command target:
 

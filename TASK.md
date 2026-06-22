@@ -35,10 +35,10 @@ Railway data and news analysis for Hungary and Austria, with possible internatio
 
 ## Current Gaps
 
-- End-to-end MinIO reads are not wired in `src/railway_lakehouse/pipeline.py`.
+- Deterministic fixture Bronze reads are wired in `src/railway_lakehouse/pipeline.py`; live MinIO end-to-end evidence is still not recorded.
 - New national/historical fetchers are present but not imported by the Bronze scheduler.
 - No Spark job exists yet under `src/railway_lakehouse/spark_jobs/`.
-- No executed output evidence was found under `bigdata/course_proj/output`.
+- Fixture Gold Parquet evidence exists under `output/evidence/fixture-e2e/`; live/Spark/report evidence is still missing.
 
 ## Acceptance Bar For Future Agents
 
