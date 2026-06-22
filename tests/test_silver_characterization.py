@@ -5,6 +5,7 @@ from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver import ollama_client
 from railway_lakehouse.silver.schema import validate_news_feature
 from railway_lakehouse.silver.stats import merge as stats_merge
+from railway_lakehouse.silver.stats import load as stats_load
 
 
 pytestmark = pytest.mark.unit
@@ -200,3 +201,49 @@ def test_ollama_health_check_requires_exact_tag_for_tagged_model(monkeypatch):
     monkeypatch.setattr(ollama_client.requests, "get", lambda *args, **kwargs: FakeResponse())
 
     assert ollama_client.health_check() is False
+
+
+# --- World Bank / Eurostat Bronze-bytes loaders (deterministic, no LLM) ------
+
+import gzip as _gzip
+import json as _json
+
+
+def test_load_worldbank_frame_parses_meta_records_and_tags_source():
+    payload = [
+        {"page": 1, "total": 2},
+        [
+            {"indicator": {"id": "IS.RRS.PASG.KM",
+                           "value": "Railways, passengers carried (million passenger-km)"},
+             "countryiso3code": "HUN", "date": "2021", "value": 5435.389},
+            {"indicator": {"id": "IS.RRS.PASG.KM",
+                           "value": "Railways, passengers carried (million passenger-km)"},
+             "countryiso3code": "HUN", "date": "2022", "value": None},
+        ],
+    ]
+    frame = stats_load.load_worldbank_frame(_json.dumps(payload).encode(), "IS.RRS.PASG.KM")
+
+    assert (frame["source_system"] == "worldbank").all()
+    assert set(frame["geo"]) == {"HU"}
+    hu21 = frame[frame["year"] == 2021].iloc[0]
+    assert hu21["value"] == 5435.389                       # number preserved verbatim
+    assert hu21["source_column"].startswith("Railways, passengers")
+    assert frame[frame["year"] == 2022].iloc[0]["value"] is None or pd.isna(
+        frame[frame["year"] == 2022].iloc[0]["value"])
+
+
+def test_load_worldbank_frame_rejects_error_envelope_and_empty():
+    err = b'[{"message": [{"id": "175", "key": "Invalid format", "value": "deleted"}]}]'
+    assert stats_load.load_worldbank_frame(err, "BM.GSR.TRAN.CD").empty
+    assert stats_load.load_worldbank_frame(b'[{"total": 0}, null]', "x").empty
+    assert stats_load.load_worldbank_frame(b"not json", "x").empty
+
+
+def test_load_eurostat_frame_reads_plain_and_gzipped_tsv():
+    tsv = b"Rail passengers total\t2020\t2021\nA,NR,HU\t100 b\t110\nA,NR,AT\t200\t210\n"
+    for raw in (tsv, _gzip.compress(tsv)):
+        frame = stats_load.load_eurostat_frame(raw, "rail_demo")
+        assert (frame["source_system"] == "eurostat").all()
+        hu20 = frame[(frame["geo"] == "HU") & (frame["year"] == 2020)].iloc[0]
+        assert hu20["value"] == 100                        # flag " b" stripped
+        assert hu20["source_column"] == "Rail passengers total"

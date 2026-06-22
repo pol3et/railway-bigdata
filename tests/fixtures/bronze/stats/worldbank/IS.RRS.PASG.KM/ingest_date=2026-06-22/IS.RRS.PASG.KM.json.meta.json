@@ -1,0 +1,14 @@
+{
+  "source_system": "worldbank",
+  "domain": "stats",
+  "dataset_id": "IS.RRS.PASG.KM",
+  "source_url": "https://api.worldbank.org/v2/country/all/indicator/IS.RRS.PASG.KM?format=json&per_page=20000",
+  "original_filename": "IS.RRS.PASG.KM.json",
+  "content_type": "application/json",
+  "http_status": 200,
+  "byte_size": 1217,
+  "sha256": "6f9f7ce3da4cbed74f0d23dc56e9f57eaa68039ebc5ead3c05853e750d80c524",
+  "fetch_timestamp_utc": "2026-06-22T10:15:00+00:00",
+  "ingest_run_id": "fixture",
+  "extra": {}
+}
