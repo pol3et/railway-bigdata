@@ -115,14 +115,15 @@ def run_live_check(
 
     now = (clock or _utc_now)()
     run_id = f"live-check-{now.strftime('%Y%m%d-%H%M%S')}"
-    lander = LocalBronzeLander(out, run_id=run_id, clock=clock)
     collector_map = collectors or _default_collectors()
+    selected_sources = _normalize_sources(sources)
+    _validate_sources(selected_sources, collector_map)
+    run_out = _resolve_run_output_dir(Path(out), run_id)
+    lander = LocalBronzeLander(run_out, run_id=run_id, clock=clock)
     source_results: list[SourceResult] = []
 
-    for source in _normalize_sources(sources):
-        collector = collector_map.get(source)
-        if collector is None:
-            raise ValueError(f"unsupported source '{source}'. Supported sources: {', '.join(sorted(collector_map))}")
+    for source in selected_sources:
+        collector = collector_map[source]
         try:
             source_results.append(
                 collector(
@@ -144,7 +145,7 @@ def run_live_check(
             )
 
     return write_manifest(
-        out,
+        run_out,
         run_id=run_id,
         run_timestamp=now,
         source_results=source_results,
@@ -305,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         timeout_seconds=args.timeout_seconds,
     )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    failed_sources = [source for source in manifest["sources"] if source["status"] != "passed"]
     print(
         json.dumps(
             {
@@ -325,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
             indent=2,
         )
     )
-    return 0
+    return 1 if failed_sources else 0
 
 
 def _source_result(source: str, artifacts: list[dict], http_statuses: list[int], failures: list[dict]) -> SourceResult:
@@ -354,6 +356,26 @@ def _normalize_sources(sources: Iterable[str]) -> list[str]:
     if not normalized:
         raise ValueError("at least one source is required")
     return normalized
+
+
+def _validate_sources(sources: Iterable[str], collector_map: Mapping[str, Collector]) -> None:
+    unsupported = [source for source in sources if source not in collector_map]
+    if unsupported:
+        supported = ", ".join(sorted(collector_map))
+        requested = ", ".join(unsupported)
+        raise ValueError(f"unsupported source(s): {requested}. Supported sources: {supported}")
+
+
+def _resolve_run_output_dir(out_path: Path, run_id: str) -> Path:
+    if not ((out_path / "manifest.json").exists() or (out_path / "bronze").exists()):
+        return out_path
+
+    candidate = out_path / run_id
+    suffix = 2
+    while candidate.exists():
+        candidate = out_path / f"{run_id}-{suffix}"
+        suffix += 1
+    return candidate
 
 
 def _default_collectors() -> dict[str, Collector]:

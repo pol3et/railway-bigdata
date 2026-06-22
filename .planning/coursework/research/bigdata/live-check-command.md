@@ -33,4 +33,7 @@ No external docs were needed. This is a repo-local command that uses the existin
 - Add tests first for local landing and manifest behavior.
 - Keep defaults bounded through `--max-artifacts`.
 - Record source status, artifact paths, byte counts, HTTP statuses, failures, and run timestamp in `manifest.json`.
+- Validate all selected sources before writing so typos cannot leave partial unmanifested output.
+- Preserve previous evidence on reruns by writing a run-specific subdirectory when the requested output root already contains a manifest or Bronze tree.
+- Return a nonzero CLI status when any selected source is not `passed`, while still writing the failure manifest.
 - Run the requested bounded command for `rss,ksh` only after tests pass.
