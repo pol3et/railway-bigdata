@@ -50,12 +50,7 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
     import railway_lakehouse.pipeline as pipeline
 
     out_path = tmp_path / "gold" / "railway_ml.parquet"
-
-    monkeypatch.setattr(
-        pipeline.stats_merge,
-        "CROSSWALK_PATH",
-        str(tmp_path / "crosswalk.json"),
-    )
+    crosswalk_path = tmp_path / "crosswalk.json"
     monkeypatch.setattr(pipeline, "health_check", lambda: True)
 
     def fake_generate_json(prompt, *, schema=None, system=None):
@@ -85,10 +80,13 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
             "1",
             "--out",
             str(out_path),
+            "--crosswalk-path",
+            str(crosswalk_path),
         ]
     )
 
     assert returned == str(out_path)
+    assert crosswalk_path.exists()
     gold = pd.read_parquet(out_path)
     assert set(gold["geo"]) == {"AT", "HU"}
     hu_2020 = gold[(gold["geo"] == "HU") & (gold["year"] == 2020)].iloc[0]
@@ -98,3 +96,30 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
     assert hu_2020["news_n_investment"] == 1
     assert hu_2020["news_total_investment_eur"] == 1000
     assert at_2020["news_article_count"] == 0
+
+
+def test_pipeline_article_normalization_handles_missing_body_dates_and_fallback_ids():
+    import railway_lakehouse.pipeline as pipeline
+
+    article = pipeline._normalize_article(
+        {"title": "Only a title", "published_date": "April 1, 2020"},
+        source="rss",
+        path=Path("news") / "rss" / "demo.json",
+        index=2,
+    )
+
+    assert article == {
+        "article_id": "news/rss/demo.json#2",
+        "source": "rss",
+        "url": "",
+        "title": "Only a title",
+        "body": "",
+        "published_date": "2020-04-01",
+    }
+
+
+def test_pipeline_bronze_path_errors_include_context():
+    import railway_lakehouse.pipeline as pipeline
+
+    with pytest.raises(ValueError, match="stats dataset id"):
+        pipeline._dataset_id_from_path(Path("stats") / "eurostat", "eurostat")

@@ -65,7 +65,11 @@ Update this section after each test run.
 | `git diff --check` | passed | repo hygiene | No whitespace errors in the current working-tree diff. |
 | `python -m pytest -q tests\test_pipeline_gaps.py` | passed: 3 passed | GAP-004 | Fixture-backed Bronze readers, zero-limit news behavior, and Bronze -> Silver -> Gold Parquet path are covered with local fixtures and mocked Ollama JSON output. |
 | `python -m pytest -q -m integration` | passed: 4 passed, 52 deselected | GAP-004 / GAP-010 | Integration marker suite now has no GAP-004 xfail. |
-| `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction` | passed: wrote 4 rows, 3 columns | GAP-004 / GAP-010 | Deterministic no-network fixture evidence written under `output/evidence/fixture-e2e/`; news extraction skipped to avoid live Ollama. |
+| `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction` | passed: wrote 4 rows, 3 columns | GAP-004 / GAP-010 | Deterministic no-network fixture evidence written under `output/evidence/fixture-e2e/`; news extraction skipped to avoid live Ollama. |
 | `python -m pytest -q` | passed: 56 passed | GAP-004 / GAP-010 | Full suite passes after closing the GAP-004 xfail. |
 | `python -m compileall src tests` | passed | GAP-001 / GAP-002 | Syntax/import-bytecode sweep passed after GAP-004 changes. |
 | `git diff --check` | passed | repo hygiene | Exited 0 after GAP-004 changes. |
+| PR #8 review follow-up | passed | GAP-004 / repo hygiene | Addressed the other agent's minor nits: safer path errors, reproducible crosswalk evidence path, article date/body/id normalization, limit cleanup, and docstring wording. |
+| `python -m pytest -q tests\test_pipeline_gaps.py` | passed: 5 passed | GAP-004 | Added review-follow-up coverage for crosswalk path CLI, article normalization, and malformed Bronze path errors. |
+| `python -m pytest -q -m integration` | passed: 6 passed, 54 deselected | GAP-004 / GAP-010 | Integration marker suite includes the review-follow-up GAP-004 tests. |
+| `python -m pytest -q` | passed: 60 passed | GAP-004 / GAP-010 | Full suite passes after PR #8 review-follow-up changes. |

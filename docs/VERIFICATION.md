@@ -24,15 +24,15 @@ Additional GAP-004 fixture E2E validation from 2026-06-22:
 ```bash
 python -m pytest -q tests\test_pipeline_gaps.py
 python -m pytest -q -m integration
-python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction
+python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction
 python -c "import pandas as pd; df=pd.read_parquet(r'output\evidence\fixture-e2e\railway_ml.parquet'); print(df.shape); print(df.to_string(index=False))"
 ```
 
 Observed results:
 
-- Pipeline GAP test passed: 3 passed.
-- Integration marker suite passed: 4 passed, 52 deselected.
-- Fixture pipeline command wrote `output/evidence/fixture-e2e/railway_ml.parquet`.
+- Pipeline GAP test passed: 5 passed.
+- Integration marker suite passed: 6 passed, 54 deselected.
+- Fixture pipeline command wrote `output/evidence/fixture-e2e/railway_ml.parquet` and `output/evidence/fixture-e2e/crosswalk_cache.json`.
 - Parquet readback returned shape `(4, 3)` with `AT/HU` rows for `2020/2021`.
 - The fixture CLI run used `--skip-news-extraction`, so it did not prove a live Ollama service.
 
@@ -125,7 +125,7 @@ Implemented for GAP-004 with repo-local input fixtures under `tests/fixtures/bro
 The evidence command is:
 
 ```bash
-python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction
+python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction
 ```
 
 Command target:

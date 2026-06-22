@@ -36,6 +36,8 @@ live collectors, MinIO, Ollama service, Spark, or long backfills were used.
   The fixture covers the GDELT-style `{"articles": [...]}` shape.
 - Added `--skip-news-extraction` so service-free CLI evidence can avoid Ollama
   while tests still cover mocked news extraction.
+- Added `--crosswalk-path` in PR review follow-up so the committed fixture
+  crosswalk cache is reproducible from the documented command.
 - Added `tests/fixtures/bronze/**` as the stable repo-local fixture input.
 - Independent read-only review found one low-risk `limit=0` news-reader edge
   case, fixed with `test_pipeline_news_reader_honors_zero_limit`.
@@ -51,8 +53,9 @@ live collectors, MinIO, Ollama service, Spark, or long backfills were used.
 - GAP closure command:
   `python -m pytest -q -m integration` passed: 4 passed, 52 deselected.
 - Fixture evidence command:
-  `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction`
-  passed and wrote `output/evidence/fixture-e2e/railway_ml.parquet`.
+  `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction`
+  passed and wrote `output/evidence/fixture-e2e/railway_ml.parquet` plus
+  `output/evidence/fixture-e2e/crosswalk_cache.json`.
 - Parquet readback:
   `(4, 3)` with rows for `AT/HU` in `2020/2021` and `rail_passengers`.
 - Full verification:

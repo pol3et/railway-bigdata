@@ -84,12 +84,13 @@ python -c "import railway_lakehouse.pipeline"
 GAP-004 is closed for deterministic local Bronze fixtures. The fixture command is:
 
 ```bash
-python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction
+python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction
 ```
 
 Recorded evidence:
 
 - `output/evidence/fixture-e2e/railway_ml.parquet`
+- `output/evidence/fixture-e2e/crosswalk_cache.json`
 - Parquet readback: 4 rows, 3 columns for `AT/HU` and `2020/2021`.
 
 The full live command still must not be claimed as proven until live services and evidence are recorded:

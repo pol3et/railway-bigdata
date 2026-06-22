@@ -438,8 +438,9 @@ Evidence:
   failed for the expected missing readers/CLI API.
 - `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
 - `python -m pytest -q -m integration` passed: 4 passed, 52 deselected.
-- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction`
-  passed and wrote a 4-row, 3-column Gold Parquet artifact.
+- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction`
+  passed and wrote a 4-row, 3-column Gold Parquet artifact plus the
+  crosswalk cache.
 - `python -m pytest -q` passed: 56 passed.
 - `python -m compileall src tests` passed.
 - `git diff --check` exited 0.
@@ -554,3 +555,36 @@ Boundary:
 Next:
 - Record live Ollama pull/run evidence under `output/evidence/` before claiming
   live Qwen extraction quality.
+
+## 2026-06-22 - PR #8 Review Follow-Up
+
+Status: done; actionable automated-review nits applied.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/pr8-review-followup-2026-06-22.md`.
+- Local files reviewed first: PR #8 review comment,
+  `src/railway_lakehouse/pipeline.py`, `tests/test_pipeline_gaps.py`,
+  `docs/VERIFICATION.md`, `docs/PIPELINE.md`, and `docs/GAP_REGISTER.md`.
+- No external docs were needed; this was repo-local review follow-up.
+
+Changed:
+- Hardened Bronze path parsing errors.
+- Added `--crosswalk-path` and updated evidence commands.
+- Normalized missing article bodies, fallback IDs, and flexible dates.
+- Updated fixture pipeline tests and docs.
+
+Evidence:
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 5 passed.
+- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --crosswalk-path output\evidence\fixture-e2e\crosswalk_cache.json --skip-news-extraction`
+  passed.
+- Parquet readback passed: `(4, 3)`.
+- `output/evidence/fixture-e2e/crosswalk_cache.json` contains
+  `Rail passengers total -> rail_passengers`.
+- `python -m pytest -q` passed: 60 passed.
+- `python -m pytest -q -m integration` passed: 6 passed, 54 deselected.
+- `python -m compileall src tests` passed.
+
+Boundary:
+- No live collectors, MinIO service, live Ollama model, Spark job, report, or
+  presentation output was executed for this review follow-up.

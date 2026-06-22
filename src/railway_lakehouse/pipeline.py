@@ -2,10 +2,10 @@
 End-to-end driver: Bronze -> Silver -> Gold for a bounded demo run
 (100 news articles + the Eurostat rail datasets) producing the ML-ready Parquet.
 
-The default mode lands fresh Bronze data through MinIO-compatible storage, then
-reads it back for Silver/Gold. For deterministic coursework evidence, pass
-`--bronze-root` to read an existing local Bronze fixture tree and skip live
-collection.
+The live mode is intended to land fresh Bronze data through MinIO-compatible
+storage, then read it back for Silver/Gold. For deterministic coursework
+evidence, pass `--bronze-root` to read an existing local Bronze fixture tree and
+skip live Bronze collection.
 
 Run inside your Docker stack (needs network for Eurostat/GDELT and a running
 Ollama for news extraction):
@@ -53,6 +53,11 @@ def main(argv=None):
         action="store_true",
         help="read Bronze news but skip Ollama-backed Silver news extraction",
     )
+    ap.add_argument(
+        "--crosswalk-path",
+        default=None,
+        help="write/read the Silver stats crosswalk cache at this path",
+    )
     args = ap.parse_args(argv)
 
     return run_pipeline(
@@ -60,6 +65,7 @@ def main(argv=None):
         out=args.out,
         bronze_root=args.bronze_root,
         skip_news_extraction=args.skip_news_extraction,
+        crosswalk_path=args.crosswalk_path,
     )
 
 
@@ -69,6 +75,7 @@ def run_pipeline(
     out: str = "gold/railway_ml.parquet",
     bronze_root: str | None = None,
     skip_news_extraction: bool = False,
+    crosswalk_path: str | None = None,
 ) -> str:
     ollama_reachable = False if skip_news_extraction else health_check()
 
@@ -93,6 +100,8 @@ def run_pipeline(
     log.info("SILVER stats: %d source frames", len(frames))
 
     # crosswalk (Eurostat maps by rule; LLM only if reachable, only for HU/DE)
+    if crosswalk_path:
+        stats_merge.CROSSWALK_PATH = crosswalk_path
     labels = sorted({l for fr in frames for l in fr["source_column"].astype(str)})
     crosswalk = stats_merge.build_crosswalk(labels, use_llm=ollama_reachable)
     stats_long = stats_merge.merge_sources(frames, crosswalk)
@@ -147,7 +156,7 @@ def _read_bronze_news(lander, limit: int) -> list:
             if article is None:
                 continue
             articles.append(article)
-            if limit and len(articles) >= limit:
+            if len(articles) >= limit:
                 return articles
     return articles
 
@@ -189,13 +198,28 @@ def _read_text(lander, path) -> str:
 
 
 def _dataset_id_from_path(path, source: str) -> str:
-    parts = _path_parts(path)
-    return parts[parts.index(source) + 1]
+    return _path_part_after(path, source, purpose="stats dataset id")
 
 
 def _source_from_news_path(path) -> str:
+    return _path_part_after(path, "news", purpose="news source")
+
+
+def _path_part_after(path, token: str, *, purpose: str) -> str:
     parts = _path_parts(path)
-    return parts[parts.index("news") + 1]
+    try:
+        value = parts[parts.index(token) + 1]
+    except (ValueError, IndexError) as exc:
+        raise ValueError(
+            f"Cannot derive {purpose} from Bronze path {path!r}; "
+            f"expected a path segment after {token!r}."
+        ) from exc
+    if not value:
+        raise ValueError(
+            f"Cannot derive {purpose} from Bronze path {path!r}; "
+            f"path segment after {token!r} is empty."
+        )
+    return value
 
 
 def _path_parts(path) -> list[str]:
@@ -217,8 +241,8 @@ def _normalize_article(raw: dict, *, source: str, path, index: int) -> dict | No
         return None
     url = str(raw.get("url") or raw.get("URL") or "")
     title = str(raw.get("title") or raw.get("headline") or "")
-    body = str(raw.get("body") or raw.get("description") or raw.get("content") or title)
-    article_id = str(raw.get("article_id") or url or f"{path}#{index}")
+    body = str(raw.get("body") or raw.get("description") or raw.get("content") or "")
+    article_id = str(raw.get("article_id") or url or f"{_stable_path_key(path)}#{index}")
     return {
         "article_id": article_id,
         "source": source,
@@ -235,12 +259,22 @@ def _normalize_article_date(value) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
-    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
-        return text[:10]
+    if not text:
+        return None
     digits = "".join(ch for ch in text if ch.isdigit())
-    if len(digits) >= 8:
-        return f"{digits[:4]}-{digits[4:6]}-{digits[6:8]}"
-    return None
+    if len(digits) >= 14:
+        parsed = pd.to_datetime(digits[:14], format="%Y%m%d%H%M%S", errors="coerce")
+    elif len(digits) >= 8:
+        parsed = pd.to_datetime(digits[:8], format="%Y%m%d", errors="coerce")
+    else:
+        parsed = pd.to_datetime(text, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    return parsed.date().isoformat()
+
+
+def _stable_path_key(path) -> str:
+    return str(path).replace("\\", "/")
 
 
 if __name__ == "__main__":
