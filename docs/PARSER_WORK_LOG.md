@@ -45,8 +45,8 @@ Current repo-command live evidence:
 
 | Parser | Live status | Evidence | Current diagnosis | Next owner task |
 |---|---|---|---|---|
-| Eurostat | live-ok | Catalogue landed previously; bounded direct probe confirmed dataset fetch for `enpe_rail_go`: HTTP 200, 552 bytes, `text/tab-separated-values`. | Fixed quoted TOC dataset codes; discovery now returns 253 rail-related codes with `quoted_codes=[]`. First checked code `enpe_rail` still returns 404, but the next dataset `enpe_rail_go` downloads successfully. | Optional: add fixture test for quoted codes; next Silver owner can parse downloaded TSV shape. |
-| World Bank | partial | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. | First discovered series `BM.GSR.TRAN.CD` returned a 128-byte API error payload, so discovery is too broad or needs response validation. | Validate indicator responses and prefer confirmed rail indicator allowlist before claiming series collection. |
+| Eurostat | live-ok | Catalogue landed previously; bounded direct probe confirmed dataset fetch for `enpe_rail_go`: HTTP 200, 552 bytes, `text/tab-separated-values`. | Fixed quoted TOC dataset codes; discovery now returns 253 rail-related codes with `quoted_codes=[]`. First checked code `enpe_rail` still returns 404, but the next dataset `enpe_rail_go` downloads successfully. | Next Silver owner can parse downloaded TSV shape. |
+| World Bank | live-ok | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. Confirmed series probed live 2026-06-22: `IS.RRS.TOTL.KM` (HTTP 200, 17,556 obs), `IS.RRS.GOOD.MT.K6` (HTTP 200, HU 2021 = 11345.601), `IS.RRS.PASG.KM` (HTTP 200, HU 2021 = 5435.389). Evidence: `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. | Root cause confirmed: the API returns HTTP 200 even for archived ids; `BM.GSR.TRAN.CD` yields a 128-byte `{"message": ...}` envelope, so a status check could not catch it. Discovery now anchors on the word `rail*` (no longer matches `trail`/`trailer`/`curtail`), pulls a confirmed allowlist regardless of discovery, and `series_has_observations()` validates the payload before landing. | Wave 3: World Bank JSON -> StatFact (`silver/stats/merge.py::read_worldbank_json`). |
 | GDELT recent | failed live probe | No artifact landed. | DOC API returned HTTP 429 for bounded query. | Add rate-limit handling/backoff and retry; keep bounded `maxrecords` in tests. |
 | RSS media | live-ok | Repo command landed `hu_telex.xml`, `hu_index.xml`, `hu_hvg.xml`, `hu_24hu.xml`, and `hu_portfolio.xml` under `output/evidence/live-bronze/bronze/news/rss/...`; 223,154 bytes total. | Direct feed fetch works for five Hungarian feeds in the bounded command. | Add feed health tests, expand to AT feeds, and document feed drift handling. |
 | KSH STADAT | live-ok | Repo command landed `ksh_rail_freight`, `ksh_rail_passenger`, and `ksh_transport_network` under `output/evidence/live-bronze/bronze/stats/ksh/...`; 41,516 bytes total. | All three seeded Hungarian STADAT rail/transport files were reachable in this bounded run. | Add mocked HTTP tests and keep seeded KSH table IDs monitored for drift. |
@@ -56,10 +56,11 @@ Current repo-command live evidence:
 
 Interpretation:
 
-- Currently live-usable raw collection is proven for RSS, KSH, and a bounded
-  direct Eurostat dataset probe.
-- World Bank can collect catalogues but needs parser fixes before its
-  indicator series pulls can be called working.
+- Currently live-usable raw collection is proven for RSS, KSH, a bounded
+  direct Eurostat dataset probe, and World Bank rail series.
+- Eurostat and World Bank still need Silver parsing work before they feed
+  Gold features, but their current Bronze dataset/series pulls have bounded
+  live evidence.
 - GDELT, Statistics Austria, UIC, and historical GDELT need source-specific
   fixes or rate-limit handling before classmates rely on them.
 
@@ -82,13 +83,30 @@ Update 2026-06-22 — `parser/eurostat-live-datasets`:
 - Note: no raw Eurostat artifact was committed; this was a bounded direct live probe.
 
 
+Update 2026-06-22 — `parser/worldbank-indicators`:
+
+- Added confirmed World Bank rail indicator allowlist:
+  `IS.RRS.TOTL.KM`, `IS.RRS.GOOD.MT.K6`, and `IS.RRS.PASG.KM`.
+- Changed catalogue matching to word-anchored `rail*`, avoiding false positives
+  such as `trail`, `trailer`, and `curtail`.
+- Added response validation for World Bank HTTP-200 error envelopes before
+  landing indicator series.
+- Committed evidence manifest:
+  `output/evidence/worldbank-live-check-2026-06-22/manifest.json`.
+- Verification on the post-PR-2 branch:
+  - `python -m pytest -q tests\test_bronze_characterization.py` -> 11 passed
+  - `python -m pytest -q` -> 29 passed, 1 xfailed for documented GAP-004
+  - Bounded direct probe -> all three confirmed indicators HTTP 200 with real
+    observations; `BM.GSR.TRAN.CD` HTTP 200 but rejected as an error envelope.
+
+
 
 ## Parser Inventory
 
 | Parser | Module | Source family | What it collects | Storage shape | Downstream transform | Status |
 |---|---|---|---|---|---|---|
 | Eurostat | `src/railway_lakehouse/bronze/sources/eurostat.py` | Eurostat catalogue and SDMX TSV API | Rail, regional transport, and transport safety statistical datasets. Lands catalogue plus raw gzipped TSV datasets. | `bronze/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<dataset_id>.tsv.gz` plus `.meta.json`. | `silver/stats/merge.py::read_eurostat_tsv`, then crosswalk to canonical features. | Dataset code cleanup fixed; bounded direct probe confirms one real TSV dataset (`enpe_rail_go`, HTTP 200, 552 bytes). |
-| World Bank | `src/railway_lakehouse/bronze/sources/worldbank.py` | World Bank Indicators API | Indicator catalogue and all-country time series JSON for rail-related indicators. | `bronze/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json` plus `.meta.json`. | `silver/stats/merge.py::read_worldbank_json`, then crosswalk. | Unit-tested discovery fallback; live catalogue partial; indicator validation needed. |
+| World Bank | `src/railway_lakehouse/bronze/sources/worldbank.py` | World Bank Indicators API | Indicator catalogue and all-country time series JSON for rail-related indicators. | `bronze/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json` plus `.meta.json`. | `silver/stats/merge.py::read_worldbank_json`, then crosswalk. | Live-ok: word-anchored discovery + confirmed allowlist + payload validation (rejects HTTP-200 error envelopes); three confirmed indicators verified live; mocked-HTTP tests added. |
 | GDELT recent | `src/railway_lakehouse/bronze/sources/gdelt.py` | GDELT DOC 2.0 API | Recent rail-related news article lists for HU/AT source countries. | `bronze/news/gdelt/<geo>/ingest_date=YYYY-MM-DD/gdelt_doc_<geo>_<timespan>.json` plus `.meta.json`. | `silver/news/extract.py::gdelt_passthrough` or article extraction, then Gold news aggregation. | Query unit-tested; live probe hit 429. |
 | RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | HU/AT media and official RSS feeds | Whole RSS feeds, unfiltered, to avoid losing sparse rail items. | `bronze/news/rss/<geo_outlet>/ingest_date=YYYY-MM-DD/<geo_outlet>.xml` plus `.meta.json`. | Future RSS parser should extract article records, then `silver/news/extract.py`. | Live-ok for Telex and Index feeds; direct unit tests still needed. |
 | KSH | `src/railway_lakehouse/bronze/sources/ksh.py` | Hungarian Central Statistical Office STADAT files | Seeded Hungarian transport/rail XLSX tables. | `bronze/stats/ksh/<dataset_id>/ingest_date=YYYY-MM-DD/<filename>.xlsx` plus `.meta.json`. | Future KSH parser should read XLSX and emit `StatFact` rows. | Live-ok for `ksh_rail_freight`; not scheduled; tests needed. |
@@ -145,8 +163,8 @@ Parallel owner tasks:
 
 | Owner track | Files | Expected behavior | Verification |
 |---|---|---|---|
-| Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | Verified by direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; post-PR-1 tests pass with the documented GAP-004 xfail. |
-| World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | Unit test with API error JSON; bounded live evidence for one known rail indicator. |
+| Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | DONE 2026-06-22: fixture test plus direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; tests pass with the documented GAP-004 xfail. |
+| World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | DONE 2026-06-22: word-anchored discovery, confirmed allowlist, `series_has_observations()`/`is_error_payload()` validation; mocked-HTTP error-payload test; live evidence in `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. |
 | RSS owner | `bronze/sources/rss_media.py` | Feed registry health is checked; at least HU and AT feeds land when reachable. | Mocked HTTP tests plus bounded live feed manifest. |
 | GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded live query handles 429 with retry/backoff and never starts long backfill accidentally. | Mocked 429 test, safe CLI flags, bounded live success or documented rate-limit failure. |
 | KSH owner | `bronze/sources/ksh.py` | All seeded STADAT tables are verified or marked stale. | Mocked table fetch tests plus bounded live manifest. |

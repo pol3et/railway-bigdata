@@ -1,0 +1,66 @@
+{
+  "source": "worldbank",
+  "branch": "parser/worldbank-indicators",
+  "checked_utc": "2026-06-22",
+  "scope": "Bounded live probe of confirmed rail indicators + known error/archived ids. No full collector run, no MinIO, no backfill.",
+  "api_note": "The World Bank Indicators API returns HTTP 200 even for invalid/archived ids; the failure appears only in the body as [{\"message\": [...]}]. Status-code checks cannot catch this, so worldbank.series_has_observations() validates the parsed payload before landing.",
+  "probes": [
+    {
+      "indicator": "IS.RRS.TOTL.KM",
+      "label": "Rail lines (total route-km)",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/IS.RRS.TOTL.KM?format=json&per_page=20&page=1",
+      "http_status": 200,
+      "payload_kind": "time_series",
+      "total_observations": 17556,
+      "valid": true,
+      "note": "All-country series; first page rows are aggregate nulls, so validation checks structure/total rather than the first non-null value."
+    },
+    {
+      "indicator": "IS.RRS.GOOD.MT.K6",
+      "label": "Railways, goods transported (million ton-km)",
+      "url": "https://api.worldbank.org/v2/country/HUN/indicator/IS.RRS.GOOD.MT.K6?format=json&per_page=5&page=1",
+      "http_status": 200,
+      "payload_kind": "time_series",
+      "total_observations_hu": 66,
+      "sample_value": {"date": "2021", "value": 11345.601},
+      "valid": true
+    },
+    {
+      "indicator": "IS.RRS.PASG.KM",
+      "label": "Railways, passengers carried (million passenger-km)",
+      "url": "https://api.worldbank.org/v2/country/HUN/indicator/IS.RRS.PASG.KM?format=json&per_page=5&page=1",
+      "http_status": 200,
+      "payload_kind": "time_series",
+      "total_observations_hu": 66,
+      "sample_value": {"date": "2021", "value": 5435.389},
+      "valid": true
+    },
+    {
+      "indicator": "BM.GSR.TRAN.CD",
+      "label": "Transport services BoP (previously discovered too-broadly; archived for this path)",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/BM.GSR.TRAN.CD?format=json&per_page=5&page=1",
+      "http_status": 200,
+      "payload_kind": "error_envelope",
+      "byte_size": 128,
+      "message": {"id": "175", "key": "Invalid format", "value": "The indicator was not found. It may have been deleted or archived."},
+      "valid": false,
+      "note": "This is the 128-byte error payload reported in PARSER_WORK_LOG. It is now rejected by series_has_observations() instead of being landed."
+    },
+    {
+      "indicator": "NOT.A.REAL.IND",
+      "label": "Synthetic invalid id (control)",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NOT.A.REAL.IND?format=json&per_page=20&page=1",
+      "http_status": 200,
+      "payload_kind": "error_envelope",
+      "byte_size": 102,
+      "message": {"id": "120", "key": "Invalid value", "value": "The provided parameter value is not valid"},
+      "valid": false
+    }
+  ],
+  "confirmed_rail_indicators": [
+    "IS.RRS.TOTL.KM",
+    "IS.RRS.GOOD.MT.K6",
+    "IS.RRS.PASG.KM"
+  ],
+  "result": "All three confirmed rail indicators return HTTP 200 with real time series. Both error/archived ids return HTTP 200 with {\"message\": ...} envelopes and are now rejected before landing."
+}
