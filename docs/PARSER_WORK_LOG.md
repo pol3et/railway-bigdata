@@ -64,6 +64,28 @@ Interpretation:
 - GDELT, Statistics Austria, UIC, and historical GDELT need source-specific
   fixes or rate-limit handling before classmates rely on them.
 
+## Dataset Readiness Milestones
+
+Estimate date: 2026-06-22.
+
+These are planning targets, not completed claims. A milestone is done only after
+the command output and generated files are recorded under `output/evidence/`.
+
+| Milestone | Target | Scope | Exit criteria |
+|---|---|---|---|
+| MVP Bronze dataset | 2026-06-23 | Real raw artifacts from proven sources: RSS, KSH, Eurostat bounded dataset pull, and World Bank confirmed indicators. | Manifest records artifact paths, byte counts, HTTP statuses, and failures. |
+| First analysis-ready Gold Parquet | 2026-06-24 to 2026-06-25 | Minimal `(geo, year)` dataset from proven sources only; do not wait for every parser. | GAP-004, GAP-006, and GAP-007 are closed in a minimal fixture/live path; row and column counts are recorded. |
+| Spark evidence | 2026-06-25 to 2026-06-26 | Spark job reads the Gold Parquet and writes course evidence outputs. | GAP-009 is closed with Spark version, input/output row counts, and generated files. |
+| Full parser hardening | 2026-06-26 to 2026-06-29 | GDELT rate-limit handling, Statistik Austria refresh, UIC resource/access decision, RSS/KSH hardening. | Each parser has mocked tests plus bounded live evidence, or an explicit documented access-limit status. |
+
+Decision:
+
+- Do not block the first dataset on GDELT, Statistik Austria, UIC, or historical
+  GDELT. Build the first dataset from proven sources, then expand parser
+  coverage.
+- UIC may close as documented unavailable/access-limited if no current public
+  artifact can be found.
+
 
 Update 2026-06-22 — `parser/eurostat-live-datasets`:
 

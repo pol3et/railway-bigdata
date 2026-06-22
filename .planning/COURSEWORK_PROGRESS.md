@@ -72,3 +72,23 @@ Evidence:
 Next:
 
 - Keep the GAP-004 xfail in place until fixture-backed Bronze storage reads are implemented and verified.
+
+## 2026-06-22 - Dataset Readiness Estimate
+
+Status: done for planning/status answer; no source code changed.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/dataset-readiness-2026-06-22.md`.
+- Local files read first: `docs/PARSER_WORK_LOG.md`, `docs/GAP_REGISTER.md`, `docs/TEST_FIRST_INTEGRATION_PLAN.md`, `docs/PROGRESS_LOG.md`, `.planning/COURSEWORK_PROGRESS.md`, `README.md`, `TASK.md`, and source entrypoints.
+- No external docs were needed because this estimate is based on current repo evidence, not new API behavior.
+
+Evidence:
+
+- Current proven Bronze sources: RSS, KSH, Eurostat bounded dataset probe, and World Bank bounded indicator probe.
+- Current blockers: GDELT 429 handling, Statistik Austria empty 200 response, UIC 404/access resolution, GAP-004 pipeline Bronze reads, GAP-006 Silver persistence, GAP-007 Gold storage loading, and GAP-009 Spark job.
+- `docs/PARSER_WORK_LOG.md` now records target milestones for MVP Bronze, first Gold Parquet, Spark evidence, and full parser hardening.
+
+Next:
+
+- Produce a minimal analysis-ready dataset from proven sources first; treat full parser completion as the next reliability milestone.

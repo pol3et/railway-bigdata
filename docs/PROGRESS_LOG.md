@@ -300,3 +300,31 @@ Evidence:
 Next:
 
 - GAP-004 remains the expected xfail until Bronze storage reads are wired in `src/railway_lakehouse/pipeline.py`.
+
+## 2026-06-22 - Dataset Readiness Estimate
+
+Status: done for planning/status answer; no source code changed.
+
+Changed:
+
+- `.planning/coursework/research/bigdata/dataset-readiness-2026-06-22.md`
+- `docs/PARSER_WORK_LOG.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+
+- A first useful dataset does not need every parser; the fastest path is to use already proven Bronze sources: RSS, KSH, Eurostat, and World Bank.
+- All-parser Bronze readiness still depends on GDELT 429 handling, Statistik Austria source refresh, UIC resource/access resolution, and historical GDELT safe bounds.
+- Analysis-ready dataset output remains blocked by GAP-004, GAP-006, and GAP-007.
+- Spark evidence remains blocked by GAP-009.
+- `docs/PARSER_WORK_LOG.md` now records target milestones for MVP Bronze, first Gold Parquet, Spark evidence, and full parser hardening.
+
+Evidence:
+
+- Local status review used `docs/PARSER_WORK_LOG.md`, `docs/GAP_REGISTER.md`, `docs/TEST_FIRST_INTEGRATION_PLAN.md`, `README.md`, `TASK.md`, and source entrypoints.
+- No live collectors or tests were run for this estimate.
+
+Next:
+
+- Prioritize a minimal Gold Parquet dataset from proven sources before waiting for every parser to be perfect.
