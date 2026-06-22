@@ -405,3 +405,75 @@ Next:
 - Primary owner starts GAP-004.
 - Optional parallel owner can wire KSH, Statistik Austria, and UIC public PDFs
   into `bronze/run.py` with mocked unit tests.
+
+## 2026-06-22 - GAP-004 Fixture Pipeline E2E
+
+Status: done for deterministic fixture-backed pipeline reads.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/pipeline-fixture-e2e-gap004-2026-06-22.md`.
+- Local files read first: `AGENTS.md`, `README.md`, `docs/GAP_REGISTER.md`,
+  `docs/VERIFICATION.md`, `docs/NEXT_SESSION_HANDOFF.md`,
+  `docs/DATA_CONTRACTS.md`, `src/railway_lakehouse/pipeline.py`, Bronze
+  lander/source files, Silver stats/news modules, Gold build/run modules, and
+  related tests.
+- No external docs were needed because this change used repo-local contracts and
+  did not make new Spark/API claims.
+
+Changed:
+- Added fixture-backed Bronze readers and local `--bronze-root` execution to
+  `src/railway_lakehouse/pipeline.py`.
+- Replaced the GAP-004 strict xfail with integration assertions in
+  `tests/test_pipeline_gaps.py`.
+- Added stable tiny Bronze fixtures under `tests/fixtures/bronze/**`.
+- Generated `output/evidence/fixture-e2e/railway_ml.parquet` and
+  `output/evidence/fixture-e2e/crosswalk_cache.json`.
+- Updated gap, verification, progress, and current-state docs.
+- Fixed the independent reviewer's low-risk `--news 0` edge case with a
+  regression test.
+
+Evidence:
+- RED before implementation: `python -m pytest -q tests\test_pipeline_gaps.py`
+  failed for the expected missing readers/CLI API.
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
+- `python -m pytest -q -m integration` passed: 4 passed, 52 deselected.
+- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction`
+  passed and wrote a 4-row, 3-column Gold Parquet artifact.
+- `python -m pytest -q` passed: 56 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Boundaries:
+- GAP-004 is closed for deterministic fixture-backed Bronze reads.
+- Live MinIO, live collectors, Ollama service extraction, Silver persistence,
+  Gold storage loading, Spark, report, and presentation evidence remain open.
+
+Next:
+- Define minimal Silver/Gold persisted artifact contracts for GAP-006/GAP-007.
+- Use the generated Gold Parquet as the handoff input when starting Spark
+  evidence work.
+
+## 2026-06-22 - Active Silver Branch Gap Mapping
+
+Status: done for documentation; no source behavior changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/active-silver-branch-gap-map-2026-06-22.md`.
+- Local files reviewed: `docs/GAP_REGISTER.md`, `docs/WORKSTREAMS.md`,
+  `docs/WORK_SPLIT.md`, `docs/NEXT_SESSION_HANDOFF.md`, and
+  `docs/DATA_CONTRACTS.md`.
+- No external docs were needed because this is repo-local gap ownership mapping.
+
+Findings:
+- `silver/news-rss-article-records` is GAP-006, Silver News/RSS article-record
+  slice.
+- `silver/stats-worldbank-eurostat` is GAP-006, Silver Stats World
+  Bank/Eurostat slice.
+- Both can feed GAP-010 with bounded live evidence, but neither closes GAP-007
+  without Gold storage loading and Gold row/column evidence.
+
+Next:
+- Validate teammate PRs against GAP-006 closure criteria.
+- Keep GAP-007 as the follow-up integration point after Silver outputs persist.

@@ -73,7 +73,7 @@ from railway_lakehouse.gold.run import build_from_silver
 build_from_silver(stats_long, news_rows, "output/evidence/live/railway_ml.parquet")
 ```
 
-## Current Pipeline Gap
+## Verified Fixture Pipeline
 
 The driver imports successfully:
 
@@ -81,12 +81,19 @@ The driver imports successfully:
 python -c "import railway_lakehouse.pipeline"
 ```
 
-But `src/railway_lakehouse/pipeline.py` still has GAP-004 stubs:
+GAP-004 is closed for deterministic local Bronze fixtures. The fixture command is:
 
-- `_read_bronze_eurostat(...)`
-- `_read_bronze_news(...)`
+```bash
+python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction
+```
 
-The full command below must not be claimed as working until those stubs are implemented and evidence is recorded:
+Recorded evidence:
+
+- `output/evidence/fixture-e2e/railway_ml.parquet`
+- Parquet readback: 4 rows, 3 columns for `AT/HU` and `2020/2021`.
+
+The full live command still must not be claimed as proven until live services and evidence are recorded:
+
 
 ```bash
 python -m railway_lakehouse.pipeline --news 100 --out output/evidence/live/railway_ml.parquet

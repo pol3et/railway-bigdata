@@ -49,4 +49,4 @@ It lands under `bronze/news/gdelt_history/...` and partitions by `ingest_date=`.
 - `uic.py` now uses current public UIC RAILISA resource PDFs and has bounded live evidence; subscribed RAILISA CSV/Excel/API access is still not available without credentials.
 - Reconfirm national portal codes before making report claims.
 - All source adapters require network access and MinIO configuration.
-- Do not run long collectors until the deterministic fixture E2E path exists.
+- The deterministic fixture E2E path exists; still do not run long collectors unless explicitly requested and bounded by an evidence plan.

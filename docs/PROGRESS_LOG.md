@@ -651,3 +651,68 @@ Evidence:
 Next:
 - Keep user focused on `pipeline/fixture-e2e-gap004`.
 - Offer GAP-005 to another classmate only if they keep it bounded and mocked-test-only.
+
+## 2026-06-22 - GAP-004 Fixture Pipeline E2E
+
+Status: done.
+
+Changed:
+- `.planning/coursework/research/bigdata/pipeline-fixture-e2e-gap004-2026-06-22.md`
+- `src/railway_lakehouse/pipeline.py`
+- `tests/test_pipeline_gaps.py`
+- `tests/fixtures/bronze/**`
+- `output/evidence/fixture-e2e/railway_ml.parquet`
+- `output/evidence/fixture-e2e/crosswalk_cache.json`
+- `docs/GAP_REGISTER.md`
+- `docs/VERIFICATION.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- GAP-004 is closed for deterministic fixture-backed Bronze reads: `_read_bronze_eurostat` reads local/S3-style Eurostat TSV artifacts, and `_read_bronze_news` reads local/S3-style JSON article artifacts.
+- `railway_lakehouse.pipeline` now accepts `--bronze-root` for no-network fixture runs and skips live Bronze ingestion in that mode.
+- The integration test covers Bronze fixture readers plus Bronze -> Silver -> Gold Parquet with mocked Ollama JSON output.
+- The recorded CLI evidence run used `--skip-news-extraction` to avoid a live Ollama dependency; therefore the evidence Parquet contains fixture stats only.
+- Independent read-only review found one low-risk `--news 0` limit edge case; it was fixed with a regression test.
+- This does not prove live MinIO, live collectors, a running Ollama service, Spark, Silver persistence, Gold storage loading, report, or presentation outputs.
+
+Evidence:
+- RED before implementation: `python -m pytest -q tests\test_pipeline_gaps.py` failed with `NotImplementedError` from `_read_bronze_eurostat` and `TypeError` because `main()` did not accept argv.
+- `python -m pytest -q tests\test_pipeline_gaps.py` passed: 3 passed.
+- `python -m pytest -q -m integration` passed: 4 passed, 52 deselected.
+- `python -m railway_lakehouse.pipeline --bronze-root tests\fixtures\bronze --news 1 --out output\evidence\fixture-e2e\railway_ml.parquet --skip-news-extraction` passed and wrote Gold Parquet.
+- Parquet readback passed: `(4, 3)` with rows `AT/HU` for `2020/2021` and `rail_passengers`.
+- `python -m pytest -q` passed: 56 passed.
+- `python -m compileall src tests` passed.
+- `git diff --check` exited 0.
+
+Next:
+- Start minimal GAP-006/GAP-007 persistence work only after deciding the Silver/Gold artifact contract.
+- Keep Spark work blocked until the class agrees on the Gold Parquet input path and evidence command.
+
+## 2026-06-22 - Active Silver Branch Gap Mapping
+
+Status: done for documentation; no source behavior changed.
+
+Changed:
+- `.planning/coursework/research/bigdata/active-silver-branch-gap-map-2026-06-22.md`
+- `docs/GAP_REGISTER.md`
+- `docs/WORKSTREAMS.md`
+- `docs/WORK_SPLIT.md`
+- `docs/NEXT_SESSION_HANDOFF.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- `silver/news-rss-article-records` maps to GAP-006, specifically the Silver News/RSS article-record slice.
+- `silver/stats-worldbank-eurostat` maps to GAP-006, specifically the Silver Stats World Bank/Eurostat slice.
+- Either branch can contribute to GAP-010 if it records bounded live evidence.
+- Neither branch closes GAP-007 unless it also wires Gold loading from persisted Silver outputs and records Gold row/column evidence.
+
+Evidence:
+- Local research used `docs/GAP_REGISTER.md`, `docs/WORKSTREAMS.md`, `docs/WORK_SPLIT.md`, `docs/NEXT_SESSION_HANDOFF.md`, and `docs/DATA_CONTRACTS.md`.
+- No live collectors, MinIO, Ollama, Spark jobs, or additional dataset runs were used for this mapping.
+
+Next:
+- Review teammate PRs against the GAP-006 closure criteria before marking GAP-006 closed.
+- Keep GAP-007 separate until Gold can load the persisted Silver outputs.

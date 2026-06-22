@@ -43,12 +43,12 @@ Requires explicit plan before file moves.
 
 ## Phase 3 - Wire Storage Boundaries
 
-Goal: remove `NotImplementedError` stubs from the end-to-end driver.
+Goal: wire storage boundaries in the end-to-end driver.
 
 Tasks:
 
-- Implement Bronze reads for Eurostat/raw stats.
-- Implement Bronze reads for news records.
+- Done 2026-06-22: implement deterministic fixture-backed Bronze reads for Eurostat/raw stats.
+- Done 2026-06-22: implement deterministic fixture-backed Bronze reads for JSON news records.
 - Write Silver outputs to a documented storage path.
 - Let Gold load from Silver storage.
 - Produce a small reproducible smoke output.

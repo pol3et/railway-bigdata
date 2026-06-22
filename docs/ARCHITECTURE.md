@@ -81,9 +81,11 @@ Current status: no Spark module exists yet. Future work should add `src/railway_
 
 ## Current Main Gap
 
-`src/railway_lakehouse/pipeline.py` describes the end-to-end flow, but the Bronze reads are placeholders:
+`src/railway_lakehouse/pipeline.py` now has deterministic fixture-backed Bronze reads for GAP-004:
 
 - `_read_bronze_eurostat(...)`
 - `_read_bronze_news(...)`
 
-Until those are implemented and executed, the project has characterized layer logic but no proven full pipeline.
+The proven path is local fixture Bronze -> Silver transforms -> Gold Parquet under `output/evidence/fixture-e2e/`.
+
+Remaining architecture gaps are live MinIO/service execution, Silver persistence, Gold storage loading, Spark jobs, and report/presentation evidence.
