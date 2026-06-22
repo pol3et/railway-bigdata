@@ -124,3 +124,35 @@ Next:
 
 - KSH still needs scheduler wiring under GAP-005.
 - Silver stats still needs a deterministic KSH XLSX parser before KSH contributes to Gold.
+
+## 2026-06-22 - PR 4 Review Fixes
+
+Status: done for review fixes; PR push/green/merge remains.
+
+Research:
+
+- Required local research note: `.planning/coursework/research/bigdata/pr4-review-fixes-2026-06-22.md`.
+- Local files read first: `docs/PARSER_WORK_LOG.md`, `docs/VERIFICATION.md`, `docs/GAP_REGISTER.md`, `docs/PROGRESS_LOG.md`, `.planning/COURSEWORK_PROGRESS.md`, `.planning/coursework/research/bigdata/ksh-stadat-seeds-2026-06-22.md`, `src/railway_lakehouse/bronze/sources/ksh.py`, `src/railway_lakehouse/bronze/live_check.py`, and related tests.
+- No external docs were needed because the fixes were based on local PR review artifacts, repo code, and repo documentation.
+
+Changed:
+
+- Separated historical pre-correction KSH evidence from current KSH evidence in `docs/PARSER_WORK_LOG.md`.
+- Added committed current-code KSH live-check manifest `output/evidence/ksh-live-check-2026-06-22-current/manifest.json`.
+- Strengthened KSH XLSX validation to inspect the workbook ZIP container.
+- Added deterministic integration coverage in `tests/test_bronze_live_check_integration.py`.
+- Updated verification, gap, progress, and research docs.
+
+Evidence:
+
+- `python -m pytest -q tests\test_bronze_characterization.py tests\test_bronze_live_check.py tests\test_bronze_live_check_integration.py` passed: 24 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/evidence/ksh-live-check-2026-06-22-current --max-artifacts 6 --timeout-seconds 30` passed with `artifact_count=6`, `byte_count=92509`, KSH `passed`, and 0 failures.
+- `python -m pytest -q -m integration` passed: 1 passed, 33 deselected, 1 xfailed for documented GAP-004.
+- `python -m pytest -q` passed: 34 passed, 1 xfailed for documented GAP-004.
+- `python -m compileall src tests` passed.
+- `python -m json.tool output\evidence\ksh-live-check-2026-06-22-current\manifest.json` passed.
+
+Next:
+
+- Push PR #4, confirm GitHub has no failing checks, and merge.
+- KSH still needs scheduler wiring under GAP-005.

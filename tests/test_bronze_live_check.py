@@ -1,4 +1,6 @@
+import io
 import json
+import zipfile
 from datetime import datetime, timezone
 
 import pytest
@@ -19,6 +21,15 @@ pytestmark = pytest.mark.unit
 
 
 FIXED_NOW = datetime(2026, 6, 21, 12, 30, tzinfo=timezone.utc)
+
+
+def _xlsx_bytes():
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        archive.writestr("_rels/.rels", "<Relationships/>")
+        archive.writestr("xl/workbook.xml", "<workbook/>")
+    return buffer.getvalue()
 
 
 def test_local_lander_writes_raw_file_and_metadata_in_bronze_layout(tmp_path):
@@ -249,7 +260,7 @@ def test_collect_ksh_lands_successes_and_records_failures(monkeypatch, tmp_path)
 
     def fake_get(url, timeout, headers):
         if url.endswith("ok.xlsx"):
-            return Response(200, b"PK\x03\x04xlsx")
+            return Response(200, _xlsx_bytes())
         return Response(200, b"")
 
     monkeypatch.setattr(

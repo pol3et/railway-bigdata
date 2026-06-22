@@ -368,3 +368,42 @@ Next:
 
 - Push the PR branch and run the requested read-only `ship-it:ship-pr` review.
 - Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
+
+## 2026-06-22 - PR 4 Review Fixes
+
+Status: done for PR review findings; merge pending push and GitHub green state.
+
+Changed:
+
+- `.planning/coursework/research/bigdata/pr4-review-fixes-2026-06-22.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PARSER_WORK_LOG.md`
+- `docs/PROGRESS_LOG.md`
+- `docs/VERIFICATION.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+- `output/evidence/ksh-live-check-2026-06-22-current/manifest.json`
+- `src/railway_lakehouse/bronze/sources/ksh.py`
+- `tests/test_bronze_characterization.py`
+- `tests/test_bronze_live_check.py`
+- `tests/test_bronze_live_check_integration.py`
+
+Findings:
+
+- Historical `output/evidence/live-bronze/manifest.json` KSH rows came from the old seed set and are now explicitly superseded for current KSH claims.
+- Current-code KSH live evidence is committed as `output/evidence/ksh-live-check-2026-06-22-current/manifest.json`.
+- KSH response validation now verifies the XLSX ZIP workbook container, not only the `PK` prefix.
+- A deterministic integration fixture now exercises KSH live-check manifest, raw Bronze artifact, and metadata writing without network.
+
+Evidence:
+
+- `python -m pytest -q tests\test_bronze_characterization.py tests\test_bronze_live_check.py tests\test_bronze_live_check_integration.py` passed: 24 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/evidence/ksh-live-check-2026-06-22-current --max-artifacts 6 --timeout-seconds 30` passed with `artifact_count=6`, `byte_count=92509`, KSH `passed`, and 0 failures.
+- `python -m pytest -q -m integration` passed: 1 passed, 33 deselected, 1 xfailed for documented GAP-004.
+- `python -m pytest -q` passed: 34 passed, 1 xfailed for documented GAP-004.
+- `python -m compileall src tests` passed.
+- `python -m json.tool output\evidence\ksh-live-check-2026-06-22-current\manifest.json` passed.
+
+Next:
+
+- Push PR #4, mark it ready when branch checks are green, and merge.
+- Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.

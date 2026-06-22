@@ -15,7 +15,9 @@ The seed list is curated by STADAT code, not by blind keyword discovery. The
 transport chapter mixes road, water, air, and rail in adjacent codes, so a code
 must be checked against its published title before it is trusted.
 """
+import io
 import logging
+import zipfile
 from dataclasses import dataclass
 
 import requests
@@ -28,8 +30,9 @@ KSH_API_BASE = "https://www.ksh.hu/stadat_files/sza/en"
 HTTP_TIMEOUT = 60
 
 # XLSX is a ZIP container. HTML error pages or empty HTTP-200 bodies will not
-# have this header.
+# have this header or the workbook members checked below.
 XLSX_MAGIC = b"PK\x03\x04"
+XLSX_REQUIRED_MEMBERS = ("[Content_Types].xml", "_rels/.rels")
 
 
 @dataclass(frozen=True)
@@ -109,9 +112,22 @@ KSH_RETIRED_SEEDS = {
 
 
 def looks_like_xlsx(content: bytes | None) -> bool:
-    """Return true when bytes start with the XLSX/ZIP magic header."""
+    """Return true when bytes look like an XLSX workbook container."""
 
-    return bool(content) and content[:4] == XLSX_MAGIC
+    if not content or content[:4] != XLSX_MAGIC:
+        return False
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as workbook:
+            if workbook.testzip() is not None:
+                return False
+            members = set(workbook.namelist())
+    except zipfile.BadZipFile:
+        return False
+
+    return all(member in members for member in XLSX_REQUIRED_MEMBERS) and any(
+        member.startswith("xl/") for member in members
+    )
 
 
 def is_valid_table_response(status: int, content: bytes | None) -> bool:
