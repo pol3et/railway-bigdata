@@ -10,6 +10,7 @@ from railway_lakehouse.bronze.lander import RawArtifact, build_meta_dict
 from railway_lakehouse.bronze.sources import gdelt, ksh, past_recordings, uic
 from railway_lakehouse.bronze.sources.eurostat import discover_rail_datasets
 from railway_lakehouse.bronze.sources.gdelt import build_query
+from railway_lakehouse.bronze.sources.rss_media import _all_feeds
 from railway_lakehouse.bronze.sources import worldbank
 from railway_lakehouse.bronze.sources.ksh import (
     KSH_RAIL_TABLES,
@@ -492,6 +493,18 @@ def test_ksh_ingest_lands_valid_xlsx_and_skips_404_and_empty_200():
     assert freight.extra["stadat_code"] == "sza0009"
     assert freight.extra["discovery"] == "curated_rail_table"
     assert freight.filename == "sza0009.xlsx"
+
+
+def test_rss_feed_registry_includes_hu_and_at_feeds():
+    feeds = _all_feeds()
+    feed_ids = {feed_id for feed_id, _url, _geo in feeds}
+    geos = {geo for _feed_id, _url, geo in feeds}
+
+    assert "HU" in geos
+    assert "AT" in geos
+    assert "hu_telex" in feed_ids
+    assert "at_orf" in feed_ids
+    assert all(url.startswith("https://") for _feed_id, url, _geo in feeds)
 
 
 # --- UIC: public publication resources + response validation -----------------
