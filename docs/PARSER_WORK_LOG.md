@@ -137,15 +137,24 @@ Interpretation:
 - Currently live-usable raw collection is proven for RSS, six corrected KSH
   rail tables, UIC public statistical publication PDFs, a bounded direct
   Eurostat dataset probe, and World Bank rail series.
+- Bronze MVP is not blocked by the failed recent GDELT live probe. Use the
+  proven Bronze sources above for the first dataset, and keep GDELT as an
+  optional hardening task if time remains.
 - Eurostat and World Bank still need Silver parsing work before they feed
   Gold features, but their current Bronze dataset/series pulls have bounded
   live evidence.
+- UIC public PDF collection is a Bronze success; extracting facts from those
+  PDFs, or from subscribed RAILISA CSV/Excel exports, is Silver work.
 - Recent GDELT now has mocked retry coverage, but the latest bounded live
   probe landed no artifacts. Historical GDELT has mocked
   rate-limit and safety coverage but no live backfill evidence. Statistics
   Austria still needs source-specific refresh. UIC public PDFs are
   live-validated, but subscribed RAILISA data exports remain unavailable
   without access.
+- GDELT is not a Silver blocker right now because there is no current Bronze
+  GDELT artifact to parse. Treat it as optional Bronze parser hardening and
+  start GDELT Silver parsing only after a future bounded probe lands raw
+  ArtList JSON.
 
 ## Dataset Readiness Milestones
 
@@ -163,9 +172,12 @@ the command output and generated files are recorded under `output/evidence/`.
 
 Decision:
 
-- Do not block the first dataset on GDELT, Statistik Austria, UIC, or historical
+- Do not block the first dataset on GDELT, Statistik Austria, or historical
   GDELT. Build the first dataset from proven sources, then expand parser
-  coverage.
+  coverage. GDELT live collection is explicitly fix-if-time unless the report
+  needs GDELT-specific news evidence.
+- Mark recent GDELT as not working for live Bronze collection now; retry/fix it
+  only after the fixture-to-Gold/Spark path is moving.
 - UIC no longer needs to close as unavailable for the public-publication scope:
   current free PDFs are live-validated. Bulk RAILISA CSV/Excel/API collection
   remains access-limited until credentials/subscription are available.
@@ -237,6 +249,16 @@ Update 2026-06-22 — `parser/uic-refresh`:
 | Statistik Austria | `src/railway_lakehouse/bronze/sources/statistik_austria.py` | Statistics Austria OGD JSON/CSV | Seeded Austrian transport/rail OGD datasets. | `bronze/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<ogd_id>.json|csv` plus `.meta.json`. | Future Austrian parser should read JSON-stat/CSV and emit `StatFact` rows. | Live seed failed empty; OGD IDs/API path need refresh. |
 | UIC | `src/railway_lakehouse/bronze/sources/uic.py` | UIC RAILISA public statistical publications | Current free UIC public PDFs: traffic trends and railway statistics synopsis. | `bronze/stats/uic/<dataset_id>/ingest_date=YYYY-MM-DD/<filename>.pdf` plus `.meta.json`. | Future UIC parser can extract facts from the public synopsis PDF, or use subscribed RAILISA CSV/Excel exports if access becomes available. | Live-ok for public PDFs: 2/2 current public resources verified by current-code live check; subscribed CSV/Excel/API access remains access-limited. |
 | GDELT history | `src/railway_lakehouse/bronze/sources/past_recordings.py` | GDELT DOC history and GKG v1 files | Historical rail-related news pages or raw GKG daily zip files. | `bronze/news/gdelt_history/<dataset_id>/ingest_date=YYYY-MM-DD/<file>` plus `.meta.json`. | Future history parser should normalize article records before `NewsFeature` extraction. | Mocked 429 retry behavior and safe `--dry-run` / `--max-pages` controls are tested. Live retry evidence still pending; long backfill remains opt-in only. |
+
+GDELT boundary:
+
+- Bronze status: retry/safety behavior is implemented and tested, but current
+  live collection is not working from this environment.
+- Silver status: not actionable yet. Do not spend Silver time on GDELT until a
+  raw Bronze GDELT artifact exists.
+- Project priority: not blocking MVP Bronze, first Gold Parquet, or Spark
+  evidence because RSS can cover the first news path and Eurostat/World Bank/
+  KSH/UIC cover the first stats path.
 
 ## Feature Coverage Matrix
 

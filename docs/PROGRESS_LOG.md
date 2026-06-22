@@ -491,6 +491,8 @@ Findings:
 - Recent GDELT ingestion now retries HTTP 429, respects `Retry-After`, and lands only successful raw JSON responses.
 - Historical GDELT DOC/GKG collection now shares the same retry helper and has `--dry-run` plus `--max-pages`; CLI default is bounded to one page/file attempt unless an explicit value is supplied.
 - A bounded one-day recent GDELT live probe did not land artifacts: HU returned HTTP 429 after configured retry handling, and AT failed with a remote disconnect.
+- Decision: recent GDELT is marked not working for live Bronze collection now, but it does not block the Bronze MVP because RSS, KSH, UIC public PDFs, Eurostat, and World Bank have usable bounded evidence.
+- GDELT is not a Silver blocker yet because there is no current Bronze GDELT artifact to parse. Start Silver GDELT parsing only after a future bounded probe lands raw ArtList JSON.
 - No scheduler, MinIO, Spark job, or long historical backfill was run.
 
 Evidence:
@@ -504,7 +506,7 @@ Evidence:
 
 Next:
 
-- Keep recent GDELT marked not live-ok until a future bounded live probe lands at least one current artifact.
+- Keep recent GDELT marked not live-ok and fix it only if time remains or the report specifically needs GDELT news coverage.
 - Keep long historical GDELT backfills opt-in only, with an explicit evidence plan.
 
 ## 2026-06-22 - UIC Refresh Public Publications
@@ -533,6 +535,7 @@ Findings:
 - Current public UIC RAILISA resource endpoints `https://uic-stats.uic.org/resources/help_resource/?id=12` and `https://uic-stats.uic.org/resources/help_resource/?id=14` returned HTTP 200 PDF bytes.
 - RAILISA CSV/Excel download and REST API access is subscription/auth-bound, so the Bronze source now lands only current public free publication PDFs and records that boundary in artifact metadata.
 - UIC is still not scheduled by `src/railway_lakehouse/bronze/run.py`, so GAP-005 remains open.
+- Decision: UIC public PDF collection is complete for Bronze; extracting facts from those PDFs belongs to Silver parser work.
 
 Evidence:
 

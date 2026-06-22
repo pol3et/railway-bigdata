@@ -59,6 +59,7 @@ Update this section after each test run.
 | `python -m pytest -q tests\test_bronze_characterization.py -k "gdelt or past_recordings"` | passed: 6 passed, 17 deselected | GAP-010 | GDELT recent/history mocked 429 retry handling, `Retry-After`, 200-record DOC bound, and history `--dry-run` / `--max-pages` controls pass. |
 | `python -m pytest -q tests\test_bronze_characterization.py` | passed: 23 passed | GAP-005 / GAP-010 | Bronze characterization now includes GDELT rate-limit tests plus existing Eurostat, World Bank, KSH, and UIC coverage. |
 | Bounded GDELT recent live retry probe, manifest at `output/evidence/gdelt-live-check-2026-06-22/manifest.json` | failed | GAP-010 | One-day, `max_records=25`, `max_retries=2` probe landed 0 artifacts; HU returned HTTP 429 after retry handling and AT failed with a remote disconnect. |
+| Parser scope decision | recorded | GAP-010 | Recent GDELT remains not working for live Bronze collection and is not a blocker for the Bronze MVP from proven sources. UIC public PDF collection is Bronze-complete; PDF fact extraction is Silver parser work. |
 | `python -m pytest -q` | passed: 43 passed, 1 xfailed | GAP-004 / GAP-010 | Full suite passes; the only expected failure remains `test_pipeline_storage_read_stubs_are_not_wired` for GAP-004. |
 | `python -m compileall src tests` | passed | GAP-001 / GAP-002 | Syntax/import-bytecode sweep over current source and tests passed. |
 | `git diff --check` | passed | repo hygiene | No whitespace errors in the current working-tree diff. |

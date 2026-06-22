@@ -227,19 +227,23 @@ Changed:
 - Added GDELT/past-recordings mocked HTTP tests in `tests/test_bronze_characterization.py`.
 - Generated bounded recent GDELT evidence manifest at `output/evidence/gdelt-live-check-2026-06-22/manifest.json`.
 - Updated parser, verification, wiring, gap, and progress docs.
+- Decision: recent GDELT is marked not working for live Bronze collection now,
+  but it does not block the Bronze MVP because other sources have usable
+  bounded evidence.
 
 Evidence:
 
 - `python -m pytest -q tests\test_bronze_characterization.py -k "gdelt or past_recordings"` passed: 6 passed, 17 deselected.
 - `python -m pytest -q tests\test_bronze_characterization.py` passed: 23 passed.
 - Bounded recent GDELT live retry probe wrote `output/evidence/gdelt-live-check-2026-06-22/manifest.json`: `status=failed`, `artifact_count=0`, `byte_count=0`, with failures for HU HTTP 429 and AT `RemoteDisconnected`.
+- Decision: GDELT remains not working for live Bronze collection now, but it does not block the MVP Bronze/Gold/Spark path because RSS can supply first news evidence and proven stats sources can supply the first dataset. It is not a Silver blocker until raw GDELT ArtList JSON exists.
 - `python -m pytest -q` passed: 43 passed, 1 xfailed for documented GAP-004.
 - `python -m compileall src tests` passed.
 - `git diff --check` passed.
 
 Next:
 
-- Investigate the AT remote disconnect before marking recent GDELT fully live-ok.
+- Keep GDELT as fix-if-time parser hardening unless the report specifically needs GDELT news coverage.
 - Keep historical GDELT backfills behind explicit `--max-pages` / evidence-plan bounds.
 
 ## 2026-06-22 - UIC Refresh Public Publications
@@ -259,6 +263,8 @@ Changed:
 - Added explicit `uic` support to `src/railway_lakehouse/bronze/live_check.py` and mocked live-check coverage.
 - Generated bounded UIC evidence manifest at `output/evidence/uic-live-check-2026-06-22/manifest.json`.
 - Updated parser, gap, verification, code map, wiring, and progress docs.
+- Decision: UIC public PDF collection is complete for Bronze; extracting facts
+  from those PDFs belongs to Silver parser work.
 
 Evidence:
 
