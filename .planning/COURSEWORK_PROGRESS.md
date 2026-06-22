@@ -279,3 +279,38 @@ Next:
 
 - Decide whether scheduled Bronze stats should include UIC public PDFs before closing the UIC part of GAP-005.
 - Plan Silver UIC parsing against public PDF evidence or subscribed RAILISA CSV/Excel exports if credentials become available.
+
+## 2026-06-22 - PR #5-#7 Review, Fixes, And Merge
+
+Status: done; all open PRs merged.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/pr5-pr7-review-merge-2026-06-22.md`.
+- Local files read first: `AGENTS.md`, `README.md`, `TASK.md`,
+  `docs/PROGRESS_LOG.md`, `.planning/COURSEWORK_PROGRESS.md`,
+  `docs/CODEMAP.md`, `docs/DATA_CONTRACTS.md`, `docs/VERIFICATION.md`,
+  PR metadata, and PR branch diffs.
+- `ship-it:ship-pr` was used for PR #5; PR #6 and PR #7 were fork PRs and
+  were reviewed with fallback read-only subagents after `ship-pr` halted.
+
+Changed:
+- Invited `alyonaprikhodko` and `Soomphik` as write collaborators.
+- Fixed and merged PR #5, PR #6, and PR #7.
+- Added this progress entry and the session research note.
+
+Evidence:
+- PR #5 merged at `53287a11bf8b91160b2f1af36c9c5bb6c50e5792`.
+- PR #6 merged at `3fa4c899247a3c0c058f133a3a1e80345d3fe18c`.
+- PR #7 merged at `8f69200b151a2989c9f7f5d665e61f6eeb81deb7`.
+- `gh pr list --state open --json number,title,url,isDraft,mergeStateStatus`
+  returned `[]`.
+- `python -m pytest -q` passed on merged `main`: 53 passed, 1 xfailed for
+  documented GAP-004.
+- `python -m compileall src tests` passed.
+- `python -m json.tool` passed for all four merged parser evidence manifests.
+- `git diff --check` passed.
+
+Next:
+- Continue with GAP-004 fixture-backed Bronze reads, then minimal Silver/Gold
+  persistence and Spark evidence.

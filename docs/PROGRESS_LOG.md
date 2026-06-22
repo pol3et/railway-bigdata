@@ -550,3 +550,39 @@ Next:
 
 - Wire UIC into the Bronze scheduler under GAP-005 only after the class wants public PDFs included in scheduled stats runs.
 - Start a Silver parser decision for UIC public PDF extraction versus subscribed RAILISA CSV/Excel input.
+
+## 2026-06-22 - PR #5-#7 Review, Fixes, And Merge
+
+Status: done.
+
+Changed:
+- `.planning/coursework/research/bigdata/pr5-pr7-review-merge-2026-06-22.md`
+- `src/railway_lakehouse/bronze/sources/past_recordings.py`
+- `src/railway_lakehouse/bronze/sources/statistik_austria.py`
+- `tests/test_gdelt_rate_limit.py`
+- `tests/test_bronze_characterization.py`
+- `docs/PARSER_WORK_LOG.md`
+- merged PR evidence/docs/source/test files from PR #5, PR #6, and PR #7
+
+Findings:
+- Open GitHub queue contained PR #5, PR #6, and PR #7; no open GitHub issues were returned.
+- PR #5 was reviewed with `ship-it:ship-pr`; PR #6 and PR #7 halted under strict `ship-pr` because fork PRs are out of scope in v1, then received fallback read-only subagent reviews per user instruction.
+- Invited `alyonaprikhodko` and `Soomphik` as write collaborators on `pol3et/railway-bigdata`.
+- Fixed PR #5 historical GDELT safety default and diff-check failure.
+- Fixed PR #6 malformed RSS parser inventory row.
+- Fixed PR #7 Statistik Austria validation so non-empty HTML/invalid HTTP-200 responses are not landed as real `.ods` artifacts.
+- No clean merge order existed before conflict resolution; PR branches were updated/reconciled so parser docs and tests work together.
+- All three PRs were merged and the open PR list is empty.
+
+Evidence:
+- PR #5 merged at `53287a11bf8b91160b2f1af36c9c5bb6c50e5792`.
+- PR #6 merged at `3fa4c899247a3c0c058f133a3a1e80345d3fe18c`.
+- PR #7 merged at `8f69200b151a2989c9f7f5d665e61f6eeb81deb7`.
+- Final merged-main `python -m pytest -q` passed: 53 passed, 1 xfailed for documented GAP-004.
+- Final merged-main `python -m compileall src tests` passed.
+- Final merged-main evidence manifest JSON validation passed for GDELT, UIC, RSS, and Statistik Austria.
+- Final merged-main `git diff --check` passed.
+
+Next:
+- Keep GAP-004 as the next vertical-slice priority: fixture-backed Bronze storage reads.
+- Treat GDELT live collection as optional hardening unless a future bounded probe lands real artifacts.
