@@ -1,6 +1,7 @@
 import pytest
 
 from railway_lakehouse.silver.news import extract as news_extract
+from railway_lakehouse.silver.news.gdelt import parse_gdelt_artlist_json
 from railway_lakehouse.silver.news.rss import parse_rss_xml, rss_records_to_news_features
 
 pytestmark = pytest.mark.unit
@@ -75,3 +76,28 @@ def test_rss_records_to_news_features_uses_existing_extraction(monkeypatch):
     assert feature.country == "HU"
     assert feature.event_type == "investment"
     assert feature.summary_en == "Railway expansion was announced."
+
+
+def test_parse_gdelt_artlist_json_returns_article_records():
+    payload = """
+    {
+      "articles": [
+        {
+          "title": "Rail disruption in Austria",
+          "url": "https://example.com/gdelt-article",
+          "seendate": "20260622T120000Z",
+          "snippet": "Rail services were disrupted."
+        }
+      ]
+    }
+    """
+
+    records = parse_gdelt_artlist_json(payload)
+
+    assert len(records) == 1
+    article = records[0]
+    assert article.source == "gdelt"
+    assert article.title == "Rail disruption in Austria"
+    assert article.url == "https://example.com/gdelt-article"
+    assert article.published_date == "20260622T120000Z"
+    assert article.body == "Rail services were disrupted."
