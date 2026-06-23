@@ -119,6 +119,9 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 ## Roadmap To Completion
 
+Named, trackable version of this roadmap (stable slugs, also used in the team
+chat): `TASKS.md`.
+
 Shortest line from here (Gold proven on a fixture) to Spark evidence and a
 defensible report. Hard blockers sit on the main line; volume and coverage run
 on a parallel track.
