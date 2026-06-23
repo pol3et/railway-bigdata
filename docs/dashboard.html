@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Railway Lakehouse — State &amp; Roadmap</title>
+<style>
+  :root {
+    --ground:#0D1B2A; --ground-2:#0A1521; --surface:#15273B; --surface-2:#1B3047;
+    --line:rgba(79,176,201,0.16); --line-strong:rgba(79,176,201,0.40);
+    --text:#E6EDF3; --muted:#8AA0B4; --faint:#5E748A;
+    --accent:#4FB0C9; --green:#46C07A; --amber:#E8A23A; --red:#E0584F;
+    --display:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background-color:var(--ground);
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:28px 28px; background-position:-1px -1px;
+    color:var(--text); font-family:var(--display); line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 22px 64px; }
+  .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--accent); margin:0 0 8px; }
+  h1,h2 { font-weight:800; letter-spacing:-0.01em; }
+  h2 { font-size:clamp(19px,2.6vw,26px); margin:0; text-transform:uppercase; }
+  .mono { font-family:var(--mono); }
+  .muted { color:var(--muted); }
+  .small { font-size:12.5px; }
+
+  header.board { border-bottom:1px solid var(--line-strong); background:linear-gradient(180deg,var(--ground-2),transparent); padding:28px 0 22px; }
+  .board-row { display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px 28px; justify-content:space-between; }
+  .board h1 { font-size:clamp(26px,5vw,46px); line-height:0.98; text-transform:uppercase; margin:4px 0 0; }
+  .board h1 span { color:var(--accent); }
+  .status-pill { font-family:var(--mono); font-size:12px; border:1px solid var(--line-strong); border-radius:2px; padding:8px 12px; background:var(--surface); white-space:nowrap; }
+  .status-pill b { color:var(--amber); }
+
+  section { margin-top:42px; }
+  .sec-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:10px; }
+  .sec-no { font-family:var(--mono); font-size:13px; color:var(--faint); letter-spacing:0.1em; }
+
+  /* pipeline line */
+  .track { overflow-x:auto; padding:10px 4px 16px; }
+  .rail { display:grid; grid-template-columns:repeat(5,minmax(140px,1fr)); min-width:720px; position:relative; }
+  .rail::before { content:""; position:absolute; top:23px; left:10%; right:10%; height:3px; background:linear-gradient(90deg,var(--accent) 0 50%,transparent 50%); }
+  .rail::after { content:""; position:absolute; top:22px; right:10%; width:40%; height:5px; background-image:repeating-linear-gradient(90deg,var(--faint) 0 8px,transparent 8px 16px); opacity:0.8; }
+  .stn { position:relative; text-align:center; padding:0 8px; }
+  .node { width:46px; height:46px; border-radius:50%; margin:0 auto 10px; background:var(--surface); border:3px solid var(--faint); display:grid; place-items:center; position:relative; z-index:2; font-family:var(--mono); font-size:17px; font-weight:700; }
+  .node.green { border-color:var(--green); color:var(--green); box-shadow:0 0 0 4px rgba(70,192,122,0.12); }
+  .node.amber { border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 4px rgba(232,162,58,0.12); }
+  .node.red   { border-color:var(--red);   color:var(--red);   box-shadow:0 0 0 4px rgba(224,88,79,0.10); }
+  .stn-code { font-family:var(--mono); font-size:10.5px; letter-spacing:0.16em; color:var(--accent); text-transform:uppercase; }
+  .stn-name { font-weight:800; font-size:14px; text-transform:uppercase; margin:3px 0 4px; }
+  .stn-note { font-size:11.5px; color:var(--muted); line-height:1.35; }
+  .here { position:absolute; top:-6px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:0.12em; color:var(--ground); background:var(--amber); padding:2px 6px; border-radius:2px; white-space:nowrap; font-weight:700; }
+  .train { position:absolute; top:12px; left:46%; z-index:3; font-size:19px; color:var(--amber); animation:idle 2.4s ease-in-out infinite; }
+  @keyframes idle { 0%,100%{transform:translateY(0);opacity:1;} 50%{transform:translateY(-2px);opacity:0.55;} }
+
+  /* metrics */
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(4,1fr); }
+  .card { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:3px; padding:14px 15px; }
+  .card .big { font-family:var(--mono); font-size:clamp(24px,3.4vw,32px); font-weight:700; line-height:1; }
+  .card .cap { font-family:var(--mono); font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-top:8px; }
+  .card.green { border-left-color:var(--green); } .card.green .big { color:var(--green); }
+  .card.amber { border-left-color:var(--amber); } .card.amber .big { color:var(--amber); }
+  .card.red   { border-left-color:var(--red); }   .card.red .big   { color:var(--red); }
+
+  /* table */
+  .scroll { overflow-x:auto; border:1px solid var(--line); border-radius:3px; }
+  table { border-collapse:collapse; width:100%; min-width:680px; font-size:13px; }
+  th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); background:var(--ground-2); }
+  tbody tr:last-child td { border-bottom:none; }
+  td .src { font-family:var(--mono); font-weight:700; }
+  .sig { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; white-space:nowrap; }
+  .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .dot.green{background:var(--green);} .dot.amber{background:var(--amber);} .dot.red{background:var(--red);}
+  .sig.green{color:var(--green);} .sig.amber{color:var(--amber);} .sig.red{color:var(--red);}
+
+  /* stages */
+  .stage { display:flex; gap:16px; align-items:flex-start; margin-bottom:10px; }
+  .stage-label { font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); min-width:122px; padding-top:8px; }
+  .tracks { display:flex; flex-wrap:wrap; gap:8px; flex:1; }
+  .chip { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:3px; padding:8px 11px; font-family:var(--mono); font-size:12px; }
+  .chip b { color:var(--accent); }
+  .chip .arr { color:var(--faint); padding:0 2px; }
+  .chip.target { border-left-color:var(--amber); }
+  .chip.later { opacity:0.72; border-left-color:var(--faint); }
+  .barrier { margin:4px 0 16px; text-align:center; font-family:var(--mono); font-size:11.5px; color:var(--amber); border:1px dashed var(--line-strong); border-radius:3px; padding:7px 10px; background:var(--surface-2); }
+  .barrier.soft { color:var(--faint); border-style:dotted; }
+
+  /* engine */
+  .callout { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--green); border-radius:3px; padding:16px 18px; }
+  .callout p { margin:0 0 10px; font-size:13.5px; }
+  .callout p:last-child { margin:0; }
+  .callout b { color:var(--text); }
+  .pillrow { display:flex; flex-wrap:wrap; gap:7px; }
+  .lib { font-family:var(--mono); font-size:11px; padding:4px 9px; border:1px solid var(--line-strong); border-radius:2px; color:var(--muted); }
+  .lib b { color:var(--text); }
+
+  .note { font-family:var(--mono); font-size:12px; color:var(--faint); margin-top:30px; border-top:1px solid var(--line); padding-top:14px; line-height:1.5; }
+  a { color:var(--accent); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  @media (max-width:760px) {
+    .grid { grid-template-columns:1fr 1fr; }
+    .stage { flex-direction:column; gap:8px; }
+    .stage-label { padding-top:0; }
+  }
+  @media (prefers-reduced-motion:reduce) { .train { animation:none; } }
+</style>
+</head>
+<body>
+
+<header class="board">
+  <div class="wrap">
+    <div class="board-row">
+      <div>
+        <p class="eyebrow">Railway Big-Data Course Project · src/railway_lakehouse</p>
+        <h1>Lakehouse <span>Line Status</span></h1>
+      </div>
+      <div class="status-pill">EN ROUTE — <b>GOLD → SPARK</b> · 2026-06-23</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section style="margin-top:26px;">
+    <div class="track" role="img" aria-label="Pipeline as a railway line: Bronze operational, Silver and Gold partial, Spark and Report not built.">
+      <div class="rail">
+        <div class="train" aria-hidden="true">▸▮</div>
+        <div class="stn"><div class="node green">B</div><div class="stn-code">stop 01</div><div class="stn-name">Bronze</div><div class="stn-note">Raw landing works. 4 of 8 sources scheduled.</div></div>
+        <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Stats + news normalize, in-memory only.</div></div>
+        <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Builder works — only on a 4-row fixture.</div></div>
+        <div class="stn"><div class="node red">⚡</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Not built. The graded deliverable.</div></div>
+        <div class="stn"><div class="node red">R</div><div class="stn-code">stop 05</div><div class="stn-name">Report</div><div class="stn-note">Blocked on generated evidence.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
+    <div class="grid">
+      <div class="card green"><div class="big">74</div><div class="cap">tests passing</div></div>
+      <div class="card amber"><div class="big">4×3</div><div class="cap">only real Gold (fixture)</div></div>
+      <div class="card amber"><div class="big">2 / 5</div><div class="cap">stats parsers</div></div>
+      <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
+    </div>
+    <p class="small muted" style="margin-top:10px;">Live runs proved raw Bronze landing only. The single end-to-end artifact is <span class="mono">fixture-e2e/railway_ml.parquet</span> (4 rows, news skipped).</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">02</span><h2>What we collect</h2></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Source</th><th>Collected</th><th>Bronze</th><th>Silver → rows</th></tr></thead>
+        <tbody>
+          <tr><td><span class="src">eurostat</span></td><td>rail SDMX series (TSV) · EU+HU/AT</td><td><span class="sig green"><span class="dot green"></span>live-capable</span></td><td><span class="sig green"><span class="dot green"></span>StatFact</span></td></tr>
+          <tr><td><span class="src">worldbank</span></td><td>rail indicators (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>StatFact</span></td></tr>
+          <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord</span></td></tr>
+          <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live FAILS (429)</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord (fixture)</span></td></tr>
+          <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no XLSX reader</span></td></tr>
+          <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
+          <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no PDF extractor</span></td></tr>
+          <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG missing</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">03</span><h2>Execution stages</h2></div>
+    <p class="small muted" style="margin:-6px 0 16px;">Inside a stage, tasks fan out (parallel). Between stages, a fan-in barrier must be met before continuing. Only <span class="mono">①→②→⑦→⑧</span> is strictly sequential.</p>
+
+    <div class="stage">
+      <div class="stage-label">Stage 1 · fan-out ×4</div>
+      <div class="tracks">
+        <div class="chip"><b>①</b> bronze/local-stats-landing <span class="arr">→</span> <b>②</b> gold/first-real-result 🏁</div>
+        <div class="chip">silver/persist-contract</div>
+        <div class="chip">⑤ infra/minio-storage</div>
+        <div class="chip">infra/ollama-model</div>
+      </div>
+    </div>
+    <div class="barrier">FAN-IN A — contract frozen · first real Gold · MinIO up · LLM verified</div>
+
+    <div class="stage">
+      <div class="stage-label">Stage 2 · fan-out ×3</div>
+      <div class="tracks">
+        <div class="chip"><b>③</b> silver/persist-outputs <span class="arr">→</span> <b>④</b> gold/load-from-silver</div>
+        <div class="chip"><b>⑥</b> silver/news-llm-extraction</div>
+      </div>
+    </div>
+    <div class="barrier">FAN-IN B — clean persisted Bronze→Silver→Gold (with news) · counts recorded</div>
+
+    <div class="stage">
+      <div class="stage-label">Stage 3 · spine</div>
+      <div class="tracks">
+        <div class="chip target"><b>⑦</b> spark/evidence-job <span class="arr">→</span> <b>⑧</b> report/draft</div>
+      </div>
+    </div>
+    <div class="barrier soft">deferred until the core is E2E ↓</div>
+
+    <div class="stage">
+      <div class="stage-label">Stage 4 · deferred</div>
+      <div class="tracks">
+        <div class="chip later">bronze/gdelt-history-backfill <span class="arr">→</span> silver/gdelt-gkg-parser</div>
+        <div class="chip later">silver/stats-parsers-extra · KSH ‖ AT ‖ UIC</div>
+        <div class="chip later">bronze/scheduler-wiring</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">04</span><h2>Engine</h2></div>
+    <div class="callout">
+      <p><b>Apache Spark (PySpark)</b> — rubric-aligned (course names MapReduce/Spark/Storm), scales laptop→cluster. Run local now, then a standalone cluster to prove horizontal scaling. Write Gold as <b>Delta Lake</b> on Parquet; keep <b>DuckDB/Polars</b> as an EDA + benchmark sidecar. Raise real volume via the GDELT backfill so Spark is justified.</p>
+      <div class="pillrow">
+        <span class="lib"><b>pyspark</b> 3.5.*</span>
+        <span class="lib"><b>delta-spark</b> 3.2.x</span>
+        <span class="lib"><b>hadoop-aws</b> 3.3.4</span>
+        <span class="lib">JDK <b>17</b></span>
+        <span class="lib">winutils <b>3.3.x</b></span>
+        <span class="lib">news LLM: <b>Qwen3-4B</b> q4_K_M (6 GB fit)</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">Grounded in docs/GAP_REGISTER.md, the source adapters &amp; Silver parsers, and committed output/evidence/ manifests. Task slugs match docs/TASKS.md. Snapshot 2026-06-23.</p>
+
+</main>
+</body>
+</html>
