@@ -8,15 +8,16 @@ import pytest
 from railway_lakehouse.bronze.lander import RawArtifact
 from railway_lakehouse.bronze import live_check
 from railway_lakehouse.bronze.live_check import (
+    collect_eurostat,
     collect_ksh,
     collect_rss,
     collect_uic,
+    collect_worldbank,
     LocalBronzeLander,
     SourceResult,
     run_live_check,
     write_manifest,
 )
-
 
 pytestmark = pytest.mark.unit
 
@@ -225,6 +226,105 @@ def test_run_live_check_validates_all_sources_before_writing(tmp_path):
     assert not (tmp_path / "bronze").exists()
     assert not (tmp_path / "manifest.json").exists()
 
+def test_collect_eurostat_lands_catalogue_and_dataset(monkeypatch, tmp_path):
+    class Response:
+        def __init__(self, status_code, content, content_type="text/plain"):
+            self.status_code = status_code
+            self.content = content
+            self.headers = {"Content-Type": content_type}
+
+        @property
+        def text(self):
+            return self.content.decode("utf-8")
+
+    class Session:
+        def get(self, url, timeout, headers):
+            if "catalogue/toc" in url:
+                return Response(
+                    200,
+                    b"Railway freight transport\tenpe_rail_go\nRoad transport\troad_demo\n",
+                )
+            if "enpe_rail_go" in url:
+                return Response(
+                    200,
+                    b"Rail passengers total\t2020\nA,NR,HU\t100\n",
+                    "text/tab-separated-values",
+                )
+            return Response(404, b"")
+
+    monkeypatch.setattr(live_check.requests, "Session", Session)
+    lander = LocalBronzeLander(tmp_path, run_id="run-001", clock=lambda: FIXED_NOW)
+
+    result = collect_eurostat(lander=lander, max_artifacts=1, timeout_seconds=3)
+
+    assert result.status == "passed"
+    assert {artifact["dataset_id"] for artifact in lander.artifacts} == {
+        "_catalogue_toc",
+        "enpe_rail_go",
+    }
+    assert (
+        tmp_path
+        / "bronze"
+        / "stats"
+        / "eurostat"
+        / "enpe_rail_go"
+        / "ingest_date=2026-06-21"
+        / "enpe_rail_go.tsv.gz"
+    ).exists()
+
+def test_collect_worldbank_lands_valid_series(monkeypatch, tmp_path):
+    class Response:
+        def __init__(self, payload, status_code=200):
+            self.status_code = status_code
+            self._payload = payload
+            self.content = json.dumps(payload).encode("utf-8")
+            self.headers = {"Content-Type": "application/json"}
+
+        def json(self):
+            return self._payload
+
+    valid_series = [
+        {"page": 1, "total": 1},
+        [
+            {
+                "indicator": {
+                    "id": "IS.RRS.TOTL.KM",
+                    "value": "Rail lines (total route-km)",
+                },
+                "countryiso3code": "HUN",
+                "date": "2021",
+                "value": 7891,
+            }
+        ],
+    ]
+
+    class Session:
+        def get(self, url, timeout, headers):
+            if "v2/indicator?" in url:
+                return Response([{"page": 1}, []])
+            if "IS.RRS.TOTL.KM" in url:
+                return Response(valid_series)
+            raise AssertionError(f"unexpected url: {url}")
+
+    monkeypatch.setattr(live_check.requests, "Session", Session)
+    lander = LocalBronzeLander(tmp_path, run_id="run-001", clock=lambda: FIXED_NOW)
+
+    result = collect_worldbank(lander=lander, max_artifacts=1, timeout_seconds=3)
+
+    assert result.status == "passed"
+    assert {artifact["dataset_id"] for artifact in lander.artifacts} == {
+        "_catalogue_indicators",
+        "IS.RRS.TOTL.KM",
+    }
+    assert (
+        tmp_path
+        / "bronze"
+        / "stats"
+        / "worldbank"
+        / "IS.RRS.TOTL.KM"
+        / "ingest_date=2026-06-21"
+        / "IS.RRS.TOTL.KM.json"
+    ).exists()
 
 def test_collect_rss_lands_successes_and_records_failures(monkeypatch, tmp_path):
     class Response:

@@ -141,20 +141,43 @@ def _map_label_via_llm(label: str) -> Optional[str]:
 
 
 # English-by-rule mapping for Eurostat dimension strings (no LLM needed).
-_EUROSTAT_RULES = [
-    ("freight", "rail_freight_tonnes"), ("goods", "rail_freight_tonnes"),
-    ("tonne-km", "rail_freight_tonne_km"), ("passenger-km", "rail_passenger_km"),
-    ("passenger", "rail_passengers"), ("network", "rail_network_length_km"),
-    ("electrified", "rail_electrified_km"), ("accident", "rail_accidents"),
-    ("victim", "rail_fatalities"), ("killed", "rail_fatalities"),
-    ("investment", "rail_investment"), ("rolling stock", "rail_rolling_stock"),
+# _EUROSTAT_RULES = [
+#     ("freight", "rail_freight_tonnes"), ("goods", "rail_freight_tonnes"),
+#     ("tonne-km", "rail_freight_tonne_km"), ("passenger-km", "rail_passenger_km"),
+#     ("passenger", "rail_passengers"), ("network", "rail_network_length_km"),
+#     ("electrified", "rail_electrified_km"), ("accident", "rail_accidents"),
+#     ("victim", "rail_fatalities"), ("killed", "rail_fatalities"),
+#     ("investment", "rail_investment"), ("rolling stock", "rail_rolling_stock"),
+#     ("employ", "rail_employees"),
+# ]
+
+
+_ENGLISH_LABEL_RULES = [
+    ("rail lines", "rail_network_length_km"),
+    ("route-km", "rail_network_length_km"),
+    ("network", "rail_network_length_km"),
+    ("electrified", "rail_electrified_km"),
+
+    ("tonne-km", "rail_freight_tonne_km"),
+    ("ton-km", "rail_freight_tonne_km"),
+    ("freight", "rail_freight_tonnes"),
+    ("goods", "rail_freight_tonnes"),
+
+    ("passenger-km", "rail_passenger_km"),
+    ("passengers carried", "rail_passenger_km"),
+    ("passenger", "rail_passengers"),
+
+    ("accident", "rail_accidents"),
+    ("victim", "rail_fatalities"),
+    ("killed", "rail_fatalities"),
+    ("investment", "rail_investment"),
+    ("rolling stock", "rail_rolling_stock"),
     ("employ", "rail_employees"),
 ]
 
-
 def _map_label_by_rule(label: str) -> Optional[str]:
     low = label.lower()
-    for needle, key in _EUROSTAT_RULES:
+    for needle, key in _ENGLISH_LABEL_RULES:
         if needle in low:
             return key
     return None

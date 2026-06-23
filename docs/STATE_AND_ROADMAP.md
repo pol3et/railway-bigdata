@@ -21,19 +21,20 @@ Today the train is at **Gold**; the next stop is **Spark**.
 |---|---|---|
 | Bronze (ingest) | operational | Raw landing works. 4 sources scheduled (Eurostat, World Bank, GDELT, RSS); KSH, Statistik Austria, UIC, GDELT-history are live-proven but **not scheduled** (GAP-005). |
 | Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly, but **in-memory only** inside `pipeline.py`. No persisted Silver writer; `silver/run.py` is a stub (GAP-006). |
-| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet, but only from a 4-row fixture. `gold/run.py` cannot load Silver from storage yet (GAP-007). |
+| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from local Eurostat + World Bank Bronze evidence: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. `gold/run.py` still cannot load persisted Silver from storage yet (GAP-007). |
 | Spark (big-data jobs) | not built | No `spark_jobs/` package exists. The registered command `python -m railway_lakehouse.spark_jobs.coverage` cannot import (GAP-009). This is the graded deliverable. |
 | Report / presentation | not started | Blocked: every claim must cite generated evidence that does not exist yet (GAP-011). |
 
 ### At A Glance
 
-- `python -m pytest -q`: **74 passed**, 0 xfail.
+- `python -m pytest -q`: **77 passed**, 0 xfail.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
 - Stats parsers to `StatFact`: **2 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
 - Gaps closed: **5 / 11** (GAP-001..004, 008).
-- Only end-to-end Bronze->Silver->Gold artifact:
-  `output/evidence/fixture-e2e/railway_ml.parquet` = **4 rows x 3 cols**, news skipped.
+- End-to-end Bronze->Silver->Gold artifacts:
+  - fixture: `output/evidence/fixture-e2e/railway_ml.parquet` = **4 rows x 3 cols**, news skipped.
+  - first real stats-only run: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` = **2,139 rows x 3 cols**, includes `AT` and `HU`, news skipped.
 
 ### Evidence Reality Check
 

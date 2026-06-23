@@ -34,6 +34,17 @@ def test_pipeline_bronze_readers_load_local_fixtures():
         }
     ]
 
+def test_pipeline_stats_reader_loads_eurostat_and_worldbank_fixtures():
+    import railway_lakehouse.pipeline as pipeline
+
+    reader = SimpleNamespace(bronze_root=FIXTURE_BRONZE)
+
+    frames = pipeline._read_bronze_stats_frames(reader)
+
+    assert {frame["source_system"].iloc[0] for frame in frames if not frame.empty} >= {
+        "eurostat",
+        "worldbank",
+    }
 
 def test_pipeline_news_reader_honors_zero_limit():
     import railway_lakehouse.pipeline as pipeline

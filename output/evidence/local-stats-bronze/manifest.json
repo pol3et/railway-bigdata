@@ -1,0 +1,73 @@
+{
+  "run_id": "live-check-20260623-145526",
+  "timestamp_utc": "2026-06-23T14:55:26.708729+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "eurostat",
+      "status": "passed",
+      "artifact_count": 2,
+      "byte_count": 1982076,
+      "http_statuses": [
+        200,
+        200
+      ],
+      "failures": []
+    },
+    {
+      "source": "worldbank",
+      "status": "passed",
+      "artifact_count": 2,
+      "byte_count": 13014919,
+      "http_statuses": [
+        200,
+        200
+      ],
+      "failures": []
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "eurostat",
+      "domain": "stats",
+      "dataset_id": "_catalogue_toc",
+      "path": "output/evidence/local-stats-bronze/bronze/stats/eurostat/_catalogue_toc/ingest_date=2026-06-23/toc_en.txt",
+      "meta_path": "output/evidence/local-stats-bronze/bronze/stats/eurostat/_catalogue_toc/ingest_date=2026-06-23/toc_en.txt.meta.json",
+      "bytes": 1981524,
+      "sha256": "c0e2b5ac7ec2acf4282aa55710f1106fc15e8ba034524a322561b9d18933fc36",
+      "http_status": 200
+    },
+    {
+      "source": "eurostat",
+      "domain": "stats",
+      "dataset_id": "enpe_rail_go",
+      "path": "output/evidence/local-stats-bronze/bronze/stats/eurostat/enpe_rail_go/ingest_date=2026-06-23/enpe_rail_go.tsv.gz",
+      "meta_path": "output/evidence/local-stats-bronze/bronze/stats/eurostat/enpe_rail_go/ingest_date=2026-06-23/enpe_rail_go.tsv.gz.meta.json",
+      "bytes": 552,
+      "sha256": "c918144de1ccbca18bf194eac35a5659062f0e56fff440598f6cc88dba892641",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "_catalogue_indicators",
+      "path": "output/evidence/local-stats-bronze/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-23/indicators.json",
+      "meta_path": "output/evidence/local-stats-bronze/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-23/indicators.json.meta.json",
+      "bytes": 9316675,
+      "sha256": "053a0f0aee9131f9d55a9bcc2d7d63f539df89d0c1b798b3b3705f6eb0ec0c8b",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.RRS.TOTL.KM",
+      "path": "output/evidence/local-stats-bronze/bronze/stats/worldbank/IS.RRS.TOTL.KM/ingest_date=2026-06-23/IS.RRS.TOTL.KM.json",
+      "meta_path": "output/evidence/local-stats-bronze/bronze/stats/worldbank/IS.RRS.TOTL.KM/ingest_date=2026-06-23/IS.RRS.TOTL.KM.json.meta.json",
+      "bytes": 3698244,
+      "sha256": "a7b046dc04a9e3eaded77b328e4fcc8832f26ca819ab383304f04c69f3326e69",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 4,
+  "byte_count": 14996995
+}

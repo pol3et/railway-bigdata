@@ -19,7 +19,7 @@ from typing import Callable, Iterable, Mapping
 import requests
 
 from .lander import RawArtifact
-from .sources import ksh, rss_media, uic
+from .sources import eurostat, ksh, rss_media, uic, worldbank
 
 logger = logging.getLogger("bronze.live_check")
 
@@ -230,6 +230,97 @@ def collect_rss(
     return _source_result("rss", lander.artifacts[start_count:], statuses, failures)
 
 
+EUROSTAT_CONFIRMED_DATASETS = ("enpe_rail_go",)
+
+
+def collect_eurostat(
+    *,
+    lander: LocalBronzeLander,
+    max_artifacts: int,
+    timeout_seconds: int,
+) -> SourceResult:
+    session = requests.Session()
+    failures: list[dict] = []
+    statuses: list[int] = []
+    start_count = len(lander.artifacts)
+
+    try:
+        toc_response = session.get(
+            eurostat.TOC_URL,
+            timeout=timeout_seconds,
+            headers={"User-Agent": USER_AGENT},
+        )
+    except requests.RequestException as exc:
+        failures.append({"dataset_id": "_catalogue_toc", "url": eurostat.TOC_URL, "error": str(exc)})
+        return _source_result("eurostat", lander.artifacts[start_count:], statuses, failures)
+
+    statuses.append(toc_response.status_code)
+    if toc_response.status_code != 200 or not toc_response.content:
+        failures.append(
+            {
+                "dataset_id": "_catalogue_toc",
+                "url": eurostat.TOC_URL,
+                "http_status": toc_response.status_code,
+                "bytes": len(toc_response.content or b""),
+                "error": "empty or non-200 catalogue response",
+            }
+        )
+        return _source_result("eurostat", lander.artifacts[start_count:], statuses, failures)
+
+    lander.land(
+        RawArtifact(
+            domain="stats",
+            source="eurostat",
+            dataset_id="_catalogue_toc",
+            filename="toc_en.txt",
+            content=toc_response.content,
+            source_url=eurostat.TOC_URL,
+            content_type=toc_response.headers.get("Content-Type", "text/plain; charset=utf-8"),
+            http_status=toc_response.status_code,
+            extra={"discovery": "eurostat_toc"},
+        )
+    )
+
+    discovered = eurostat.discover_rail_datasets(toc_response.text)
+    codes = list(dict.fromkeys(list(EUROSTAT_CONFIRMED_DATASETS) + discovered))[:max_artifacts]
+
+    for code in codes:
+        url = eurostat.DATA_URL.format(code=code)
+        try:
+            response = session.get(url, timeout=timeout_seconds, headers={"User-Agent": USER_AGENT})
+        except requests.RequestException as exc:
+            failures.append({"dataset_id": code, "url": url, "error": str(exc)})
+            continue
+
+        statuses.append(response.status_code)
+        if response.status_code != 200 or not response.content:
+            failures.append(
+                {
+                    "dataset_id": code,
+                    "url": url,
+                    "http_status": response.status_code,
+                    "bytes": len(response.content or b""),
+                    "error": "empty or non-200 dataset response",
+                }
+            )
+            continue
+
+        lander.land(
+            RawArtifact(
+                domain="stats",
+                source="eurostat",
+                dataset_id=code,
+                filename=f"{code}.tsv.gz",
+                content=response.content,
+                source_url=url,
+                content_type=response.headers.get("Content-Type", "application/gzip"),
+                http_status=response.status_code,
+                extra={"discovery": "bounded_eurostat_rail_dataset"},
+            )
+        )
+
+    return _source_result("eurostat", lander.artifacts[start_count:], statuses, failures)
+
 def collect_ksh(
     *,
     lander: LocalBronzeLander,
@@ -286,6 +377,124 @@ def collect_ksh(
 
     return _source_result("ksh", lander.artifacts[start_count:], statuses, failures)
 
+
+def collect_worldbank(
+    *,
+    lander: LocalBronzeLander,
+    max_artifacts: int,
+    timeout_seconds: int,
+) -> SourceResult:
+    session = requests.Session()
+    failures: list[dict] = []
+    statuses: list[int] = []
+    start_count = len(lander.artifacts)
+
+    try:
+        catalogue_response = session.get(
+            worldbank.CATALOGUE_URL,
+            timeout=timeout_seconds,
+            headers={"User-Agent": USER_AGENT},
+        )
+    except requests.RequestException as exc:
+        failures.append({"dataset_id": "_catalogue_indicators", "url": worldbank.CATALOGUE_URL, "error": str(exc)})
+        return _source_result("worldbank", lander.artifacts[start_count:], statuses, failures)
+
+    statuses.append(catalogue_response.status_code)
+    if catalogue_response.status_code != 200 or not catalogue_response.content:
+        failures.append(
+            {
+                "dataset_id": "_catalogue_indicators",
+                "url": worldbank.CATALOGUE_URL,
+                "http_status": catalogue_response.status_code,
+                "bytes": len(catalogue_response.content or b""),
+                "error": "empty or non-200 catalogue response",
+            }
+        )
+        return _source_result("worldbank", lander.artifacts[start_count:], statuses, failures)
+
+    lander.land(
+        RawArtifact(
+            domain="stats",
+            source="worldbank",
+            dataset_id="_catalogue_indicators",
+            filename="indicators.json",
+            content=catalogue_response.content,
+            source_url=worldbank.CATALOGUE_URL,
+            content_type=catalogue_response.headers.get("Content-Type", "application/json"),
+            http_status=catalogue_response.status_code,
+            extra={"discovery": "worldbank_indicator_catalogue"},
+        )
+    )
+
+    try:
+        discovered = worldbank.discover_rail_indicators(catalogue_response.json())
+    except Exception:  # noqa: BLE001
+        discovered = list(worldbank.CONFIRMED_RAIL_INDICATORS)
+
+    indicators = list(dict.fromkeys(list(worldbank.CONFIRMED_RAIL_INDICATORS) + discovered))[:max_artifacts]
+
+    for indicator in indicators:
+        url = worldbank.SERIES_URL.format(indicator=indicator)
+        try:
+            response = session.get(url, timeout=timeout_seconds, headers={"User-Agent": USER_AGENT})
+        except requests.RequestException as exc:
+            failures.append({"dataset_id": indicator, "url": url, "error": str(exc)})
+            continue
+
+        statuses.append(response.status_code)
+        if response.status_code != 200 or not response.content:
+            failures.append(
+                {
+                    "dataset_id": indicator,
+                    "url": url,
+                    "http_status": response.status_code,
+                    "bytes": len(response.content or b""),
+                    "error": "empty or non-200 indicator response",
+                }
+            )
+            continue
+
+        try:
+            payload = response.json()
+        except ValueError:
+            failures.append(
+                {
+                    "dataset_id": indicator,
+                    "url": url,
+                    "http_status": response.status_code,
+                    "bytes": len(response.content or b""),
+                    "error": "non-JSON indicator response",
+                }
+            )
+            continue
+
+        if not worldbank.series_has_observations(payload):
+            failures.append(
+                {
+                    "dataset_id": indicator,
+                    "url": url,
+                    "http_status": response.status_code,
+                    "bytes": len(response.content or b""),
+                    "error": "no time series; error or empty payload",
+                }
+            )
+            continue
+
+        lander.land(
+            RawArtifact(
+                domain="stats",
+                source="worldbank",
+                dataset_id=indicator,
+                filename=f"{indicator}.json",
+                content=response.content,
+                source_url=url,
+                content_type=response.headers.get("Content-Type", "application/json"),
+                http_status=response.status_code,
+                extra={"discovery": "bounded_worldbank_rail_indicator"},
+            )
+        )
+
+    return _source_result("worldbank", lander.artifacts[start_count:], statuses, failures)
 
 def collect_uic(
     *,
@@ -350,7 +559,12 @@ def parse_sources(raw_sources: str) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a bounded local Bronze live check.")
-    parser.add_argument("--sources", default=",".join(DEFAULT_SOURCES), help="Comma-separated sources: rss,ksh,uic")
+    # parser.add_argument("--sources", default=",".join(DEFAULT_SOURCES), help="Comma-separated sources: rss,ksh,uic")
+    parser.add_argument(
+        "--sources",
+        default=",".join(DEFAULT_SOURCES),
+        help="Comma-separated sources: rss,ksh,uic,eurostat,worldbank",
+    )
     parser.add_argument("--out", default="output/evidence/live-bronze", help="Local evidence output directory")
     parser.add_argument(
         "--max-artifacts",
@@ -445,6 +659,8 @@ def _default_collectors() -> dict[str, Collector]:
         "rss": collect_rss,
         "ksh": collect_ksh,
         "uic": collect_uic,
+        "eurostat": collect_eurostat,
+        "worldbank": collect_worldbank,
     }
 
 

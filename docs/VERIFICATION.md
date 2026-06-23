@@ -21,6 +21,28 @@ Observed results:
 - Compileall passed.
 - `git diff --check` passed.
 
+Additional local stats Bronze -> Gold validation from 2026-06-23:
+
+```bash
+python -m pytest -q
+python -m railway_lakehouse.bronze.live_check --sources eurostat,worldbank --out output/evidence/local-stats-bronze --max-artifacts 1 --timeout-seconds 60
+python -m railway_lakehouse.pipeline --bronze-root output/evidence/local-stats-bronze/bronze --skip-news-extraction --news 0 --out output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet --crosswalk-path output/evidence/first-real-gold-local-stats-v2/crosswalk_cache.json
+```
+Observed results:
+
+* Full suite passed: 77 passed.
+* Local stats Bronze landing passed for Eurostat and World Bank.
+* Bronze evidence snapshot: output/evidence/local-stats-bronze/manifest.json.
+* Live bounded Bronze artifacts: 4 artifacts, 14,996,995 bytes.
+* First real stats-only Gold written to output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet.
+* Gold counts recorded in output/evidence/first-real-gold-local-stats-v2/counts.json.
+* Gold shape: 2,139 rows x 3 columns.
+* Gold columns: geo, year, rail_network_length_km.
+* Gold includes both target countries: AT and HU.
+* Gold year range: 1995-2021.
+* News extraction was intentionally skipped with --skip-news-extraction; this does not prove live LLM/news extraction.
+
+
 Additional GAP-004 fixture E2E validation from 2026-06-22:
 
 ```bash

@@ -26,7 +26,9 @@ from railway_lakehouse.bronze.lander import RawLander
 from railway_lakehouse.bronze.sources import eurostat
 from railway_lakehouse.bronze.sources import past_recordings
 
+
 # Silver
+from railway_lakehouse.silver.stats import load as stats_load
 from railway_lakehouse.silver.stats import merge as stats_merge
 from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver.news.rss import parse_rss_xml
@@ -91,20 +93,26 @@ def run_pipeline(
         past_recordings.ingest(lander, target_articles=news)  # ~N articles, raw JSON
 
     # ---------------- SILVER (stats) ----------------
-    # Read the raw Eurostat TSVs you just landed or supplied as fixtures.
-    raw_eurostat_tables = _read_bronze_eurostat(lander)       # -> {dataset_id: DataFrame}
-    frames = []
-    for dataset_id, df in raw_eurostat_tables.items():
-        long = stats_merge.read_eurostat_tsv(df, dataset_id)
-        long["source_system"] = "eurostat"
-        frames.append(long)
+    # Local Bronze mode uses the shared stats loader, so Eurostat and World Bank
+    # are both read from the canonical Bronze tree. Live MinIO mode keeps the
+    # existing Eurostat-only fallback for now.
+    frames = _read_bronze_stats_frames(lander)
     log.info("SILVER stats: %d source frames", len(frames))
 
-    # crosswalk (Eurostat maps by rule; LLM only if reachable, only for HU/DE)
+    # crosswalk (Eurostat/World Bank maps by rule; LLM only if reachable)
     if crosswalk_path:
         stats_merge.CROSSWALK_PATH = crosswalk_path
+
     labels = sorted({l for fr in frames for l in fr["source_column"].astype(str)})
-    crosswalk = stats_merge.build_crosswalk(labels, use_llm=ollama_reachable)
+    sources = {}
+    for fr in frames:
+        if fr.empty or "source_system" not in fr:
+            continue
+        source_system = fr["source_system"].iloc[0]
+        for label in fr["source_column"].astype(str).unique():
+            sources[label] = source_system
+
+    crosswalk = stats_merge.build_crosswalk(labels, sources=sources, use_llm=ollama_reachable)
     stats_long = stats_merge.merge_sources(frames, crosswalk)
 
     # ---------------- SILVER (news) ----------------
@@ -137,6 +145,27 @@ def _read_bronze_eurostat(lander) -> dict:
         dataset_id = _dataset_id_from_path(path, "eurostat")
         tables[dataset_id] = _read_tsv(lander, path)
     return tables
+
+
+
+def _read_bronze_stats_frames(lander) -> list[pd.DataFrame]:
+    """Return Silver stats frames from Bronze stats artifacts.
+
+    Local Bronze mode reads all supported stats sources through
+    silver.stats.load. At the moment this includes Eurostat and World Bank.
+    Live MinIO mode keeps the existing Eurostat-only fallback.
+    """
+    local_root = getattr(lander, "bronze_root", None)
+    if local_root is not None:
+        return stats_load.frames_from_bronze(local_root)
+
+    raw_eurostat_tables = _read_bronze_eurostat(lander)
+    frames = []
+    for dataset_id, df in raw_eurostat_tables.items():
+        long = stats_merge.read_eurostat_tsv(df, dataset_id)
+        long["source_system"] = "eurostat"
+        frames.append(long)
+    return frames
 
 
 def _read_bronze_news(lander, limit: int) -> list:
