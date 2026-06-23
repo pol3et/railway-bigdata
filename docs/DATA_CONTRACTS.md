@@ -67,6 +67,29 @@ Important fields:
 
 Rule: LLM output is untrusted until validated by `validate_news_feature(...)`.
 
+## Silver Persisted Outputs (Parquet)
+
+Producer: `src/railway_lakehouse/silver/persist.py`.
+
+Consumer: Gold (`build_from_silver`) and Spark evidence jobs.
+
+Frozen path contract (mirrors Bronze; partitioned by `ingest_date` so re-runs
+accumulate auditable history):
+
+```text
+silver/stats/stat_fact/ingest_date=YYYY-MM-DD/stat_fact.parquet
+silver/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
+```
+
+- Root is the local Silver tree for fixtures, or the `SILVER_BUCKET` prefix when
+  wired to MinIO/s3fs.
+- Stats columns = `StatFact` field order; news columns = `NewsFeature` field
+  order (derived from `schema.py`, so files cannot drift from the contract).
+- `load_stats(root)` / `load_news(root)` read the latest `ingest_date=`
+  partition unless an explicit date is passed.
+- An empty news run still writes a valid 0-row, schema-shaped Parquet so Gold
+  always has a deterministic input.
+
 ## Gold Contract
 
 Grain: one row per `(geo, year)`.
