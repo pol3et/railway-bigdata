@@ -661,7 +661,7 @@ Next:
 
 ## 2026-06-23 - Main Sync And Documentation Refresh For PR #9 / PR #10
 
-Status: done locally; ready to push `main`.
+Status: done; `main` pushed and PR #9 / PR #10 are marked merged by GitHub.
 
 Research:
 - Required local research note:
@@ -680,6 +680,9 @@ Changed:
 - Updated canonical docs to reflect merged Silver Stats and Silver News
   fixture slices instead of active PR branches.
 - Added the current verification result and narrowed remaining GAP-006 work.
+- Pushed `main`; remote `origin/main` now matches local
+  `09bb9df3d75b7049d11bc051565bf1c15c1b32b7`.
+- GitHub reports PR #9 and PR #10 as `MERGED`.
 
 Evidence:
 - `python -m pytest -q` passed: 74 passed.
@@ -691,4 +694,5 @@ Boundary:
   presentation output was executed for this documentation sync.
 
 Next:
-- Push `main` after final status review.
+- Continue with remaining GAP-006 parsers/persistence or GAP-007 Gold loading
+  from persisted Silver outputs.

@@ -898,7 +898,7 @@ Next:
 
 ## 2026-06-23 - Main Sync And Documentation Refresh For PR #9 / PR #10
 
-Status: done locally; ready to push `main`.
+Status: done; `main` pushed and PR #9 / PR #10 are marked merged by GitHub.
 
 Changed:
 - `README.md`
@@ -917,6 +917,7 @@ Findings:
 - Local `main` now contains merged PR #10 (`silver/stats-worldbank-eurostat`) and PR #9 (`silver/news-parsers`).
 - Docs now track the merged state: Silver Stats World Bank/Eurostat fixture parsing is done, Silver News RSS/GDELT article-record parsing is done, and remaining GAP-006 work is narrowed to KSH XLSX, Statistik Austria `.ods`, UIC PDF/subscribed export parsing, and persisted Silver news output/extraction-failure accounting.
 - GAP-007 remains open because Gold still needs to load persisted Silver outputs and record Gold evidence.
+- Remote `origin/main` now matches local `main` at `09bb9df3d75b7049d11bc051565bf1c15c1b32b7`; GitHub reports PR #9 and PR #10 as `MERGED`.
 - No live MinIO, Ollama, Spark, report, or presentation evidence was generated in this docs sync.
 
 Evidence:
@@ -925,4 +926,4 @@ Evidence:
 - `git diff --check` exited 0.
 
 Next:
-- Push `main` after reviewing the final diff/status.
+- Continue with remaining GAP-006 parsers/persistence or GAP-007 Gold loading from persisted Silver outputs.
