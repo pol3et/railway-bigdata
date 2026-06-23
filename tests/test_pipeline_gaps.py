@@ -43,6 +43,23 @@ def test_pipeline_news_reader_honors_zero_limit():
     assert pipeline._read_bronze_news(reader, limit=0) == []
 
 
+def test_pipeline_news_reader_loads_rss_xml_fixtures():
+    import railway_lakehouse.pipeline as pipeline
+
+    reader = SimpleNamespace(bronze_root=FIXTURE_BRONZE)
+
+    articles = pipeline._read_bronze_news(reader, limit=2)
+
+    assert {
+        "article_id": "https://example.test/rss-rail-upgrade",
+        "source": "rss",
+        "url": "https://example.test/rss-rail-upgrade",
+        "title": "RSS rail upgrade announced",
+        "body": "Full RSS article text about a railway upgrade.",
+        "published_date": "2026-06-22",
+    } in articles
+
+
 def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
     tmp_path,
     monkeypatch,

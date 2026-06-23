@@ -111,3 +111,11 @@ def extract_batch(articles: list) -> list:
             out.append(nf)
     logger.info("extracted %d/%d articles", len(out), len(articles))
     return out
+
+
+def article_records_to_news_features(records: list) -> list:
+    articles = [
+        r.to_row() if hasattr(r, "to_row") else dict(r)
+        for r in records
+    ]
+    return extract_batch(articles)

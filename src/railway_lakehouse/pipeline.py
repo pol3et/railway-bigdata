@@ -29,6 +29,7 @@ from railway_lakehouse.bronze.sources import past_recordings
 # Silver
 from railway_lakehouse.silver.stats import merge as stats_merge
 from railway_lakehouse.silver.news import extract as news_extract
+from railway_lakehouse.silver.news.rss import parse_rss_xml
 from railway_lakehouse.silver.ollama_client import health_check
 
 # Gold
@@ -139,7 +140,7 @@ def _read_bronze_eurostat(lander) -> dict:
 
 
 def _read_bronze_news(lander, limit: int) -> list:
-    """Return normalized article dicts from Bronze JSON news artifacts."""
+    """Return normalized article dicts from Bronze JSON and RSS XML artifacts."""
     if limit <= 0:
         return []
     articles = []
@@ -147,11 +148,15 @@ def _read_bronze_news(lander, limit: int) -> list:
         lander,
         domain="news",
         source=None,
-        include=lambda name: name.endswith(".json"),
+        include=lambda name: name.endswith((".json", ".xml")),
     ):
         source = _source_from_news_path(path)
-        payload = json.loads(_read_text(lander, path))
-        for index, raw in enumerate(_article_records(payload)):
+        text = _read_text(lander, path)
+        if _is_xml_path(path):
+            raw_records = _rss_article_records(text, source)
+        else:
+            raw_records = _article_records(json.loads(text))
+        for index, raw in enumerate(raw_records):
             article = _normalize_article(raw, source=source, path=path, index=index)
             if article is None:
                 continue
@@ -159,6 +164,14 @@ def _read_bronze_news(lander, limit: int) -> list:
             if len(articles) >= limit:
                 return articles
     return articles
+
+
+def _is_xml_path(path) -> bool:
+    return str(path).lower().endswith(".xml")
+
+
+def _rss_article_records(xml_text: str, source: str) -> list[dict]:
+    return [record.to_row() for record in parse_rss_xml(xml_text, source=source)]
 
 
 def _list_bronze_files(lander, *, domain: str, source: str | None, include) -> list:

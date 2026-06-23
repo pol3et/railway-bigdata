@@ -59,8 +59,10 @@ deliberately-malformed LLM output, and the Ollama client's request shape + loose
 
 Additional Silver news parser coverage now includes deterministic article-record parsing:
 RSS XML feeds are converted into `ArticleRecord` rows, GDELT ArtList JSON payloads are
-converted into the same `ArticleRecord` shape, and RSS article records can be passed into
+converted into the same `ArticleRecord` shape, and both parser outputs can be passed into
 the existing `extract_batch()` / `NewsFeature` extraction path with Ollama mocked in tests.
+The local Bronze pipeline reader also accepts RSS XML fixtures, so parser coverage is wired
+into the deterministic offline path rather than only tested as isolated functions.
 
 ## Known limitations / what you must wire
 - **Ollama cannot run in the build sandbox** (local server + model download, network-locked), so

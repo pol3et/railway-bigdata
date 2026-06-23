@@ -1,8 +1,8 @@
-import hashlib
 import xml.etree.ElementTree as ET
 
 from ..schema import ArticleRecord
-from .extract import extract_batch
+from .extract import article_records_to_news_features
+from .records import article_record_id
 
 
 def parse_rss_xml(xml_text: str, source: str) -> list[ArticleRecord]:
@@ -10,18 +10,25 @@ def parse_rss_xml(xml_text: str, source: str) -> list[ArticleRecord]:
 
     records = []
 
-    for item in root.findall(".//item"):
+    for index, item in enumerate(root.findall(".//item")):
         title = item.findtext("title") or ""
         url = item.findtext("link") or ""
         published = item.findtext("pubDate")
 
         body = (
-            item.findtext("description")
-            or item.findtext("{http://purl.org/rss/1.0/modules/content/}encoded")
+            item.findtext("{http://purl.org/rss/1.0/modules/content/}encoded")
+            or item.findtext("description")
             or ""
         )
 
-        article_id = hashlib.sha1(url.encode("utf-8")).hexdigest()
+        article_id = article_record_id(
+            url,
+            source=source,
+            title=title,
+            published_date=published,
+            body=body,
+            index=index,
+        )
 
         records.append(
             ArticleRecord(
@@ -38,16 +45,4 @@ def parse_rss_xml(xml_text: str, source: str) -> list[ArticleRecord]:
 
 
 def rss_records_to_news_features(records):
-    articles = [
-        {
-            "article_id": r.article_id,
-            "source": r.source,
-            "url": r.url,
-            "title": r.title,
-            "body": r.body,
-            "published_date": r.published_date,
-        }
-        for r in records
-    ]
-
-    return extract_batch(articles)
+    return article_records_to_news_features(records)

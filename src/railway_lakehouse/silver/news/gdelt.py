@@ -1,7 +1,7 @@
-import hashlib
 import json
 
 from ..schema import ArticleRecord
+from .records import article_record_id
 
 
 def parse_gdelt_artlist_json(
@@ -14,7 +14,7 @@ def parse_gdelt_artlist_json(
 
     records = []
 
-    for article in articles:
+    for index, article in enumerate(articles):
         title = article.get("title") or ""
         url = article.get("url") or article.get("url_mobile") or ""
 
@@ -27,10 +27,18 @@ def parse_gdelt_artlist_json(
         body = (
             article.get("snippet")
             or article.get("summary")
+            or article.get("description")
             or title
         )
 
-        article_id = hashlib.sha1(url.encode("utf-8")).hexdigest()
+        article_id = article_record_id(
+            url,
+            source=source,
+            title=title,
+            published_date=published_date,
+            body=body,
+            index=index,
+        )
 
         records.append(
             ArticleRecord(
