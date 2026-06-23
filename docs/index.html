@@ -10,6 +10,7 @@
     --line:rgba(79,176,201,0.16); --line-strong:rgba(79,176,201,0.40);
     --text:#E6EDF3; --muted:#8AA0B4; --faint:#5E748A;
     --accent:#4FB0C9; --green:#46C07A; --amber:#E8A23A; --red:#E0584F;
+    --bronze:#C8854A; --silver:#9FB3C8;
     --display:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
   }
@@ -77,17 +78,61 @@
   .dot.green{background:var(--green);} .dot.amber{background:var(--amber);} .dot.red{background:var(--red);}
   .sig.green{color:var(--green);} .sig.amber{color:var(--amber);} .sig.red{color:var(--red);}
 
-  /* stages */
-  .stage { display:flex; gap:16px; align-items:flex-start; margin-bottom:10px; }
-  .stage-label { font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); min-width:122px; padding-top:8px; }
-  .tracks { display:flex; flex-wrap:wrap; gap:8px; flex:1; }
-  .chip { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:3px; padding:8px 11px; font-family:var(--mono); font-size:12px; }
-  .chip b { color:var(--accent); }
-  .chip .arr { color:var(--faint); padding:0 2px; }
-  .chip.target { border-left-color:var(--amber); }
-  .chip.later { opacity:0.72; border-left-color:var(--faint); }
-  .barrier { margin:4px 0 16px; text-align:center; font-family:var(--mono); font-size:11.5px; color:var(--amber); border:1px dashed var(--line-strong); border-radius:3px; padding:7px 10px; background:var(--surface-2); }
-  .barrier.soft { color:var(--faint); border-style:dotted; }
+  /* parser cards (per-source x level + sample) */
+  .pcards { display:grid; gap:12px; grid-template-columns:repeat(2,1fr); }
+  .pcard { background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:13px 14px; }
+  .pcard-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .pcard .src { font-family:var(--mono); font-weight:700; font-size:14px; }
+  .plevels { display:flex; gap:5px; }
+  .lvl { font-family:var(--mono); font-size:10.5px; font-weight:700; width:23px; height:23px; display:grid; place-items:center; border-radius:3px; border:1px solid var(--line-strong); color:var(--faint); }
+  .lvl.green { color:var(--green); border-color:var(--green); background:rgba(70,192,122,0.10); }
+  .lvl.amber { color:var(--amber); border-color:var(--amber); background:rgba(232,162,58,0.10); }
+  .lvl.red   { color:var(--red);   border-color:rgba(224,88,79,0.45); background:rgba(224,88,79,0.06); }
+  .lvlnote { font-size:11px; color:var(--muted); margin:8px 0 9px; line-height:1.4; }
+  .sample { background:var(--ground-2); border:1px solid var(--line); border-radius:3px; padding:9px 10px; overflow-x:auto; }
+  .sample .sl { font-family:var(--mono); font-size:11px; line-height:1.6; white-space:nowrap; }
+  .sample .k { color:var(--accent); font-weight:700; }
+  .sample .c { color:var(--faint); }
+  .sample .x { color:var(--red); font-weight:700; }
+
+  /* gaps & tasks by level */
+  .legend { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin:-4px 0 18px; font-size:12px; color:var(--muted); }
+  .u { font-family:var(--mono); font-size:10px; font-weight:700; padding:2px 7px; border-radius:2px; letter-spacing:0.03em; white-space:nowrap; }
+  .u.urgent { color:#fff; background:var(--red); }
+  .u.high { color:var(--ground); background:var(--amber); }
+  .u.mid { color:var(--ground); background:var(--accent); }
+  .u.low { color:var(--muted); border:1px solid var(--line-strong); }
+  .ucols { display:grid; gap:12px; grid-template-columns:repeat(4,1fr); align-items:start; }
+  .ucol { background:var(--surface); border:1px solid var(--line); border-top:3px solid var(--accent); border-radius:3px; padding:12px 13px; }
+  .ucol h3 { margin:0 0 4px; font-family:var(--mono); font-size:12.5px; letter-spacing:0.06em; text-transform:uppercase; }
+  .ucol.bronze { border-top-color:var(--bronze); } .ucol.bronze h3 { color:var(--bronze); }
+  .ucol.silver { border-top-color:var(--silver); } .ucol.silver h3 { color:var(--silver); }
+  .ucol.gold   { border-top-color:var(--amber); }  .ucol.gold h3 { color:var(--amber); }
+  .ucol.cross  { border-top-color:var(--faint); }  .ucol.cross h3 { color:var(--muted); }
+  .uitem { display:flex; gap:7px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--line); font-size:12px; line-height:1.45; }
+  .uitem:last-child { border-bottom:none; }
+  .uitem .ug { color:var(--muted); }
+  .uitem .ug b { color:var(--text); font-family:var(--mono); font-size:11px; }
+
+  /* execution waves */
+  .wave { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:3px; padding:11px 13px; }
+  .wave.fast { border-left-color:var(--green); }
+  .wave.full { border-left-color:var(--amber); }
+  .wave.defer { border-left-color:var(--faint); opacity:0.85; }
+  .wave-head { display:flex; align-items:baseline; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
+  .wave-no { font-family:var(--mono); font-size:11px; font-weight:700; color:var(--accent); }
+  .wave-title { font-weight:700; font-size:13px; }
+  .wave-par { font-family:var(--mono); font-size:10px; color:var(--faint); margin-left:auto; }
+  .wbatch { display:flex; flex-wrap:wrap; gap:7px; }
+  .wtask { font-family:var(--mono); font-size:11.5px; background:var(--ground-2); border:1px solid var(--line); border-radius:3px; padding:6px 9px; }
+  .wtask .pl { color:var(--faint); padding:0 4px; }
+  .contract { border:1px dashed var(--line-strong); border-radius:3px; background:var(--surface-2); padding:9px 12px; }
+  .contract .ctitle { font-family:var(--mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--amber); }
+  .contract .cbody { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.45; }
+  .milestone { text-align:center; font-family:var(--mono); font-size:12px; font-weight:700; color:var(--green); border:1px solid var(--green); border-radius:3px; padding:8px; background:rgba(70,192,122,0.08); }
+  .flow { text-align:center; color:var(--faint); font-family:var(--mono); font-size:14px; margin:7px 0; }
+  .exec { display:flex; flex-direction:column; gap:0; }
+  .exec > * + * { margin-top:7px; }
 
   /* engine */
   .callout { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--green); border-radius:3px; padding:16px 18px; }
@@ -102,10 +147,11 @@
   a { color:var(--accent); }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
+  @media (max-width:860px) { .ucols { grid-template-columns:1fr 1fr; } }
   @media (max-width:760px) {
     .grid { grid-template-columns:1fr 1fr; }
-    .stage { flex-direction:column; gap:8px; }
-    .stage-label { padding-top:0; }
+    .pcards { grid-template-columns:1fr; }
+    .ucols { grid-template-columns:1fr; }
   }
   @media (prefers-reduced-motion:reduce) { .train { animation:none; } }
 </style>
@@ -119,7 +165,7 @@
         <p class="eyebrow">Railway Big-Data Course Project · src/railway_lakehouse</p>
         <h1>Lakehouse <span>Line Status</span></h1>
       </div>
-      <div class="status-pill">EN ROUTE — <b>GOLD → SPARK</b> · 2026-06-23</div>
+      <div class="status-pill">FAST TRACK ON · <b>GOLD → SPARK</b> · 2026-06-24</div>
     </div>
   </div>
 </header>
@@ -170,120 +216,230 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">03</span><h2>Data inventory · live samples</h2></div>
-    <p class="small muted" style="margin:-6px 0 16px;">Real output from this session's bounded live run (World Bank Bronze → Silver → Gold, 2026-06-23). Counts are full; sample rows are a small non-authoritative slice. Reproduce with <span class="mono">live_check --sources worldbank</span> → <span class="mono">pipeline --bronze-root … --news 0</span>.</p>
+    <div class="sec-head"><span class="sec-no">03</span><h2>Per parser · level + stored sample</h2></div>
+    <p class="small muted" style="margin:-6px 0 14px;">For each source: how far it gets (<b>B</b>ronze landing → <b>S</b>ilver rows → <b>G</b>old matrix) and a real sample of what is actually stored at the deepest working level. <span class="lvl green" style="display:inline-grid;width:18px;height:18px;vertical-align:middle;">B</span> works · <span class="lvl amber" style="display:inline-grid;width:18px;height:18px;vertical-align:middle;">S</span> partial · <span class="lvl red" style="display:inline-grid;width:18px;height:18px;vertical-align:middle;">G</span> missing. Samples are real rows from the 2026-06-23 live run / committed fixtures.</p>
 
-    <div class="grid" style="grid-template-columns:repeat(3,1fr);">
-      <div class="card"><div class="big mono">7</div><div class="cap">Bronze sources · raw bytes + sha256</div></div>
-      <div class="card"><div class="big mono">35,112</div><div class="cap">Silver StatFact rows · WB</div></div>
-      <div class="card green"><div class="big mono">2,968</div><div class="cap">Gold (geo, year) rows · 151 geos</div></div>
-    </div>
+    <div class="pcards">
 
-    <p class="eyebrow" style="margin:24px 0 8px;">Reach · does each source land in the Gold matrix?</p>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>Source</th><th>Bronze (raw)</th><th>Silver rows</th><th>→ Gold</th></tr></thead>
-        <tbody>
-          <tr><td><span class="src">worldbank</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 3 art · 17 MB</span></td><td>StatFact · 35,112</td><td><span class="sig green"><span class="dot green"></span>yes · 2 features</span></td></tr>
-          <tr><td><span class="src">eurostat</span></td><td><span class="sig amber"><span class="dot amber"></span>flaky live</span></td><td>StatFact · real long</td><td><span class="sig amber"><span class="dot amber"></span>no · SDMX header unmapped</span></td></tr>
-          <tr><td><span class="src">rss_media</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 5 feeds</span></td><td>ArticleRecord</td><td><span class="sig amber"><span class="dot amber"></span>needs LLM</span></td></tr>
-          <tr><td><span class="src">gdelt</span></td><td><span class="sig red"><span class="dot red"></span>live 429</span></td><td>ArticleRecord · fixture</td><td><span class="sig red"><span class="dot red"></span>needs LLM</span></td></tr>
-          <tr><td><span class="src">ksh</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 6 XLSX</span></td><td><span class="sig red"><span class="dot red"></span>no reader</span></td><td><span class="sig red"><span class="dot red"></span>no</span></td></tr>
-          <tr><td><span class="src">uic</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 2 PDF</span></td><td><span class="sig red"><span class="dot red"></span>no reader</span></td><td><span class="sig red"><span class="dot red"></span>no</span></td></tr>
-          <tr><td><span class="src">statistik_austria</span></td><td><span class="sig amber"><span class="dot amber"></span>unproven · ODS</span></td><td><span class="sig red"><span class="dot red"></span>no reader</span></td><td><span class="sig red"><span class="dot red"></span>no</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p class="eyebrow" style="margin:24px 0 8px;">Gold · ML-ready (geo, year) matrix — Austria sample</p>
-    <div class="scroll">
-      <table style="min-width:420px;">
-        <thead><tr><th>geo</th><th>year</th><th>rail_freight_tonne_km</th><th>rail_network_length_km</th></tr></thead>
-        <tbody class="mono">
-          <tr><td>AT</td><td>1995</td><td>13715</td><td>5672</td></tr>
-          <tr><td>AT</td><td>1996</td><td>13909</td><td>5672</td></tr>
-          <tr><td>AT</td><td>1997</td><td>14199</td><td>5672</td></tr>
-          <tr><td>AT</td><td>1998</td><td>14714</td><td>5739</td></tr>
-          <tr><td>AT</td><td>2000</td><td>16602</td><td>5665</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="small muted" style="margin-top:8px;"><span class="mono">output/evidence/inventory-live-2026-06-23/railway_ml.parquet</span> · 2,968 rows · 151 geos · 1995–2021 · AT 27 / HU 27 rows.</p>
-
-    <p class="eyebrow" style="margin:24px 0 8px;">Silver · StatFact long table (sample)</p>
-    <div class="scroll">
-      <table style="min-width:560px;">
-        <thead><tr><th>geo</th><th>year</th><th>feature</th><th>value</th><th>unit</th><th>source · dataset</th></tr></thead>
-        <tbody class="mono">
-          <tr><td>AT</td><td>1995</td><td>rail_freight_tonne_km</td><td>13715</td><td>worldbank_native</td><td>worldbank · IS.RRS.GOOD.MT.K6</td></tr>
-          <tr><td>AT</td><td>1995</td><td>rail_network_length_km</td><td>5672</td><td>worldbank_native</td><td>worldbank · IS.RRS.TOTL.KM</td></tr>
-          <tr><td>AT</td><td>1996</td><td>rail_network_length_km</td><td>5672</td><td>worldbank_native</td><td>worldbank · IS.RRS.TOTL.KM</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="small muted" style="margin-top:8px;">8-column contract (<span class="mono">geo, year, feature, value, unit, source_system, source_dataset, source_column</span>) · 35,112 rows persisted to <span class="mono">silver/stats/stat_fact/ingest_date=…/stat_fact.parquet</span> and reloaded identically. <span class="mono">source_column</span> keeps provenance, e.g. “Rail lines (total route-km)”.</p>
-
-    <p class="eyebrow" style="margin:24px 0 8px;">Silver · ArticleRecord (news, pre-LLM) — fixture sample</p>
-    <div class="scroll">
-      <table style="min-width:520px;">
-        <thead><tr><th>source</th><th>title</th><th>published</th><th>article_id</th></tr></thead>
-        <tbody class="mono">
-          <tr><td>hu_telex</td><td>RSS rail upgrade announced</td><td>2026-06-22</td><td>…/rss-rail-upgrade</td></tr>
-          <tr><td>gdelt</td><td>RailCargo investment announced</td><td>2020-04-01</td><td>…/rail-investment</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="small muted" style="margin-top:8px;">RSS + GDELT parse to <span class="mono">ArticleRecord</span> today. The next stage — <span class="mono">NewsFeature</span> (event type, operators, money, sentiment) — needs a local LLM (Ollama) and has not run; it is mocked in tests.</p>
-  </section>
-
-  <section>
-    <div class="sec-head"><span class="sec-no">04</span><h2>Execution stages</h2></div>
-    <p class="small muted" style="margin:-6px 0 16px;">Inside a stage, tasks fan out (parallel). Between stages, a fan-in barrier must be met before continuing. Only <span class="mono">①→②→⑦→⑧</span> is strictly sequential.</p>
-
-    <div class="stage">
-      <div class="stage-label">Stage 1 · fan-out ×4</div>
-      <div class="tracks">
-        <div class="chip"><b>①</b> bronze/local-stats-landing done <span class="arr">→</span> <b>②</b> gold/first-real-result done 🏁</div>
-        <div class="chip">silver/persist-contract done</div>
-        <div class="chip">⑤ infra/minio-storage done</div>
-        <div class="chip">infra/ollama-model</div>
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">worldbank</span>
+          <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: works">S</span><span class="lvl green" title="Gold: works">G</span></div></div>
+        <div class="lvlnote">Full spine. Live JSON → StatFact (35,112 rows) → 2 real Gold features. The one source that reaches Gold today.</div>
+        <div class="sample">
+          <div class="sl"><span class="k">B</span> raw JSON · {"countryiso3code":"AUT","date":"2021","value":4962,"indicator":{"id":"IS.RRS.TOTL.KM"}}</div>
+          <div class="sl"><span class="k">S</span> StatFact · AT 1995 rail_network_length_km 5672 worldbank_native IS.RRS.TOTL.KM</div>
+          <div class="sl"><span class="k">G</span> matrix · AT 1995 → freight 13715 · network 5672</div>
+        </div>
       </div>
-    </div>
-    <div class="barrier">FAN-IN A — contract frozen · first real Gold · MinIO up · LLM verified</div>
 
-    <div class="stage">
-      <div class="stage-label">Stage 2 · fan-out ×3</div>
-      <div class="tracks">
-        <div class="chip"><b>③</b> silver/persist-outputs done <span class="arr">→</span> <b>④</b> gold/load-from-silver</div>
-        <div class="chip"><b>⑥</b> silver/news-llm-extraction</div>
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">eurostat</span>
+          <div class="plevels"><span class="lvl amber" title="Bronze: flaky live">B</span><span class="lvl amber" title="Silver: parses but unmapped">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
+        <div class="lvlnote">Lands + parses to StatFact, but the real SDMX dimension header maps to no canonical feature → dropped before Gold (GAP-023).</div>
+        <div class="sample">
+          <div class="sl"><span class="k">B</span> raw TSV · "Rail passengers total | 2020 | 2021"  <span class="c"># fixture header</span></div>
+          <div class="sl"><span class="c">     real SDMX header = "freq,unit,…,geo\TIME_PERIOD" → matches no rule</span></div>
+          <div class="sl"><span class="k">S</span> StatFact · maps on the fixture; real labels unmapped</div>
+          <div class="sl"><span class="x">G</span> — no mapped feature yet</div>
+        </div>
       </div>
-    </div>
-    <div class="barrier">FAN-IN B — clean persisted Bronze→Silver→Gold (with news) · counts recorded</div>
 
-    <div class="stage">
-      <div class="stage-label">Stage 3 · spine</div>
-      <div class="tracks">
-        <div class="chip target"><b>⑦</b> spark/evidence-job <span class="arr">→</span> <b>⑧</b> report/draft</div>
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">rss_media</span>
+          <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: ArticleRecord">S</span><span class="lvl amber" title="Gold: needs LLM">G</span></div></div>
+        <div class="lvlnote">Live feeds → ArticleRecord. Gold news features need the LLM step (NewsFeature), which has not run.</div>
+        <div class="sample">
+          <div class="sl"><span class="k">S</span> ArticleRecord · source=hu_telex  published=2026-06-22</div>
+          <div class="sl"><span class="c">     title="RSS rail upgrade announced"  id=…/rss-rail-upgrade</span></div>
+          <div class="sl"><span class="x">G</span> — needs LLM → NewsFeature</div>
+        </div>
       </div>
-    </div>
-    <div class="barrier soft">deferred until the core is E2E ↓</div>
 
-    <div class="stage">
-      <div class="stage-label">Stage 4 · deferred</div>
-      <div class="tracks">
-        <div class="chip later">bronze/gdelt-history-backfill <span class="arr">→</span> silver/gdelt-gkg-parser</div>
-        <div class="chip later">silver/stats-parsers-extra · KSH ‖ AT ‖ UIC</div>
-        <div class="chip later">bronze/scheduler-wiring</div>
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">gdelt</span>
+          <div class="plevels"><span class="lvl red" title="Bronze: live 429">B</span><span class="lvl amber" title="Silver: parser exists, not wired">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
+        <div class="lvlnote">Live collection 429-blocked. ArtList parser works on fixtures but is not wired into the pipeline (generic JSON path is used).</div>
+        <div class="sample">
+          <div class="sl"><span class="k">S</span> ArticleRecord · source=gdelt  published=2020-04-01</div>
+          <div class="sl"><span class="c">     title="RailCargo investment announced"  id=…/rail-investment</span></div>
+          <div class="sl"><span class="x">G</span> — needs LLM; dedicated parser not wired</div>
+        </div>
       </div>
+
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">ksh</span>
+          <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl red" title="Silver: no reader">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
+        <div class="lvlnote">Hungary STADAT. Bronze lands raw XLSX (live-validated); no XLSX→StatFact reader exists yet.</div>
+        <div class="sample">
+          <div class="sl"><span class="k">B</span> raw XLSX · bronze/stats/ksh/&lt;table&gt;/ingest_date=…/&lt;table&gt;.xlsx</div>
+          <div class="sl"><span class="c">     6 STADAT rail tables · 92,509 B · HTTP 200</span></div>
+          <div class="sl"><span class="x">S</span> — no XLSX→StatFact reader</div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">uic</span>
+          <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl red" title="Silver: no extractor">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
+        <div class="lvlnote">UIC RAILISA. Bronze lands public PDFs (live-validated); PDF table extraction to StatFact not built.</div>
+        <div class="sample">
+          <div class="sl"><span class="k">B</span> raw PDF · bronze/stats/uic/&lt;pub&gt;/ingest_date=…/&lt;pub&gt;.pdf</div>
+          <div class="sl"><span class="c">     2 public RAILISA PDFs · 2,109,240 B · %PDF- validated</span></div>
+          <div class="sl"><span class="x">S</span> — no PDF→StatFact extractor</div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">statistik_austria</span>
+          <div class="plevels"><span class="lvl amber" title="Bronze: ingest coded, live unproven">B</span><span class="lvl red" title="Silver: no reader">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
+        <div class="lvlnote">Austria ODS. Ingest is coded but not in live_check; no ODS→StatFact reader.</div>
+        <div class="sample">
+          <div class="sl"><span class="k">B</span> raw ODS · 5 rail .ods resources (kind="ods" validated)</div>
+          <div class="sl"><span class="c">     live landing unproven (absent from live_check)</span></div>
+          <div class="sl"><span class="x">S</span> — no ODS→StatFact reader</div>
+        </div>
+      </div>
+
+      <div class="pcard">
+        <div class="pcard-top"><span class="src">past_recordings</span>
+          <div class="plevels"><span class="lvl amber" title="Bronze: CLI one-off">B</span><span class="lvl amber" title="Silver: DOC ok, GKG missing">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
+        <div class="lvlnote">GDELT history (the volume play). DOC pages → ArticleRecord works; the GKG csv.zip parser is missing. Deferred.</div>
+        <div class="sample">
+          <div class="sl"><span class="k">B</span> raw JSON · GDELT DOC history pages (CLI; not scheduled)</div>
+          <div class="sl"><span class="k">S</span> DOC→ArticleRecord ok · GKG csv.zip parser missing</div>
+          <div class="sl"><span class="x">G</span> — volume track (deferred)</div>
+        </div>
+      </div>
+
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">05</span><h2>Engine</h2></div>
+    <div class="sec-head"><span class="sec-no">04</span><h2>Gaps &amp; tasks by level</h2></div>
+    <div class="legend">
+      <span><span class="u urgent">URGENT !</span> blocks the fast track to Spark + report start</span>
+      <span><span class="u high">HIGH</span> needed for a <em>full</em> report</span>
+      <span><span class="u mid">MID</span> should-have; defer only if short on time</span>
+      <span><span class="u low">LOW</span> nice-to-have</span>
+    </div>
+    <div class="ucols">
+
+      <div class="ucol bronze">
+        <h3>Bronze</h3>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-012</b> fix the documented Bronze→Gold regen recipe (it builds empty Gold on a clean checkout) so report evidence is reproducible.</span></div>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-013</b> live MinIO stats path must also land + read World Bank (today drops it).</span></div>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-019</b> make "automatic updates" deployable (cron/systemd/compose) — assignment requirement.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-005</b> schedule KSH / Statistik Austria / UIC in <span class="mono">bronze/run.py</span>.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-014</b> force UTF-8 on the s3/MinIO text read path.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>backfill</b> GDELT history → 100k+ articles (real volume).</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-024</b> Bronze same-day overwrite vs "auditable" docstring.</span></div>
+      </div>
+
+      <div class="ucol silver">
+        <h3>Silver</h3>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>eurostat→Gold</b> map real SDMX columns to canonical features (GAP-023) — a 2nd real source.</span></div>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>ollama-model + news LLM</b> install Qwen3-4B; run two-pass news extraction → NewsFeature.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> KSH XLSX / StatAustria ODS / UIC PDF → StatFact.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-021</b> crosswalk "unmapped" is terminal — add retry/rebuild.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-025</b> RSS <span class="mono">ParseError</span> aborts the whole batch — isolate per feed.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-022</b> robust mixed-format <span class="mono">published_date</span> parsing.</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GKG parser</b> GDELT csv.zip → ArticleRecord (volume).</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-029</b> doc: add <span class="mono">monetary_raw</span> to DATA_CONTRACTS.</span></div>
+      </div>
+
+      <div class="ucol gold">
+        <h3>Gold</h3>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>spark/evidence-job</b> (GAP-009) Spark reads Gold → writes evidence. <em>The graded target.</em></span></div>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-007</b> wire Gold to read <em>persisted</em> Silver (clean lakehouse handoff; in-memory today).</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-015</b> normalize units in Gold (the contract promises it; nothing does).</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-016</b> deterministic Gold news schema (reindex pivots to canonical vocab).</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-026</b> <span class="mono">aggregate_news</span> KeyError on partial dict rows.</span></div>
+      </div>
+
+      <div class="ucol cross">
+        <h3>Spark · Report · Ops</h3>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark==3.5.*</span> + delta-spark + JDK 17 (plain install pulls Spark 4.x). Spark prerequisite.</span></div>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — fast-track goal.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors + commit a lockfile.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-028</b> CI that runs the test suite on PRs.</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-027</b> note MinIO default creds are local-only.</span></div>
+        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-030</b> fix pipeline docstring (compose ships MinIO, not Ollama).</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">05</span><h2>Execution plan · batched waves</h2></div>
+    <p class="small muted" style="margin:-6px 0 16px;">Run top to bottom. Tasks inside a wave run <b>in parallel</b> (<span class="mono">‖</span>). Each <span style="color:var(--amber);">dashed bar</span> is a <b>STOP &amp; SYNC</b>: merge everything, then verify the wave <b>contract</b> before the next wave. Green = fast track to Spark; amber = fills out the report; faint = deferred. Contracts are tracked as audit items in <span class="mono">docs/TASKS.md</span>.</p>
+
+    <div class="exec">
+
+      <div class="wave fast">
+        <div class="wave-head"><span class="wave-no">WAVE 1</span><span class="wave-title">Unblock &amp; pin</span><span class="wave-par">3 in parallel</span></div>
+        <div class="wbatch">
+          <span class="wtask"><span class="u urgent">!</span> GAP-012 fix regen recipe</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u urgent">!</span> GAP-017/018 pin pyspark 3.5.* + JDK 17 + bound pandas/pyarrow</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> GAP-020 test s3 read-back</span>
+        </div>
+      </div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract A</div><div class="cbody">On a clean checkout the documented command regenerates the real Gold + <span class="mono">counts.json</span>; <span class="mono">pip install .[spark]</span> resolves Spark 3.5.x on JDK 17; <span class="mono">pytest -q</span> green.</div></div>
+
+      <div class="flow">↓</div>
+
+      <div class="wave fast">
+        <div class="wave-head"><span class="wave-no">WAVE 2</span><span class="wave-title">Spark fast track</span><span class="wave-par">2 in parallel</span></div>
+        <div class="wbatch">
+          <span class="wtask"><span class="u urgent">!</span> GAP-009 spark/evidence-job (reads Gold → evidence)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u high">HIGH</span> GAP-007 Gold ← persisted Silver</span>
+        </div>
+      </div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract B</div><div class="cbody">Spark reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (Spark version, in/out row+col counts, files written); counts match Gold; (bonus) Gold built from persisted Silver.</div></div>
+
+      <div class="flow">↓</div>
+
+      <div class="wave fast">
+        <div class="wave-head"><span class="wave-no">WAVE 3</span><span class="wave-title">Report kickoff</span><span class="wave-par">sequential</span></div>
+        <div class="wbatch">
+          <span class="wtask"><span class="u urgent">!</span> GAP-011 report/draft on Spark + Gold evidence</span>
+        </div>
+      </div>
+      <div class="milestone">🏁 END OF FAST TRACK — Spark evidence exists, report started</div>
+
+      <div class="flow">↓</div>
+
+      <div class="wave full">
+        <div class="wave-head"><span class="wave-no">WAVE 4</span><span class="wave-title">Make the report full</span><span class="wave-par">3 in parallel</span></div>
+        <div class="wbatch">
+          <span class="wtask"><span class="u high">HIGH</span> eurostat→Gold mapping (2nd source)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u high">HIGH</span> ollama-model + news LLM → news_* features</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u high">HIGH</span> GAP-013 live-MinIO WB + GAP-019 deployable auto-updates</span>
+        </div>
+      </div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract C</div><div class="cbody">Gold carries ≥2 stats sources + <span class="mono">news_*</span> columns; a live MinIO Bronze→Silver→Gold run completes end-to-end; a scheduled run lands fresh Bronze.</div></div>
+
+      <div class="flow">↓</div>
+
+      <div class="wave defer">
+        <div class="wave-head"><span class="wave-no">WAVE 5</span><span class="wave-title">Coverage · volume · polish</span><span class="wave-par">parallel · deferrable</span></div>
+        <div class="wbatch">
+          <span class="wtask"><span class="u mid">MID</span> KSH/AT/UIC readers + GAP-005 scheduler</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> robustness GAP-014/015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
+        </div>
+        <div style="margin-top:9px;" class="small muted">→ re-run Spark on the larger dataset → finalize the report.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">06</span><h2>Engine</h2></div>
     <div class="callout">
       <p><b>Apache Spark (PySpark)</b> — rubric-aligned (course names MapReduce/Spark/Storm), scales laptop→cluster. Run local now, then a standalone cluster to prove horizontal scaling. Write Gold as <b>Delta Lake</b> on Parquet; keep <b>DuckDB/Polars</b> as an EDA + benchmark sidecar. Raise real volume via the GDELT backfill so Spark is justified.</p>
       <div class="pillrow">
-        <span class="lib"><b>pyspark</b> 3.5.*</span>
+        <span class="lib"><b>pyspark</b> 3.5.* <span style="color:var(--amber);">(pin — GAP-017)</span></span>
         <span class="lib"><b>delta-spark</b> 3.2.x</span>
         <span class="lib"><b>hadoop-aws</b> 3.3.4</span>
         <span class="lib">JDK <b>17</b></span>
@@ -293,20 +449,7 @@
     </div>
   </section>
 
-  <section>
-    <div class="sec-head"><span class="sec-no">06</span><h2>Open risks · re-audit</h2></div>
-    <p class="small muted" style="margin:-6px 0 14px;">19 undocumented gaps found 2026-06-24 (adversarially verified) — full list in <span class="mono">docs/GAP_REGISTER.md</span> (GAP-012…030). The load-bearing ones:</p>
-    <div class="tracks">
-      <div class="chip target"><b>GAP-012</b> · docs · documented Bronze→Gold regen recipe builds <b>empty Gold</b> on a clean checkout</div>
-      <div class="chip"><b>GAP-013</b> · pipeline · live MinIO stats path drops World Bank → feature-less Gold</div>
-      <div class="chip"><b>GAP-015</b> · gold · units never normalized despite the contract</div>
-      <div class="chip"><b>GAP-016</b> · gold · Gold news schema varies by batch (not reindexed)</div>
-      <div class="chip"><b>GAP-017</b> · spark · <span class="mono">pyspark&gt;=3.5</span> resolves to Spark 4.x (needs JDK 17)</div>
-      <div class="chip"><b>GAP-019</b> · ops · "automatic updates" scheduler is in-memory only</div>
-    </div>
-  </section>
-
-  <p class="note">Grounded in docs/GAP_REGISTER.md, the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including this session's live World Bank Bronze→Silver→Gold run and the live MinIO smoke. Inventory samples are real rows from that run. Task slugs match docs/TASKS.md. Snapshot 2026-06-23.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…030), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including this session's live World Bank Bronze→Silver→Gold run and the live MinIO smoke. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-24.</p>
 
 </main>
 </body>

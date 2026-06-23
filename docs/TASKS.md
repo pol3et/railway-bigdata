@@ -110,4 +110,49 @@ be folded into the tasks above:
 - Also relevant to `spark/evidence-job`: **GAP-017** (`pyspark>=3.5` resolves to Spark 4.x;
   pin 3.5.* + JDK 17) and **GAP-015/016** (Gold unit normalization + deterministic news schema).
 
+## Execution waves & contracts (2026-06-24)
+
+Ordered batches with a **stop-and-sync** between each. Tasks in a wave run in parallel;
+merge them all, then verify the wave **contract** (the audit checklist) before the next wave.
+Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` high · `M` mid · `L` low.
+
+### Wave 1 — Unblock & pin (parallel)
+- `[!]` GAP-012 — fix the documented Bronze→Gold regen recipe
+- `[!]` GAP-017 / GAP-018 — pin `pyspark==3.5.*` + `delta-spark`, install JDK 17, bound pandas/pyarrow majors
+- `M` GAP-020 — test the s3/MinIO Bronze read-back path
+
+**Contract A (verify before Wave 2):**
+- [ ] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (no empty Gold).
+- [ ] `pip install .[spark]` resolves a pyspark **3.5.x** (not 4.x); `JAVA_HOME` points to JDK 17.
+- [ ] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
+
+### Wave 2 — Spark fast track (parallel)
+- `[!]` GAP-009 — `spark/evidence-job`: Spark reads real Gold → writes evidence
+- `H` GAP-007 — wire Gold to read persisted Silver
+
+**Contract B (verify before Wave 3):**
+- [ ] Spark job writes `output/evidence/spark/` with Spark version, in/out row+col counts, files written.
+- [ ] Recorded counts match the Gold Parquet; job is re-runnable.
+- [ ] (bonus) Gold built from persisted Silver via the pipeline, not in-memory.
+
+### Wave 3 — Report kickoff (sequential) 🏁 END OF FAST TRACK
+- `[!]` GAP-011 — `report/draft` grounded in Spark + Gold evidence (state WB-only/＋Eurostat scope honestly)
+
+### Wave 4 — Make the report full (parallel)
+- `H` eurostat→Gold mapping (GAP-023) — a 2nd real stats source
+- `H` `infra/ollama-model` + `silver/news-llm-extraction` — news_* features into Gold
+- `H` GAP-013 (live-MinIO World Bank) + GAP-019 (deployable automatic updates)
+
+**Contract C (verify before Wave 5 / final report):**
+- [ ] Gold carries ≥2 stats sources **and** `news_*` columns.
+- [ ] A live MinIO Bronze→Silver→Gold run completes end-to-end (no `--bronze-root`).
+- [ ] A scheduled run lands fresh Bronze (automatic-updates demo).
+
+### Wave 5 — Coverage · volume · polish (parallel, deferrable)
+- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring
+- `M` GDELT history backfill + GKG parser (volume)
+- `M` robustness: GAP-014/015/016/021/022/025/026
+- `L` GAP-028 CI, GAP-027/029/030 docs/ops
+- → re-run Spark on the larger dataset → finalize report.
+
 See also: `STATE_AND_ROADMAP.md`, `GAP_REGISTER.md`, `WORK_SPLIT.md`.
