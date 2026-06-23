@@ -970,8 +970,6 @@ Evidence:
 Next:
 - Continue with remaining GAP-006 parsers/persistence or GAP-007 Gold loading from persisted Silver outputs.
 
-
-
 ## 2026-06-23 - MinIO Local Lakehouse Storage Smoke
 
 Status: done for `infra/minio-storage`; GAP-010 remains in progress for full persisted Bronze->Silver->Gold through MinIO.
@@ -997,3 +995,139 @@ Boundary:
 
 Next:
 - Continue with persisted Silver outputs and Gold loading from persisted storage.
+
+## 2026-06-23 - All PR Ship-PR Review
+
+Status: done for read-only review; no GitHub comments posted and no PR branches changed.
+
+Changed:
+- `.ship/pr/8/report.md`
+- `.ship/pr/8/mode.json`
+- `.ship/pr/8/sources.json`
+- `.ship/pr/11/report.md`
+- `.ship/pr/11/mode.json`
+- `.ship/pr/11/sources.json`
+- `.ship/pr/12/report.md`
+- `.ship/pr/12/mode.json`
+- `.ship/pr/12/sources.json`
+- `.planning/coursework/research/bigdata/all-pr-ship-pr-review-2026-06-23.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- User corrected the review scope to no Linear. Final intent assessment used only repo-local evidence: PR metadata/body, docs, tests, existing ship-pr reports, and command output.
+- PR #8 now has a local ship-pr report and passes review: GAP-004 fixture-backed Bronze reads are correctly scoped and verified.
+- PR #11 fails review. Blocking issue: the new path test fails on Windows. Major issues: same-day Silver reruns overwrite despite "accumulate history" wording, news extraction failures are not persisted/accounted for, MinIO/S3 wording is not implemented by the local `Path` writer, and empty news Parquet physical types are all `double`.
+- PR #12 fails review. The live Bronze-to-Gold path is reproducible and tests pass, but evidence/docs overclaim or under-specify the result: Gold output is only `rail_network_length_km`, counts generation is undocumented, the raw Bronze root is ignored/untracked although the pipeline command depends on it, and roadmap/README wording conflicts about live Silver/Gold evidence.
+- Cross-repo PRs #2, #3, #6, and #7 hit the `ship-pr` v1 same-repo halt rule.
+
+Evidence:
+- PR #11: targeted persistence tests failed with 1 failed, 5 passed; full suite failed with 1 failed, 79 passed; integration marker suite passed with 9 passed, 71 deselected; compileall and diff-check passed.
+- PR #12: focused tests passed with 30 passed; full suite passed with 77 passed; integration marker suite passed with 9 passed, 68 deselected; compileall and diff-check passed; temp live reproduction landed 4 Bronze artifacts / 14,996,995 bytes and regenerated a 2,139 x 3 Gold Parquet with AT/HU present.
+- PR #8: pipeline tests passed with 5 passed; full suite passed with 60 passed; compileall and diff-check passed.
+- GitHub reported no submitted reviews, no review threads, and no status checks for PR #8, #11, or #12.
+
+Next:
+- Fix PR #11 before merge: Windows path test, same-day rerun contract, news failure accounting, local-vs-MinIO docs, and empty Parquet schema types.
+- Fix PR #12 before marking tasks done: document/generate counts, make the raw Bronze reproduction path explicit, clarify World Bank-only Gold feature coverage, and reconcile roadmap/README claims.
+
+## 2026-06-23 - Open PR Fix, Dashboard Rebase, And Merge
+
+Status: done; all open PRs merged.
+
+Changed:
+- PR #11 branch `silver/persist-outputs`
+- PR #12 branch `bronze/local-stats-landing`
+- `.planning/coursework/research/bigdata/all-pr-ship-pr-review-2026-06-23.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- No Linear context was used for the final fix/merge work.
+- PR #11 implemented local Silver Parquet persistence but needed Windows-safe path tests, explicit empty-file Parquet schemas, narrower local-only persistence docs, and dashboard sync.
+- PR #12 implemented bounded local Eurostat/World Bank Bronze landing and first real stats-only Gold evidence, but needed reproducible counts generation, clean-checkout raw Bronze instructions, World Bank-only Gold wording, and dashboard sync.
+- Main had new dashboard rules; both PR branches were rebased on updated `origin/main`, and #12 was rebased again after #11 merged.
+- GitHub reports no open PRs after merging #11 and #12.
+
+Evidence:
+- PR #11 after fixes: `python -m pytest -q` passed with 80 passed; focused Silver persistence tests passed with 6 passed; compileall and diff-check passed; dashboard reminder check passed.
+- PR #12 after rebasing on merged #11: `python -m pytest -q` passed with 83 passed; `python -m pytest -q -m integration` passed with 10 passed, 73 deselected; compileall and diff-check passed; committed evidence JSON validated.
+- Bounded temp reproduction for #12 under `output/runtime/pr12-reverify/` landed 4 Eurostat/World Bank artifacts / 14,996,995 bytes and regenerated 2,139 x 3 Gold counts with AT/HU present.
+- PR #11 merged at `9489aa737412474ffcc377bec0d48ebb0c916595`.
+- PR #12 merged at `4ae2984f5807b87a07fa994c5dfdedfada2638a0`.
+
+Next:
+- Continue with GAP-007: wire `gold/run.py` to load persisted Silver and record Gold counts.
+- Then move to Spark evidence (GAP-009) and report/presentation evidence.
+
+## 2026-06-23 - PR #13 Rebase, Dashboard Sync, And Merge
+
+Status: done; PR #13 is fixed, rebased, pushed, and merged.
+
+Changed:
+- `.ship/pr/13/report.md`
+- `.ship/pr/13/mode.json`
+- `.ship/pr/13/sources.json`
+- `.planning/coursework/research/bigdata/pr13-minio-storage-review-2026-06-23.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- No Linear context was used.
+- "Integration blocked" split into two issues: deterministic pytest integration was not blocked and passed locally; live Docker/MinIO smoke was blocked by the local Docker Desktop backend.
+- PR #13 adds local MinIO/S3 defaults, Docker Compose MinIO plus bucket bootstrap, a bounded `s3fs` smoke script, deterministic infra guard tests, and committed smoke evidence.
+- PR #13 was rebased from stale base `c64bd02` onto current `origin/main`, preserving merged Silver persistence and local stats Gold evidence.
+- Fixed `.env` handling so `scripts/minio_smoke.py` loads `.env` before importing Bronze/Silver config constants.
+- Updated `docs/index.html`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/VERIFICATION.md`, `README.md`, and roadmap/progress docs so MinIO state matches current main and the dashboard rule.
+- Docker Desktop could not start its Linux engine in this shell: `backend.error.json` reports `Access is denied` opening `\\.\pipe\dockerBackendApiServer`, which Docker says usually means another Windows user/session already started Docker Desktop.
+
+Evidence:
+- PR #13 rebased branch commit: `3548abbc4379f1535d45e76361b05ad840fa878c`.
+- `$env:PYTHONPATH='src'; python -m pytest -q tests\test_infra_minio.py` passed: 4 passed.
+- `$env:PYTHONPATH='src'; python -m pytest -q -m integration` passed: 10 passed, 77 deselected.
+- `$env:PYTHONPATH='src'; python -m pytest -q` passed: 87 passed.
+- `$env:PYTHONPATH='src'; python -m compileall -q src tests` exited 0.
+- `git diff --check origin/main...HEAD` exited 0 before push.
+- `gh pr checks 13` showed `remind` passed after push.
+- GitHub reported PR #13 `MERGEABLE` / `CLEAN` at head `3548abbc4379f1535d45e76361b05ad840fa878c`.
+- PR #13 merged at `ad45a4ffc8689da159f67c533fd4eea8d093c082`.
+- Post-merge local `main` verification: full suite passed with 87 passed; integration marker suite passed with 10 passed, 77 deselected; compileall exited 0; local `HEAD` equals `origin/main` at `ad45a4ffc8689da159f67c533fd4eea8d093c082`; `gh pr list --state open` returned `[]`.
+- Fresh Docker check still failed: `com.docker.service` stayed `Stopped`, `docker info` could not find `//./pipe/dockerDesktopLinuxEngine`, and Docker Desktop's backend error file reports access denied on `\\.\pipe\dockerBackendApiServer`.
+- Docker live smoke could not be rerun locally after bounded recovery attempts; no new live MinIO claim was added beyond the committed smoke manifest.
+
+Next:
+- Continue with GAP-007 Gold loading from persisted Silver, then Spark evidence.
+- Rerun `docker compose up -d` and `python scripts/minio_smoke.py` from a Windows session that owns Docker Desktop if new live MinIO evidence is required.
+
+## 2026-06-24 - Live re-audit, tests, data inventory, and undocumented-gap hunt
+
+Status: done (analysis + dashboard + docs); commit/push of docs.
+
+Changed:
+- `docs/index.html` (new "Data inventory · live samples" section + "Open risks" section; refreshed metrics/signals)
+- `docs/STATE_AND_ROADMAP.md` (2026-06-24 re-audit update; gap summary GAP-012..030)
+- `docs/GAP_REGISTER.md` (19 new gaps GAP-012..030; GAP-010 live note; 8 new test-mapping rows)
+- `docs/TASKS.md` (gold/first-real-result + infra/minio-storage notes; new-gaps section)
+- `.planning/coursework/research/bigdata/state-reaudit-tests-inventory-2026-06-23.md` (research log)
+- `output/evidence/inventory-live-2026-06-23/` (live WB Bronze, Gold parquet, counts, Silver parquet, inventory_samples.json)
+- `output/evidence/minio-smoke/manifest.json` (live smoke rerun)
+
+Findings:
+- All 8 load-bearing claims independently confirmed by an adversarial workflow. Full deterministic suite: 87 passed (77 unit + 10 integration) on Python 3.14.0 / pandas 3.0.3 / pyarrow 24.0.0. `-m live`/`-m spark` select 0 (no such pytest tests).
+- Docker recovered: the prior session could not start the Linux engine; this session `docker compose up -d` + `scripts/minio_smoke.py` passed a live 32 B s3fs round-trip (createbuckets bootstrapped bronze/silver/gold). First live MinIO evidence.
+- Live World Bank Bronze->Silver->Gold reproduced: Gold 2,968 rows x 4 cols [geo, year, rail_freight_tonne_km, rail_network_length_km], 151 geos, 1995-2021, AT/HU 27 rows each (richer than the committed 2,139x3). Eurostat flaked live (transient RemoteDisconnected).
+- Silver StatFact (35,112 rows) persisted + reloaded identically; uploaded to the MinIO silver bucket as a manual demo.
+- Ollama not installed: the (fully coded) NewsFeature LLM extractor has never run live; only mocked in tests.
+- 19 undocumented gaps found + verified (GAP-012..030). High: GAP-012 (documented regen recipe builds empty Gold). Medium incl. GAP-013 (live MinIO drops World Bank), GAP-015 (units never normalized), GAP-016 (non-deterministic Gold news schema), GAP-017 (pyspark->4.x), GAP-019 (in-memory scheduler), GAP-020 (s3 read-back untested).
+
+Evidence:
+- `python -m pytest -q` -> 87 passed; `-m unit` 77, `-m integration` 10; `compileall -q src tests` ok.
+- `docker compose up -d` -> railway-minio up 9000/9001; `python scripts/minio_smoke.py` -> roundtrip_ok=true (output/evidence/minio-smoke/manifest.json).
+- `bronze.live_check --sources eurostat,worldbank` -> WB 3 artifacts ~17MB; Eurostat failed (RemoteDisconnected).
+- `pipeline --bronze-root output/evidence/inventory-live-2026-06-23/bronze --skip-news-extraction --news 0 --counts-out …/counts.json` -> 2,968x4 (output/evidence/inventory-live-2026-06-23/counts.json).
+- Workflows: railway-state-audit (21 agents), undocumented-gap-hunt (38 candidates -> 19 gaps; resumed after a mid-run session-limit failure).
+
+Next:
+- Fix GAP-012 (regen recipe) and GAP-013 (live MinIO World Bank) before relying on the live path.
+- Then GAP-007 (Gold reads persisted Silver), GAP-009 Spark (pin pyspark 3.5.* + JDK 17 per GAP-017), report.
+- Live MinIO stack left up; `docker compose down` to stop.

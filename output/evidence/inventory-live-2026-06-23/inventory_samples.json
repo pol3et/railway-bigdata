@@ -1,0 +1,239 @@
+{
+  "gold": {
+    "path": "output/evidence/inventory-live-2026-06-23/railway_ml.parquet",
+    "rows": 2968,
+    "columns": [
+      "geo",
+      "year",
+      "rail_freight_tonne_km",
+      "rail_network_length_km"
+    ],
+    "dtypes": {
+      "geo": "str",
+      "year": "Int64",
+      "rail_freight_tonne_km": "float64",
+      "rail_network_length_km": "float64"
+    },
+    "sample_AT": [
+      {
+        "geo": "AT",
+        "year": 1995,
+        "rail_freight_tonne_km": 13715.0,
+        "rail_network_length_km": 5672.0
+      },
+      {
+        "geo": "AT",
+        "year": 1996,
+        "rail_freight_tonne_km": 13909.0,
+        "rail_network_length_km": 5672.0
+      },
+      {
+        "geo": "AT",
+        "year": 1997,
+        "rail_freight_tonne_km": 14199.0,
+        "rail_network_length_km": 5672.0
+      },
+      {
+        "geo": "AT",
+        "year": 1998,
+        "rail_freight_tonne_km": 14714.0,
+        "rail_network_length_km": 5739.0
+      },
+      {
+        "geo": "AT",
+        "year": 1999,
+        "rail_freight_tonne_km": 15039.0,
+        "rail_network_length_km": 5740.0
+      },
+      {
+        "geo": "AT",
+        "year": 2000,
+        "rail_freight_tonne_km": 16602.0,
+        "rail_network_length_km": 5665.0
+      }
+    ],
+    "sample_HU": [
+      {
+        "geo": "HU",
+        "year": 1995,
+        "rail_freight_tonne_km": 8337.0,
+        "rail_network_length_km": 7988.0
+      },
+      {
+        "geo": "HU",
+        "year": 1996,
+        "rail_freight_tonne_km": 7633.0,
+        "rail_network_length_km": 7988.0
+      },
+      {
+        "geo": "HU",
+        "year": 1997,
+        "rail_freight_tonne_km": 8064.0,
+        "rail_network_length_km": 7988.0
+      },
+      {
+        "geo": "HU",
+        "year": 1998,
+        "rail_freight_tonne_km": 8150.0,
+        "rail_network_length_km": 7988.0
+      },
+      {
+        "geo": "HU",
+        "year": 1999,
+        "rail_freight_tonne_km": 7734.0,
+        "rail_network_length_km": 7988.0
+      },
+      {
+        "geo": "HU",
+        "year": 2000,
+        "rail_freight_tonne_km": 8095.0,
+        "rail_network_length_km": 8005.0
+      }
+    ],
+    "geos": 151
+  },
+  "silver_stats": {
+    "persisted_to": "output/evidence/inventory-live-2026-06-23/silver/stats/stat_fact/ingest_date=2026-06-23/stat_fact.parquet",
+    "reloaded_rows": 35112,
+    "rows": 35112,
+    "columns": [
+      "geo",
+      "year",
+      "feature",
+      "value",
+      "unit",
+      "source_system",
+      "source_dataset",
+      "source_column"
+    ],
+    "feature_counts": {
+      "rail_freight_tonne_km": 17556,
+      "rail_network_length_km": 17556
+    },
+    "source_systems": {
+      "worldbank": 35112
+    },
+    "sample_AT_HU": [
+      {
+        "geo": "AT",
+        "year": 1960,
+        "feature": "rail_freight_tonne_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.GOOD.MT.K6",
+        "source_column": "Railways, goods transported (million ton-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1960,
+        "feature": "rail_network_length_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.TOTL.KM",
+        "source_column": "Rail lines (total route-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1961,
+        "feature": "rail_freight_tonne_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.GOOD.MT.K6",
+        "source_column": "Railways, goods transported (million ton-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1961,
+        "feature": "rail_network_length_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.TOTL.KM",
+        "source_column": "Rail lines (total route-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1962,
+        "feature": "rail_freight_tonne_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.GOOD.MT.K6",
+        "source_column": "Railways, goods transported (million ton-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1962,
+        "feature": "rail_network_length_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.TOTL.KM",
+        "source_column": "Rail lines (total route-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1963,
+        "feature": "rail_freight_tonne_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.GOOD.MT.K6",
+        "source_column": "Railways, goods transported (million ton-km)"
+      },
+      {
+        "geo": "AT",
+        "year": 1963,
+        "feature": "rail_network_length_km",
+        "value": null,
+        "unit": "worldbank_native",
+        "source_system": "worldbank",
+        "source_dataset": "IS.RRS.TOTL.KM",
+        "source_column": "Rail lines (total route-km)"
+      }
+    ]
+  },
+  "silver_stats_minio": {
+    "attempted": true,
+    "ok": true,
+    "key": "silver/stats/stat_fact/ingest_date=2026-06-23/stat_fact.parquet",
+    "size_bytes": 35961,
+    "listing": [
+      "silver/stats/stat_fact/ingest_date=2026-06-23"
+    ]
+  },
+  "silver_news": {
+    "rss": {
+      "source": "hu_telex",
+      "record_count": 1,
+      "sample": [
+        {
+          "article_id": "https://example.test/rss-rail-upgrade",
+          "source": "hu_telex",
+          "title": "RSS rail upgrade announced",
+          "url": "https://example.test/rss-rail-upgrade",
+          "published_date": "2026-06-22",
+          "body": "Full RSS article text about a railway upgrade."
+        }
+      ]
+    },
+    "gdelt": {
+      "source": "gdelt",
+      "record_count": 1,
+      "sample": [
+        {
+          "article_id": "https://example.test/rail-investment",
+          "source": "gdelt",
+          "title": "RailCargo investment announced",
+          "url": "https://example.test/rail-investment",
+          "published_date": "20200401000000",
+          "body": "RailCargo announced a rail investment."
+        }
+      ]
+    },
+    "news_feature_status": "LLM-pending (Ollama not installed); NewsFeature schema frozen, extractor mocked in tests"
+  }
+}

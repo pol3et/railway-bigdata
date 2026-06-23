@@ -76,9 +76,9 @@ develop against it independently with no schema collisions.
 | Task (slug) | RU title | Stage | Depends on | Status | Maps to |
 |---|---|---|---|---|---|
 | `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | done | Phase A |
-| `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done (stats-only World Bank route-km feature; Eurostat landed raw) | Phase A · **MILESTONE** |
+| `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done — live WB Bronze→Silver→Gold **2,968×4** (freight + network-km, 151 geos, 1995–2021) reproduced 2026-06-24; Eurostat still unmapped (GAP-013, Eurostat SDMX header) | Phase A · **MILESTONE** |
 | `silver/persist-contract` | Заморозить схему и пути Parquet для локального Parquet-персиста Silver stats/news | 1 | — | done (frozen in `docs/DATA_CONTRACTS.md`) | GAP-006 · **unblocker** |
-| `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | done (`docker-compose.yml` + `.env.example` + smoke evidence + guard test) | GAP-010 · Phase C |
+| `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | done + **live-proven 2026-06-24** (`docker compose up -d` + `scripts/minio_smoke.py` round-trip) | GAP-010 · Phase C |
 | `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | todo | LLM setup |
 | `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | todo | GAP-007 |
@@ -94,5 +94,20 @@ develop against it independently with no schema collisions.
 | `silver/gdelt-gkg-parser` | Парсер GKG csv.zip → ArticleRecord (подключить `gdelt_passthrough`) | 4 | `bronze/gdelt-history-backfill` | later | volume track |
 | `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | later | GAP-006 (extra) |
 | `bronze/scheduler-wiring` | Завести KSH/StatAustria/UIC в `bronze/run.py` (автообновления) | 4 | — | later | GAP-005 |
+
+## Newly found gaps (re-audit 2026-06-24)
+
+The `undocumented-gap-hunt` workflow surfaced **19 verified undocumented gaps**
+(`GAP-012…030`, full list in `GAP_REGISTER.md`). Two touch the active path and should
+be folded into the tasks above:
+
+- **GAP-012** (high) — the documented Bronze→Gold reproduction recipe silently builds an
+  empty Gold on a clean checkout (a committed `manifest.json` forces `live_check` run-id
+  nesting). Fold into `gold/first-real-result` follow-up + `docs/VERIFICATION.md`.
+- **GAP-013** (medium) — the live MinIO stats path reads Eurostat only and drops World
+  Bank, so a genuinely-live Gold is feature-less. Fold into `gold/load-from-silver` /
+  the live-MinIO wiring.
+- Also relevant to `spark/evidence-job`: **GAP-017** (`pyspark>=3.5` resolves to Spark 4.x;
+  pin 3.5.* + JDK 17) and **GAP-015/016** (Gold unit normalization + deterministic news schema).
 
 See also: `STATE_AND_ROADMAP.md`, `GAP_REGISTER.md`, `WORK_SPLIT.md`.

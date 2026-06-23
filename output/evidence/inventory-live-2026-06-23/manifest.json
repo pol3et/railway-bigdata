@@ -1,0 +1,67 @@
+{
+  "run_id": "live-check-20260623-201509",
+  "timestamp_utc": "2026-06-23T20:15:09.355953+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "eurostat",
+      "status": "failed",
+      "artifact_count": 0,
+      "byte_count": 0,
+      "http_statuses": [],
+      "failures": [
+        {
+          "dataset_id": "_catalogue_toc",
+          "url": "https://ec.europa.eu/eurostat/api/dissemination/catalogue/toc/txt?lang=en",
+          "error": "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+        }
+      ]
+    },
+    {
+      "source": "worldbank",
+      "status": "passed",
+      "artifact_count": 3,
+      "byte_count": 17065815,
+      "http_statuses": [
+        200,
+        200,
+        200
+      ],
+      "failures": []
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "_catalogue_indicators",
+      "path": "output/evidence/inventory-live-2026-06-23/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-23/indicators.json",
+      "meta_path": "output/evidence/inventory-live-2026-06-23/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-23/indicators.json.meta.json",
+      "bytes": 9316675,
+      "sha256": "053a0f0aee9131f9d55a9bcc2d7d63f539df89d0c1b798b3b3705f6eb0ec0c8b",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.RRS.TOTL.KM",
+      "path": "output/evidence/inventory-live-2026-06-23/bronze/stats/worldbank/IS.RRS.TOTL.KM/ingest_date=2026-06-23/IS.RRS.TOTL.KM.json",
+      "meta_path": "output/evidence/inventory-live-2026-06-23/bronze/stats/worldbank/IS.RRS.TOTL.KM/ingest_date=2026-06-23/IS.RRS.TOTL.KM.json.meta.json",
+      "bytes": 3698244,
+      "sha256": "a7b046dc04a9e3eaded77b328e4fcc8832f26ca819ab383304f04c69f3326e69",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.RRS.GOOD.MT.K6",
+      "path": "output/evidence/inventory-live-2026-06-23/bronze/stats/worldbank/IS.RRS.GOOD.MT.K6/ingest_date=2026-06-23/IS.RRS.GOOD.MT.K6.json",
+      "meta_path": "output/evidence/inventory-live-2026-06-23/bronze/stats/worldbank/IS.RRS.GOOD.MT.K6/ingest_date=2026-06-23/IS.RRS.GOOD.MT.K6.json.meta.json",
+      "bytes": 4050896,
+      "sha256": "ecf5243248357e4c306c94f38d0d3d63103f61f5c284a8af33d2f8bf9a402cb5",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 3,
+  "byte_count": 17065815
+}

@@ -1,7 +1,7 @@
 {
   "status": "passed",
-  "started_at_utc": "2026-06-23T17:32:30.067638+00:00",
-  "finished_at_utc": "2026-06-23T17:32:30.226387+00:00",
+  "started_at_utc": "2026-06-23T20:14:23.304064+00:00",
+  "finished_at_utc": "2026-06-23T20:14:24.378902+00:00",
   "endpoint": "http://localhost:9000",
   "buckets": [
     "bronze",

@@ -118,8 +118,9 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | GAP-007 | open | Gold loads persisted Silver |
 | GAP-008 | closed | deterministic test suite |
 | GAP-009 | open | Spark/big-data job (the deliverable) |
-| GAP-010 | in_progress | live Bronze/Silver/Gold evidence |
+| GAP-010 | in_progress | live Bronze/Silver/Gold evidence (live MinIO smoke now proven 2026-06-24) |
 | GAP-011 | open | report + presentation |
+| GAP-012..030 | open | **19 new gaps** found by the 2026-06-24 `undocumented-gap-hunt` (see `GAP_REGISTER.md`). Highest-impact: GAP-012 (the documented Bronze→Gold regen recipe silently builds an empty Gold), GAP-013 (live MinIO stats path drops World Bank), GAP-015 (units never normalized despite the contract), GAP-016 (non-deterministic Gold news schema), GAP-017 (`pyspark>=3.5` resolves to Spark 4.x), GAP-019 (in-memory-only "automatic updates" scheduler). |
 
 ## Roadmap To Completion
 
@@ -272,3 +273,44 @@ Verified result:
 This proves the local object-storage path needed for GAP-010. Full persisted
 Bronze->Silver->Gold through MinIO still depends on silver/persist-outputs and
 gold/load-from-silver.
+
+## Update 2026-06-23 — live re-audit (tests + inventory)
+
+Re-verified after the `silver/persist-outputs`, `bronze/local-stats-landing`/`gold/first-real-result`,
+and `infra/minio-storage` merges. Two background research/audit workflows
+(`railway-state-audit`, 21 agents; `undocumented-gap-hunt`) plus direct runs; all 8
+load-bearing claims independently confirmed. Full log:
+`.planning/coursework/research/bigdata/state-reaudit-tests-inventory-2026-06-23.md`.
+
+Verified this session (real, on disk):
+
+- Tests: `python -m pytest -q` → **87 passed** (77 unit + 10 integration); `-m live`/`-m spark`
+  select 0; `compileall` clean. Env: Python 3.14.0 / pandas 3.0.3 / pyarrow 24.0.0.
+- **Live MinIO proven** (not just reachable): `docker compose up -d` → `railway-minio` up;
+  compose `createbuckets` created `bronze`/`silver`/`gold`; `scripts/minio_smoke.py` passed a
+  32 B s3fs round-trip on the **bronze** bucket (`roundtrip_ok=true`).
+- **Live World Bank Bronze→Silver→Gold**: `inventory-live-2026-06-23/railway_ml.parquet` =
+  **2,968 rows × 4 cols** `[geo, year, rail_freight_tonne_km, rail_network_length_km]`, 151 geos,
+  1995–2021, AT/HU 27 rows each (AT 1995 freight=13715, network=5672). Crosswalk 2/2 mapped;
+  merge kept 35112/35112. Supersedes the prior 2,139×3 single-feature smoke.
+- Silver `StatFact` (35,112 rows) persisted via `silver/persist.py` and reloaded identically;
+  the parquet was also uploaded to the MinIO `silver` bucket as a manual demonstration.
+
+Corrections to earlier wording in this doc:
+
+- The real Gold is now **two** World Bank features (freight tonne-km + network route-km), not one;
+  proven on **2,968 real rows**, not just the 4-row fixture.
+- **Eurostat reaches Silver but not Gold** for a structural reason, not just "unmapped labels":
+  `merge.read_eurostat_tsv` uses the **SDMX dimension-key header** (e.g. `freq,unit,geo\TIME_PERIOD`)
+  as `source_column`, which matches no crosswalk rule, so every Eurostat row is dropped before
+  Gold. The only Eurostat fixture uses a hand-crafted human-readable header, so the green
+  fixture/integration tests **overstate** Eurostat's real reach. (Tracked as a new gap — see
+  GAP_REGISTER.)
+- World Bank reaches Gold via the **in-memory** Silver path; the pipeline still never calls
+  `persist.py` before Gold (GAP-007). The persist→reload→Gold contract is green only in an
+  isolated test, not in the production pipeline.
+- `infra/ollama-model` is unstarted: Ollama is not installed, so the (fully coded) `NewsFeature`
+  LLM extractor has never executed against a live model — it is exercised only via mocked
+  `generate_json` in tests.
+- pyspark is a declared-but-uninstalled extra; only Java 8 is present (Spark 3.5 supports 8/11/17,
+  17 recommended) — GAP-009 entirely unstarted.

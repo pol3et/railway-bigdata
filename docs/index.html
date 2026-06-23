@@ -131,8 +131,8 @@
       <div class="rail">
         <div class="train" aria-hidden="true">▸▮</div>
         <div class="stn"><div class="node green">B</div><div class="stn-code">stop 01</div><div class="stn-name">Bronze</div><div class="stn-note">Raw landing works. 4 of 8 sources scheduled.</div></div>
-        <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Stats/news normalize; local Parquet persist works.</div></div>
-        <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Fixture plus 2,139-row real stats smoke.</div></div>
+        <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Normalize + Parquet persist; round-trip proven.</div></div>
+        <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Real WB stats: 2,968×4 live this session.</div></div>
         <div class="stn"><div class="node red">⚡</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Not built. The graded deliverable.</div></div>
         <div class="stn"><div class="node red">R</div><div class="stn-code">stop 05</div><div class="stn-name">Report</div><div class="stn-note">Blocked on generated evidence.</div></div>
       </div>
@@ -142,12 +142,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">87</div><div class="cap">tests passing</div></div>
-      <div class="card amber"><div class="big">2139×3</div><div class="cap">real stats-only Gold</div></div>
-      <div class="card amber"><div class="big">2 / 5</div><div class="cap">stats parsers</div></div>
+      <div class="card green"><div class="big">87</div><div class="cap">tests passing · 77u + 10i</div></div>
+      <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
+      <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">Fixture E2E remains <span class="mono">fixture-e2e/railway_ml.parquet</span> (4 rows). A bounded local Eurostat+World Bank Bronze rerun writes <span class="mono">first-real-gold-local-stats-v2/railway_ml.parquet</span> (World Bank route-km, 2,139 rows, news skipped). Silver local stats/news Parquet persistence and a local MinIO storage smoke are in place; Gold storage loading and full MinIO Bronze→Silver→Gold remain open.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Still open: Gold reading <em>persisted</em> Silver (in-memory today), Eurostat→Gold mapping, news LLM, and Spark.</p>
   </section>
 
   <section>
@@ -156,8 +156,8 @@
       <table>
         <thead><tr><th>Source</th><th>Collected</th><th>Bronze</th><th>Silver → rows</th></tr></thead>
         <tbody>
-          <tr><td><span class="src">eurostat</span></td><td>rail SDMX series (TSV) · EU+HU/AT</td><td><span class="sig green"><span class="dot green"></span>live-capable</span></td><td><span class="sig green"><span class="dot green"></span>StatFact</span></td></tr>
-          <tr><td><span class="src">worldbank</span></td><td>rail indicators (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>StatFact</span></td></tr>
+          <tr><td><span class="src">eurostat</span></td><td>rail SDMX series (TSV) · EU+HU/AT</td><td><span class="sig green"><span class="dot green"></span>live-capable</span></td><td><span class="sig amber"><span class="dot amber"></span>StatFact · unmapped→Gold</span></td></tr>
+          <tr><td><span class="src">worldbank</span></td><td>rail indicators (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓</span></td></tr>
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live FAILS (429)</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord (fixture)</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no XLSX reader</span></td></tr>
@@ -170,7 +170,74 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">03</span><h2>Execution stages</h2></div>
+    <div class="sec-head"><span class="sec-no">03</span><h2>Data inventory · live samples</h2></div>
+    <p class="small muted" style="margin:-6px 0 16px;">Real output from this session's bounded live run (World Bank Bronze → Silver → Gold, 2026-06-23). Counts are full; sample rows are a small non-authoritative slice. Reproduce with <span class="mono">live_check --sources worldbank</span> → <span class="mono">pipeline --bronze-root … --news 0</span>.</p>
+
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="card"><div class="big mono">7</div><div class="cap">Bronze sources · raw bytes + sha256</div></div>
+      <div class="card"><div class="big mono">35,112</div><div class="cap">Silver StatFact rows · WB</div></div>
+      <div class="card green"><div class="big mono">2,968</div><div class="cap">Gold (geo, year) rows · 151 geos</div></div>
+    </div>
+
+    <p class="eyebrow" style="margin:24px 0 8px;">Reach · does each source land in the Gold matrix?</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Source</th><th>Bronze (raw)</th><th>Silver rows</th><th>→ Gold</th></tr></thead>
+        <tbody>
+          <tr><td><span class="src">worldbank</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 3 art · 17 MB</span></td><td>StatFact · 35,112</td><td><span class="sig green"><span class="dot green"></span>yes · 2 features</span></td></tr>
+          <tr><td><span class="src">eurostat</span></td><td><span class="sig amber"><span class="dot amber"></span>flaky live</span></td><td>StatFact · real long</td><td><span class="sig amber"><span class="dot amber"></span>no · SDMX header unmapped</span></td></tr>
+          <tr><td><span class="src">rss_media</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 5 feeds</span></td><td>ArticleRecord</td><td><span class="sig amber"><span class="dot amber"></span>needs LLM</span></td></tr>
+          <tr><td><span class="src">gdelt</span></td><td><span class="sig red"><span class="dot red"></span>live 429</span></td><td>ArticleRecord · fixture</td><td><span class="sig red"><span class="dot red"></span>needs LLM</span></td></tr>
+          <tr><td><span class="src">ksh</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 6 XLSX</span></td><td><span class="sig red"><span class="dot red"></span>no reader</span></td><td><span class="sig red"><span class="dot red"></span>no</span></td></tr>
+          <tr><td><span class="src">uic</span></td><td><span class="sig green"><span class="dot green"></span>live ✓ · 2 PDF</span></td><td><span class="sig red"><span class="dot red"></span>no reader</span></td><td><span class="sig red"><span class="dot red"></span>no</span></td></tr>
+          <tr><td><span class="src">statistik_austria</span></td><td><span class="sig amber"><span class="dot amber"></span>unproven · ODS</span></td><td><span class="sig red"><span class="dot red"></span>no reader</span></td><td><span class="sig red"><span class="dot red"></span>no</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="eyebrow" style="margin:24px 0 8px;">Gold · ML-ready (geo, year) matrix — Austria sample</p>
+    <div class="scroll">
+      <table style="min-width:420px;">
+        <thead><tr><th>geo</th><th>year</th><th>rail_freight_tonne_km</th><th>rail_network_length_km</th></tr></thead>
+        <tbody class="mono">
+          <tr><td>AT</td><td>1995</td><td>13715</td><td>5672</td></tr>
+          <tr><td>AT</td><td>1996</td><td>13909</td><td>5672</td></tr>
+          <tr><td>AT</td><td>1997</td><td>14199</td><td>5672</td></tr>
+          <tr><td>AT</td><td>1998</td><td>14714</td><td>5739</td></tr>
+          <tr><td>AT</td><td>2000</td><td>16602</td><td>5665</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:8px;"><span class="mono">output/evidence/inventory-live-2026-06-23/railway_ml.parquet</span> · 2,968 rows · 151 geos · 1995–2021 · AT 27 / HU 27 rows.</p>
+
+    <p class="eyebrow" style="margin:24px 0 8px;">Silver · StatFact long table (sample)</p>
+    <div class="scroll">
+      <table style="min-width:560px;">
+        <thead><tr><th>geo</th><th>year</th><th>feature</th><th>value</th><th>unit</th><th>source · dataset</th></tr></thead>
+        <tbody class="mono">
+          <tr><td>AT</td><td>1995</td><td>rail_freight_tonne_km</td><td>13715</td><td>worldbank_native</td><td>worldbank · IS.RRS.GOOD.MT.K6</td></tr>
+          <tr><td>AT</td><td>1995</td><td>rail_network_length_km</td><td>5672</td><td>worldbank_native</td><td>worldbank · IS.RRS.TOTL.KM</td></tr>
+          <tr><td>AT</td><td>1996</td><td>rail_network_length_km</td><td>5672</td><td>worldbank_native</td><td>worldbank · IS.RRS.TOTL.KM</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:8px;">8-column contract (<span class="mono">geo, year, feature, value, unit, source_system, source_dataset, source_column</span>) · 35,112 rows persisted to <span class="mono">silver/stats/stat_fact/ingest_date=…/stat_fact.parquet</span> and reloaded identically. <span class="mono">source_column</span> keeps provenance, e.g. “Rail lines (total route-km)”.</p>
+
+    <p class="eyebrow" style="margin:24px 0 8px;">Silver · ArticleRecord (news, pre-LLM) — fixture sample</p>
+    <div class="scroll">
+      <table style="min-width:520px;">
+        <thead><tr><th>source</th><th>title</th><th>published</th><th>article_id</th></tr></thead>
+        <tbody class="mono">
+          <tr><td>hu_telex</td><td>RSS rail upgrade announced</td><td>2026-06-22</td><td>…/rss-rail-upgrade</td></tr>
+          <tr><td>gdelt</td><td>RailCargo investment announced</td><td>2020-04-01</td><td>…/rail-investment</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:8px;">RSS + GDELT parse to <span class="mono">ArticleRecord</span> today. The next stage — <span class="mono">NewsFeature</span> (event type, operators, money, sentiment) — needs a local LLM (Ollama) and has not run; it is mocked in tests.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">04</span><h2>Execution stages</h2></div>
     <p class="small muted" style="margin:-6px 0 16px;">Inside a stage, tasks fan out (parallel). Between stages, a fan-in barrier must be met before continuing. Only <span class="mono">①→②→⑦→⑧</span> is strictly sequential.</p>
 
     <div class="stage">
@@ -212,7 +279,7 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">04</span><h2>Engine</h2></div>
+    <div class="sec-head"><span class="sec-no">05</span><h2>Engine</h2></div>
     <div class="callout">
       <p><b>Apache Spark (PySpark)</b> — rubric-aligned (course names MapReduce/Spark/Storm), scales laptop→cluster. Run local now, then a standalone cluster to prove horizontal scaling. Write Gold as <b>Delta Lake</b> on Parquet; keep <b>DuckDB/Polars</b> as an EDA + benchmark sidecar. Raise real volume via the GDELT backfill so Spark is justified.</p>
       <div class="pillrow">
@@ -226,7 +293,20 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md, the source adapters &amp; Silver parsers, and committed output/evidence/ manifests. Task slugs match docs/TASKS.md. Snapshot 2026-06-23.</p>
+  <section>
+    <div class="sec-head"><span class="sec-no">06</span><h2>Open risks · re-audit</h2></div>
+    <p class="small muted" style="margin:-6px 0 14px;">19 undocumented gaps found 2026-06-24 (adversarially verified) — full list in <span class="mono">docs/GAP_REGISTER.md</span> (GAP-012…030). The load-bearing ones:</p>
+    <div class="tracks">
+      <div class="chip target"><b>GAP-012</b> · docs · documented Bronze→Gold regen recipe builds <b>empty Gold</b> on a clean checkout</div>
+      <div class="chip"><b>GAP-013</b> · pipeline · live MinIO stats path drops World Bank → feature-less Gold</div>
+      <div class="chip"><b>GAP-015</b> · gold · units never normalized despite the contract</div>
+      <div class="chip"><b>GAP-016</b> · gold · Gold news schema varies by batch (not reindexed)</div>
+      <div class="chip"><b>GAP-017</b> · spark · <span class="mono">pyspark&gt;=3.5</span> resolves to Spark 4.x (needs JDK 17)</div>
+      <div class="chip"><b>GAP-019</b> · ops · "automatic updates" scheduler is in-memory only</div>
+    </div>
+  </section>
+
+  <p class="note">Grounded in docs/GAP_REGISTER.md, the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including this session's live World Bank Bronze→Silver→Gold run and the live MinIO smoke. Inventory samples are real rows from that run. Task slugs match docs/TASKS.md. Snapshot 2026-06-23.</p>
 
 </main>
 </body>
