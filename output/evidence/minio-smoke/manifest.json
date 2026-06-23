@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "started_at_utc": "2026-06-23T17:32:30.067638+00:00",
+  "finished_at_utc": "2026-06-23T17:32:30.226387+00:00",
+  "endpoint": "http://localhost:9000",
+  "buckets": [
+    "bronze",
+    "silver",
+    "gold"
+  ],
+  "smoke_key": "bronze/_smoke/hello.txt",
+  "bytes_written": 32,
+  "bytes_read": 32,
+  "roundtrip_ok": true,
+  "evidence_path": "output/evidence/minio-smoke/manifest.json",
+  "notes": "MinIO Docker stack is reachable through s3fs; bronze/silver/gold buckets exist; bounded write/read/delete round-trip succeeded."
+}

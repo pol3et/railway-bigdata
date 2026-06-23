@@ -969,3 +969,31 @@ Evidence:
 
 Next:
 - Continue with remaining GAP-006 parsers/persistence or GAP-007 Gold loading from persisted Silver outputs.
+
+
+
+## 2026-06-23 - MinIO Local Lakehouse Storage Smoke
+
+Status: done for `infra/minio-storage`; GAP-010 remains in progress for full persisted Bronze->Silver->Gold through MinIO.
+
+Changed:
+- Added `.env.example` with local S3/MinIO defaults aligned with Bronze and Silver config.
+- Added `docker-compose.yml` for MinIO plus bucket bootstrap for `bronze`, `silver`, and `gold`.
+- Added `scripts/minio_smoke.py` to verify a bounded `s3fs` write/read/delete round-trip.
+- Added `tests/test_infra_minio.py` as a deterministic guard that does not require Docker.
+- Added README instructions for the local MinIO lakehouse path.
+- Recorded smoke evidence at `output/evidence/minio-smoke/manifest.json`.
+
+Evidence:
+- `python -m pytest -q tests/test_infra_minio.py` passed: 4 passed.
+- `python -m pytest -q` passed: 87 passed.
+- `docker compose up -d` started `railway-minio`.
+- `python scripts/minio_smoke.py` passed.
+- `output/evidence/minio-smoke/manifest.json` recorded `status=passed`, `roundtrip_ok=true`, buckets `bronze`, `silver`, and `gold`, `bytes_written=32`, and `bytes_read=32`.
+
+Boundary:
+- This verifies local MinIO object storage for `infra/minio-storage`.
+- It does not claim full persisted Bronze->Silver->Gold through MinIO; that remains for `silver/persist-outputs` and `gold/load-from-silver`.
+
+Next:
+- Continue with persisted Silver outputs and Gold loading from persisted storage.
