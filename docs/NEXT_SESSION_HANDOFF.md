@@ -56,7 +56,7 @@ Still open:
   stats parsers are not complete.
 - GAP-007: Gold storage loading boundary is not wired.
 - GAP-009: no Spark job exists yet.
-- GAP-010: fixture evidence exists; full live Bronze/Silver/Gold evidence is not complete.
+- GAP-010: local MinIO object-storage path is verified by `output/evidence/minio-smoke/manifest.json`; full persisted Bronze/Silver/Gold through MinIO is still not complete.
 - GAP-011: report and presentation are not started.
 
 Merged teammate slices:

@@ -20,7 +20,7 @@ python -m pytest -q
 Current verification result for this scaffold:
 
 - `python -m pip install --no-cache-dir -e ".[test]"` passed.
-- `python -m pytest -q` passed with 83 tests after adding Silver persistence and the local stats Bronze -> Gold evidence path.
+- `python -m pytest -q` passed with 87 tests after adding Silver persistence, the local stats Bronze -> Gold evidence path, and the MinIO infra guard.
 - `python -m compileall src tests` passed.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
 
@@ -60,3 +60,33 @@ Current implementation uses Python, MinIO/S3-style paths, pandas transformations
 ## Development Rule
 
 Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven paths are deterministic fixture Bronze -> Silver -> Gold, local Silver Parquet persistence, and a bounded local stats-only Bronze -> Gold reproduction from Eurostat/World Bank raw artifacts; the committed Gold feature in that real run is World Bank `rail_network_length_km`.
+
+## Local lakehouse (MinIO)
+
+A local S3-compatible object store is provided for the live Bronze/Silver/Gold lakehouse path (GAP-010). Defaults match `bronze/config.py` and `silver/config.py`, so the stack works without changing project code.
+
+```bash
+cp .env.example .env
+docker compose up -d
+python scripts/minio_smoke.py
+```
+
+Expected smoke evidence:
+
+```text
+output/evidence/minio-smoke/manifest.json
+```
+
+The Docker stack exposes:
+
+- MinIO S3 API: `http://localhost:9000`
+- MinIO console: `http://localhost:9001`
+- default login: `admin` / `password123`
+
+The `createbuckets` service creates `bronze`, `silver`, and `gold` buckets idempotently. Stop the stack with:
+
+```bash
+docker compose down
+```
+
+Use `docker compose down -v` only when you intentionally want to delete the local MinIO volume.

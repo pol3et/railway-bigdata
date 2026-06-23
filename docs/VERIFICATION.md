@@ -144,7 +144,10 @@ tests/
   test_bronze_live_check.py
   test_bronze_live_check_integration.py
   test_silver_characterization.py
+  test_silver_persist.py
+  test_silver_persist_integration.py
   test_gold_characterization.py
+  test_infra_minio.py
   test_pipeline_gaps.py
   fixtures/bronze/
 ```
@@ -194,3 +197,36 @@ output/
 ```
 
 Keep public deliverables outside `output/runtime/`.
+
+
+## MinIO lakehouse storage smoke (GAP-010)
+
+Local MinIO storage was verified by a bounded smoke check.
+
+Commands used:
+
+- cp .env.example .env
+- docker compose up -d
+- docker compose ps
+- python scripts/minio_smoke.py
+- python -m pytest -q tests/test_infra_minio.py
+- python -m pytest -q
+
+Observed results:
+
+- Docker MinIO container is running as railway-minio.
+- MinIO API is exposed at http://localhost:9000.
+- MinIO console is exposed at http://localhost:9001.
+- Buckets verified by smoke: bronze, silver, gold.
+- s3fs write/read/delete round-trip succeeded.
+- Smoke evidence: output/evidence/minio-smoke/manifest.json.
+- Smoke status: passed.
+- roundtrip_ok: true.
+- bytes_written: 32.
+- bytes_read: 32.
+- Unit guard tests passed: tests/test_infra_minio.py (4 passed).
+- Full test suite passed: 87 passed.
+
+Scope note: this verifies the local object-storage path for infra/minio-storage.
+It does not claim full persisted Bronze->Silver->Gold through MinIO; that remains
+tied to silver/persist-outputs and gold/load-from-silver.

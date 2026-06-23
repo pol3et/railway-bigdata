@@ -27,7 +27,7 @@ Today the train is at **Gold**; the next stop is **Spark**.
 
 ### At A Glance
 
-- `python -m pytest -q`: **83 passed**, 0 xfail.
+- `python -m pytest -q`: **87 passed**, 0 xfail.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
 - Stats parsers to `StatFact`: **2 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
@@ -40,8 +40,8 @@ Today the train is at **Gold**; the next stop is **Spark**.
 
 Earlier source-specific live runs proved **raw Bronze landing only**, not Silver/Gold.
 The local stats evidence additionally proves a bounded raw-Bronze-to-Gold
-reproduction for World Bank route-km; it is not a live MinIO, Ollama, news, or
-Spark run.
+reproduction for World Bank route-km; the MinIO smoke proves local object
+storage reachability only, not a full MinIO/Ollama/news/Spark run.
 
 - KSH: 6 STADAT XLSX, HTTP 200, 92,509 B
   (`output/evidence/ksh-live-check-2026-06-22-current/manifest.json`).
@@ -55,7 +55,7 @@ Spark run.
   correctly rejected (`output/evidence/worldbank-live-check-2026-06-22/manifest.json`).
 - GDELT live: **failed** (HU HTTP 429, AT RemoteDisconnected) -> fixture-only.
 
-There is no live MinIO/Ollama/news Silver/Gold output and no Spark output.
+There is no full MinIO/Ollama/news Silver/Gold output and no Spark output.
 
 ## Data Inventory
 
@@ -245,3 +245,30 @@ Key references:
 - Spark vs DuckDB/Polars (mix engines) — https://mwc360.github.io/data-engineering/2024/12/12/Should-You-Ditch-Spark-DuckDB-Polars.html
 - GDELT scale — https://www.gdeltproject.org/data.html
 - Teaching Big Data with limited resources (grading) — https://cidl.uitm.edu.my/uploads/CG-BDA/Teaching%20Big%20Data%20With%20Limited%20Resources%20Practical%20Lessons%20from%20a%20Scaled%20Down%20Lab.pdf
+
+
+## Update 2026-06-23 — MinIO storage path
+
+infra/minio-storage adds a local S3-compatible lakehouse store for the project.
+
+Implemented:
+
+- docker-compose.yml starts MinIO.
+- .env.example documents S3/MinIO defaults.
+- docker compose bootstraps bronze, silver, and gold buckets.
+- scripts/minio_smoke.py verifies a bounded write/read/delete round-trip through s3fs.
+- tests/test_infra_minio.py guards the committed infra without requiring Docker.
+- smoke evidence is written to output/evidence/minio-smoke/manifest.json.
+
+Verified result:
+
+- status: passed
+- endpoint: http://localhost:9000
+- buckets: bronze, silver, gold
+- roundtrip_ok: true
+- bytes_written: 32
+- bytes_read: 32
+
+This proves the local object-storage path needed for GAP-010. Full persisted
+Bronze->Silver->Gold through MinIO still depends on silver/persist-outputs and
+gold/load-from-silver.

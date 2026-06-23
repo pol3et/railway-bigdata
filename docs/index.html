@@ -142,12 +142,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">83</div><div class="cap">tests passing</div></div>
+      <div class="card green"><div class="big">87</div><div class="cap">tests passing</div></div>
       <div class="card amber"><div class="big">2139×3</div><div class="cap">real stats-only Gold</div></div>
       <div class="card amber"><div class="big">2 / 5</div><div class="cap">stats parsers</div></div>
       <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">Fixture E2E remains <span class="mono">fixture-e2e/railway_ml.parquet</span> (4 rows). A bounded local Eurostat+World Bank Bronze rerun writes <span class="mono">first-real-gold-local-stats-v2/railway_ml.parquet</span> (World Bank route-km, 2,139 rows, news skipped). Silver local stats/news Parquet persistence is also in place; Gold storage loading and MinIO/S3 writes remain open.</p>
+    <p class="small muted" style="margin-top:10px;">Fixture E2E remains <span class="mono">fixture-e2e/railway_ml.parquet</span> (4 rows). A bounded local Eurostat+World Bank Bronze rerun writes <span class="mono">first-real-gold-local-stats-v2/railway_ml.parquet</span> (World Bank route-km, 2,139 rows, news skipped). Silver local stats/news Parquet persistence and a local MinIO storage smoke are in place; Gold storage loading and full MinIO Bronze→Silver→Gold remain open.</p>
   </section>
 
   <section>
@@ -178,7 +178,7 @@
       <div class="tracks">
         <div class="chip"><b>①</b> bronze/local-stats-landing done <span class="arr">→</span> <b>②</b> gold/first-real-result done 🏁</div>
         <div class="chip">silver/persist-contract done</div>
-        <div class="chip">⑤ infra/minio-storage</div>
+        <div class="chip">⑤ infra/minio-storage done</div>
         <div class="chip">infra/ollama-model</div>
       </div>
     </div>

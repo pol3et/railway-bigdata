@@ -1,0 +1,52 @@
+# Local lakehouse object store for the railway-bigdata project (GAP-010).
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d
+#   python scripts/minio_smoke.py
+#
+# MinIO API:     http://localhost:9000
+# MinIO console: http://localhost:9001
+#
+# Credentials and buckets default to values from .env.example. They also match
+# defaults in bronze/config.py and silver/config.py.
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: railway-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET:-password123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      S3_KEY: ${S3_KEY:-admin}
+      S3_SECRET: ${S3_SECRET:-password123}
+      BRONZE_BUCKET: ${BRONZE_BUCKET:-bronze}
+      SILVER_BUCKET: ${SILVER_BUCKET:-silver}
+      GOLD_BUCKET: ${GOLD_BUCKET:-gold}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 \"$${S3_KEY}\" \"$${S3_SECRET}\" >/dev/null 2>&1; do
+        echo 'waiting for minio...';
+        sleep 1;
+      done;
+      mc mb --ignore-existing local/\"$${BRONZE_BUCKET}\";
+      mc mb --ignore-existing local/\"$${SILVER_BUCKET}\";
+      mc mb --ignore-existing local/\"$${GOLD_BUCKET}\";
+      echo \"buckets ready: $${BRONZE_BUCKET} $${SILVER_BUCKET} $${GOLD_BUCKET}\";
+      "
+
+volumes:
+  minio-data:
