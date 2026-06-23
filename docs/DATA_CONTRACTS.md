@@ -73,22 +73,29 @@ Producer: `src/railway_lakehouse/silver/persist.py`.
 
 Consumer: Gold (`build_from_silver`) and Spark evidence jobs.
 
-Frozen path contract (mirrors Bronze; partitioned by `ingest_date` so re-runs
-accumulate auditable history):
+Frozen local path contract (partitioned by `ingest_date`):
 
 ```text
 silver/stats/stat_fact/ingest_date=YYYY-MM-DD/stat_fact.parquet
 silver/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
 ```
 
-- Root is the local Silver tree for fixtures, or the `SILVER_BUCKET` prefix when
-  wired to MinIO/s3fs.
+- Root is a local filesystem Silver tree for fixtures and local evidence.
+- Each `ingest_date` partition is one replaceable snapshot. Re-running the same
+  date overwrites that date's Parquet file; use a new date or future run-id
+  partitioning if multiple same-day snapshots must be retained.
+- MinIO/s3fs Silver persistence is not wired here; keep that in GAP-010 storage
+  work.
 - Stats columns = `StatFact` field order; news columns = `NewsFeature` field
-  order (derived from `schema.py`, so files cannot drift from the contract).
+  order (derived from `schema.py` and written with explicit Arrow types, so
+  empty files keep the same physical schema as non-empty files).
 - `load_stats(root)` / `load_news(root)` read the latest `ingest_date=`
   partition unless an explicit date is passed.
 - An empty news run still writes a valid 0-row, schema-shaped Parquet so Gold
   always has a deterministic input.
+- `news_feature` stores validated successful `NewsFeature` rows. Extraction
+  failure accounting remains separate GAP-006 follow-up work until a failure
+  table or sidecar manifest is defined.
 
 ## Gold Contract
 

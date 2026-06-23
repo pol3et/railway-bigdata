@@ -3,13 +3,14 @@ Persist Silver outputs to canonical Parquet paths (GAP-006).
 
 This freezes the Silver persistence contract so Gold (and Spark) read from a
 documented, stable location instead of in-memory frames. Layout mirrors Bronze
-(partitioned by ``ingest_date``) so re-runs accumulate auditable history:
+(partitioned by ``ingest_date``) with one replaceable daily snapshot:
 
     <silver_root>/stats/stat_fact/ingest_date=YYYY-MM-DD/stat_fact.parquet
     <silver_root>/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
 
-``<silver_root>`` is the local Silver tree for fixtures, or the ``SILVER_BUCKET``
-prefix when wired to MinIO/s3fs (same pattern as the Bronze RawLander).
+``<silver_root>`` is a local filesystem Silver tree for fixtures and local
+evidence. MinIO/s3fs persistence is intentionally left to the storage wiring
+task.
 
 Schemas are the dataclasses in ``schema.py`` — column order is derived from them
 so the persisted files can never silently drift from the contract:
@@ -22,8 +23,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
-from .schema import StatFact, NewsFeature
+from .schema import NewsFeature, StatFact
 
 logger = logging.getLogger("silver.persist")
 
@@ -32,6 +35,35 @@ NEWS_DOMAIN, NEWS_TABLE = "news", "news_feature"
 
 STAT_FACT_COLUMNS = list(StatFact.__dataclass_fields__)
 NEWS_FEATURE_COLUMNS = list(NewsFeature.__dataclass_fields__)
+
+STAT_FACT_ARROW_SCHEMA = pa.schema([
+    ("geo", pa.string()),
+    ("year", pa.int64()),
+    ("feature", pa.string()),
+    ("value", pa.float64()),
+    ("unit", pa.string()),
+    ("source_system", pa.string()),
+    ("source_dataset", pa.string()),
+    ("source_column", pa.string()),
+])
+
+NEWS_FEATURE_ARROW_SCHEMA = pa.schema([
+    ("article_id", pa.string()),
+    ("source", pa.string()),
+    ("url", pa.string()),
+    ("published_date", pa.string()),
+    ("language", pa.string()),
+    ("is_rail_related", pa.bool_()),
+    ("country", pa.string()),
+    ("event_type", pa.string()),
+    ("operators", pa.list_(pa.string())),
+    ("rail_lines", pa.list_(pa.string())),
+    ("monetary_amount_eur", pa.float64()),
+    ("monetary_raw", pa.string()),
+    ("summary_en", pa.string()),
+    ("sentiment", pa.string()),
+    ("confidence", pa.float64()),
+])
 
 
 def _today() -> str:
@@ -55,15 +87,57 @@ def _latest_path(root, domain: str, table: str) -> "Path | None":
 # --------------------------------------------------------------------------
 # write
 # --------------------------------------------------------------------------
+def _as_string_list(value):
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value]
+    if pd.isna(value):
+        return None
+    return [str(value)]
+
+
+def _stats_frame(stats_long: pd.DataFrame) -> pd.DataFrame:
+    df = (stats_long if stats_long is not None else pd.DataFrame()).reindex(
+        columns=STAT_FACT_COLUMNS)
+    for column in ("geo", "feature", "unit", "source_system", "source_dataset", "source_column"):
+        df[column] = df[column].astype("string")
+    df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
+    df["value"] = pd.to_numeric(df["value"], errors="coerce").astype("Float64")
+    return df
+
+
+def _news_frame(news_rows) -> pd.DataFrame:
+    rows = []
+    for r in news_rows or []:
+        rows.append(r.to_row() if hasattr(r, "to_row") else dict(r))
+    df = pd.DataFrame(rows).reindex(columns=NEWS_FEATURE_COLUMNS)
+    for column in (
+        "article_id", "source", "url", "published_date", "language",
+        "country", "event_type", "monetary_raw", "summary_en", "sentiment",
+    ):
+        df[column] = df[column].astype("string")
+    df["is_rail_related"] = df["is_rail_related"].astype("boolean")
+    for column in ("operators", "rail_lines"):
+        df[column] = df[column].map(_as_string_list).astype("object")
+    for column in ("monetary_amount_eur", "confidence"):
+        df[column] = pd.to_numeric(df[column], errors="coerce").astype("Float64")
+    return df
+
+
+def _write_parquet(df: pd.DataFrame, path: Path, schema: pa.Schema) -> None:
+    table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
+    pq.write_table(table, path)
+
+
 def persist_stats(stats_long: pd.DataFrame, root, *, ingest_date: str = None) -> Path:
     """Write the unified StatFact long table to its canonical partition.
     Columns are reindexed to the contract order; returns the file path."""
     ingest_date = ingest_date or _today()
-    df = (stats_long if stats_long is not None else pd.DataFrame()).reindex(
-        columns=STAT_FACT_COLUMNS)
+    df = _stats_frame(stats_long)
     path = silver_table_path(root, STATS_DOMAIN, STATS_TABLE, ingest_date)
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(path, index=False)
+    _write_parquet(df, path, STAT_FACT_ARROW_SCHEMA)
     logger.info("persisted Silver stats: %s (%d rows)", path, len(df))
     return path
 
@@ -73,13 +147,10 @@ def persist_news(news_rows, root, *, ingest_date: str = None) -> Path:
     An empty list still writes a valid, schema-shaped (0-row) file so Gold always
     has a deterministic input."""
     ingest_date = ingest_date or _today()
-    rows = []
-    for r in news_rows or []:
-        rows.append(r.to_row() if hasattr(r, "to_row") else dict(r))
-    df = pd.DataFrame(rows).reindex(columns=NEWS_FEATURE_COLUMNS)
+    df = _news_frame(news_rows)
     path = silver_table_path(root, NEWS_DOMAIN, NEWS_TABLE, ingest_date)
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(path, index=False)
+    _write_parquet(df, path, NEWS_FEATURE_ARROW_SCHEMA)
     logger.info("persisted Silver news: %s (%d rows)", path, len(df))
     return path
 

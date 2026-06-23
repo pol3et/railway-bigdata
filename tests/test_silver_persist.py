@@ -1,5 +1,7 @@
 """Unit tests for the Silver persistence contract (canonical Parquet paths)."""
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 from railway_lakehouse.silver import persist
@@ -21,7 +23,7 @@ def _stats_df():
 
 def test_silver_table_path_is_canonical():
     p = persist.silver_table_path("silver", "stats", "stat_fact", "2026-06-23")
-    assert str(p).endswith("silver/stats/stat_fact/ingest_date=2026-06-23/stat_fact.parquet")
+    assert p.as_posix().endswith("silver/stats/stat_fact/ingest_date=2026-06-23/stat_fact.parquet")
 
 
 def test_persist_and_load_stats_round_trip(tmp_path):
@@ -47,10 +49,15 @@ def test_persist_news_preserves_list_fields(tmp_path):
 
 
 def test_persist_news_empty_writes_valid_parquet(tmp_path):
-    persist.persist_news([], tmp_path, ingest_date="2026-06-23")
+    path = persist.persist_news([], tmp_path, ingest_date="2026-06-23")
     loaded = persist.load_news(tmp_path)
     assert list(loaded.columns) == persist.NEWS_FEATURE_COLUMNS
     assert len(loaded) == 0
+    schema = pq.read_schema(path)
+    assert schema.field("article_id").type == pa.string()
+    assert schema.field("is_rail_related").type == pa.bool_()
+    assert schema.field("operators").type == pa.list_(pa.string())
+    assert schema.field("confidence").type == pa.float64()
 
 
 def test_load_stats_reads_latest_partition(tmp_path):
