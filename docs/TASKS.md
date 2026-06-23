@@ -77,10 +77,10 @@ develop against it independently with no schema collisions.
 |---|---|---|---|---|---|
 | `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | todo | Phase A |
 | `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | todo | Phase A · **MILESTONE** |
-| `silver/persist-contract` | Заморозить схему и пути Parquet для персиста Silver stats/news | 1 | — | todo | GAP-006 · **unblocker** |
+| `silver/persist-contract` | Заморозить схему и пути Parquet для локального Parquet-персиста Silver stats/news | 1 | — | done (frozen in `docs/DATA_CONTRACTS.md`) | GAP-006 · **unblocker** |
 | `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | todo | GAP-010 · Phase C |
 | `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | todo | LLM setup |
-| `silver/persist-outputs` | Реализовать персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | todo | GAP-006 |
+| `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | todo | GAP-007 |
 | `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | todo | GAP-006 |
 | `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | todo | GAP-009 · orig. task #12 |

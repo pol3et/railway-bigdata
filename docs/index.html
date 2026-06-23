@@ -131,7 +131,7 @@
       <div class="rail">
         <div class="train" aria-hidden="true">▸▮</div>
         <div class="stn"><div class="node green">B</div><div class="stn-code">stop 01</div><div class="stn-name">Bronze</div><div class="stn-note">Raw landing works. 4 of 8 sources scheduled.</div></div>
-        <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Stats + news normalize, in-memory only.</div></div>
+        <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Stats/news normalize; local Parquet persist works.</div></div>
         <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Builder works — only on a 4-row fixture.</div></div>
         <div class="stn"><div class="node red">⚡</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Not built. The graded deliverable.</div></div>
         <div class="stn"><div class="node red">R</div><div class="stn-code">stop 05</div><div class="stn-name">Report</div><div class="stn-note">Blocked on generated evidence.</div></div>
@@ -142,12 +142,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">74</div><div class="cap">tests passing</div></div>
+      <div class="card green"><div class="big">80</div><div class="cap">tests passing</div></div>
       <div class="card amber"><div class="big">4×3</div><div class="cap">only real Gold (fixture)</div></div>
       <div class="card amber"><div class="big">2 / 5</div><div class="cap">stats parsers</div></div>
       <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">Live runs proved raw Bronze landing only. The single end-to-end artifact is <span class="mono">fixture-e2e/railway_ml.parquet</span> (4 rows, news skipped).</p>
+    <p class="small muted" style="margin-top:10px;">Live runs proved raw Bronze landing only. The fixture E2E artifact is <span class="mono">fixture-e2e/railway_ml.parquet</span> (4 rows, news skipped). Silver now has local stats/news Parquet persistence; Gold storage loading and MinIO/S3 writes remain open.</p>
   </section>
 
   <section>
@@ -177,7 +177,7 @@
       <div class="stage-label">Stage 1 · fan-out ×4</div>
       <div class="tracks">
         <div class="chip"><b>①</b> bronze/local-stats-landing <span class="arr">→</span> <b>②</b> gold/first-real-result 🏁</div>
-        <div class="chip">silver/persist-contract</div>
+        <div class="chip">silver/persist-contract done</div>
         <div class="chip">⑤ infra/minio-storage</div>
         <div class="chip">infra/ollama-model</div>
       </div>
@@ -187,7 +187,7 @@
     <div class="stage">
       <div class="stage-label">Stage 2 · fan-out ×3</div>
       <div class="tracks">
-        <div class="chip"><b>③</b> silver/persist-outputs <span class="arr">→</span> <b>④</b> gold/load-from-silver</div>
+        <div class="chip"><b>③</b> silver/persist-outputs done <span class="arr">→</span> <b>④</b> gold/load-from-silver</div>
         <div class="chip"><b>⑥</b> silver/news-llm-extraction</div>
       </div>
     </div>
