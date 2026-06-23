@@ -38,7 +38,7 @@ python -m json.tool output/evidence/first-real-gold-local-stats-v2/counts.json
 ```
 Observed results:
 
-* Full suite passed: 77 passed.
+* Full suite passed: 83 passed after rebasing on the merged Silver persistence branch.
 * Local stats Bronze landing passed for Eurostat and World Bank.
 * Bronze evidence snapshot: output/evidence/local-stats-bronze/manifest.json.
 * Live bounded Bronze artifacts: 4 artifacts, 14,996,995 bytes.
