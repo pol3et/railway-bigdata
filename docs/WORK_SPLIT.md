@@ -1,6 +1,6 @@
 # Work Split And Gap Ownership
 
-Date: 2026-06-21
+Date: 2026-06-23
 
 This file is the planned collaboration map for classmates after the next session creates the GitHub-ready project structure.
 
@@ -248,14 +248,17 @@ No one owns a gap by saying they will look at it. A person owns a gap only when 
 - verification command,
 - sync point affected.
 
-## Active Branch Mapping - 2026-06-22
+## Merged Slice Status - 2026-06-23
 
-| Branch | Owner surface | Gap | Expected handoff |
+| Branch / slice | Owner surface | Gap | Current handoff |
 |---|---|---|---|
 | `pipeline/fixture-e2e-gap004` | Pipeline fixture E2E | GAP-004 closed | Local Bronze fixture readers and fixture Gold evidence. |
-| `silver/news-rss-article-records` | Workstream E - Silver News / Feature Audit | GAP-006 | RSS/article Bronze fixtures become auditable Silver news rows or article records; extraction failures are visible. |
-| `silver/stats-worldbank-eurostat` | Workstream D - Silver Stats Owner | GAP-006 | DONE 2026-06-22: World Bank JSON and Eurostat TSV(.gz) Bronze bytes become `StatFact` rows via `silver/stats/load.py` with provenance and no LLM numeric rewriting; integration test + WB fixture; unmapped labels visible in crosswalk cache. |
+| PR #9 `silver/news-parsers` | Workstream E - Silver News / Feature Audit | GAP-006 partial | MERGED 2026-06-23: RSS XML and GDELT ArtList JSON become `ArticleRecord` rows with stable IDs; both can feed the validated extraction path; local pipeline fixtures can read RSS XML. |
+| PR #10 `silver/stats-worldbank-eurostat` | Workstream D - Silver Stats Owner | GAP-006 partial | MERGED 2026-06-23: World Bank JSON and Eurostat TSV(.gz) Bronze bytes become `StatFact` rows via `silver/stats/load.py` with provenance, Parquet persistence, unmapped-label visibility, and correct `AUT -> AT` normalization. |
 
-`silver/news-rss-article-records` and `silver/stats-worldbank-eurostat` may
-contribute to GAP-010 if they record bounded live evidence, but they are not
-GAP-007 unless they also wire Gold loading from persisted Silver outputs.
+Remaining GAP-006 work is now narrower: KSH XLSX, Statistik Austria `.ods`,
+and UIC public PDF/subscribed exports still need deterministic Silver
+`StatFact` parsers, and Silver news still needs persisted output plus
+extraction-failure accounting. These merged slices are not GAP-007 unless they
+also wire Gold loading from persisted Silver outputs and record Gold row/column
+evidence.

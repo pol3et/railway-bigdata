@@ -1,17 +1,20 @@
 # Next Session Handoff
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## Mission
 
-Continue from the GitHub-ready scaffold and single-package migration.
+Continue from the GitHub-ready scaffold, single-package migration, and merged
+PR #9 / PR #10 Silver fixture slices.
 
-The deterministic fixture E2E path is now implemented. The next useful session should define persisted Silver/Gold artifact contracts before Spark work:
+The deterministic fixture E2E path is implemented. The next useful session
+should finish the remaining Silver persistence/parser boundaries before Spark
+work:
 
-1. Let active teammate branches finish their GAP-006 slices:
-   `silver/news-rss-article-records` and `silver/stats-worldbank-eurostat`.
-2. Decide where their fixture Silver stats/news outputs should be written.
-3. Wire Gold loading from persisted Silver for GAP-007.
+1. Decide the canonical persisted Silver stats/news output paths.
+2. Wire Gold loading from persisted Silver for GAP-007.
+3. Implement remaining GAP-006 parsers if needed: KSH XLSX, Statistik Austria
+   `.ods`, and UIC public PDF/subscribed export.
 4. Keep live MinIO/Ollama/Spark checks opt-in until evidence commands are explicit.
 
 ## Current State
@@ -38,21 +41,30 @@ Done:
 - Unit tests pass.
 - Full pytest passes with no expected xfail.
 - GAP-004 fixture-backed Bronze reads are closed and evidenced at `output/evidence/fixture-e2e/railway_ml.parquet`.
+- PR #10 Silver Stats slice is merged: Eurostat TSV(.gz) and World Bank JSON
+  Bronze fixtures become `StatFact` rows with Parquet persistence,
+  provenance, unmapped-label visibility, and correct `AUT -> AT`
+  normalization.
+- PR #9 Silver News slice is merged: RSS XML and GDELT ArtList JSON become
+  `ArticleRecord` rows with stable IDs, and RSS XML fixtures are wired into
+  local `_read_bronze_news()`.
 
 Still open:
 
 - GAP-005: KSH/Statistik Austria/UIC/history adapters are not scheduled by Bronze runner.
-- GAP-006: Silver persistence/storage boundary is not wired.
+- GAP-006: remaining persisted Silver boundary and non-Eurostat/World Bank
+  stats parsers are not complete.
 - GAP-007: Gold storage loading boundary is not wired.
 - GAP-009: no Spark job exists yet.
 - GAP-010: fixture evidence exists; full live Bronze/Silver/Gold evidence is not complete.
 - GAP-011: report and presentation are not started.
 
-Active teammate branch mapping:
+Merged teammate slices:
 
-- `silver/news-rss-article-records`: GAP-006 Silver News/RSS article-record slice.
-- `silver/stats-worldbank-eurostat`: GAP-006 Silver Stats World Bank/Eurostat slice.
-- Neither branch closes GAP-007 unless it also wires Gold loading and records Gold evidence.
+- PR #9 `silver/news-parsers`: GAP-006 Silver News/RSS+GDELT article-record slice.
+- PR #10 `silver/stats-worldbank-eurostat`: GAP-006 Silver Stats World Bank/Eurostat slice.
+- Neither merged slice closes GAP-007 because Gold still must load persisted
+  Silver outputs and record Gold evidence.
 
 Ollama model decision:
 
@@ -84,7 +96,9 @@ python -m pytest -q
 
 Expected current result:
 
-- 56 passed.
+- `python -m pytest -q` passed: 74 passed.
+- `python -m compileall -q src tests` passed.
+- `git diff --check` passed.
 
 ## Do Not Start With
 

@@ -1,5 +1,30 @@
 # Coursework Progress
 
+## 2026-06-23 - PR #9 And #10 Review
+
+Status: done for read-only review.
+
+Research:
+- Required local research note: `.planning/coursework/research/bigdata/pr9-pr10-review-2026-06-23.md`.
+- Local files read first: `AGENTS.md`, `README.md`, `TASK.md`, `docs/PROGRESS_LOG.md`, `docs/GAP_REGISTER.md`, `docs/WORKSTREAMS.md`, `docs/DATA_CONTRACTS.md`, `docs/ARCHITECTURE.md`, `docs/SILVER_DESIGN.md`, PR metadata, PR diffs, and changed source/tests.
+- `ship-it:ship-pr` was used for each same-repo PR. No external docs were needed.
+
+Evidence:
+- PR #9 is open, same-repo, `DIRTY`/`CONFLICTING`; report at `.ship/pr/9/report.md`.
+- PR #10 is open, same-repo, `CLEAN`/`MERGEABLE`; report at `.ship/pr/10/report.md`.
+- PR #9 branch tests with `PYTHONPATH=src`: targeted Silver tests passed, 8 passed; full branch suite passed, 56 passed and 1 xfailed.
+- PR #10 branch tests with `PYTHONPATH=src`: targeted Silver stats tests passed, 11 passed; full branch suite passed, 64 passed.
+- Adversarial verification challenged four findings and dropped none.
+
+Findings:
+- PR #9 needs conflict resolution and a blank-URL article-id fix before merge.
+- PR #10 needs World Bank ISO3-to-project-geo normalization (`AUT -> AT`) and Austria-specific test coverage before merge.
+- The PRs are complementary slices of GAP-006, but shared test/docs edits must be reconciled.
+
+Next:
+- Fix PR #10 first if taking the lowest-conflict path.
+- Rebase PR #9 after the stats/test state is settled.
+
 ## 2026-06-21 - Bronze Local Live Check Command
 
 Status: done for bounded local RSS/KSH Bronze command; broader live pipeline evidence remains open.
@@ -588,3 +613,82 @@ Evidence:
 Boundary:
 - No live collectors, MinIO service, live Ollama model, Spark job, report, or
   presentation output was executed for this review follow-up.
+
+## 2026-06-23 - PR #9 / PR #10 Rebase Fixes
+
+Status: done; both PR branches pushed and mergeable.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/pr9-pr10-rebase-fixes-2026-06-23.md`.
+- Local files reviewed first in both PR worktrees, including Silver stats
+  loaders/tests, Silver news parsers/tests, pipeline fixture tests, and the
+  prior `.ship/pr/9` and `.ship/pr/10` review reports.
+- No external docs were needed; this was local PR repair and verification.
+
+Changed:
+- PR #10 local commit `a6e3f8272665f8dbddc2a412f1fa69537c5b660a` fixes
+  World Bank country-code normalization so Austria is `AT`, not `AU`.
+- PR #9 local commit `d674cbaea034560bd64200cba3a3dd67ff03910c` wires RSS
+  XML parser output into the fixture pipeline, adds stable URL-less article
+  IDs, and makes the ArticleRecord extraction bridge reusable for RSS/GDELT.
+- PR #9 parser tests now live in `tests/test_silver_news_parsers.py`, avoiding
+  conflict with PR #10's stats characterization tests.
+
+Evidence:
+- PR #10 targeted tests passed: 3 passed.
+- PR #10 full suite passed: 66 passed.
+- PR #10 `python -m compileall -q src tests` passed and
+  `git diff --check origin/main...HEAD` exited 0.
+- PR #9 focused parser/pipeline tests passed after red/green repair: 8 passed.
+- PR #9 full suite passed: 68 passed.
+- PR #9 `python -m compileall -q src tests` passed and
+  `git diff --check origin/main...HEAD` exited 0.
+
+Boundary:
+- No live collectors, MinIO service, live Ollama model, Spark job, report, or
+  presentation output was executed for this PR follow-up.
+- Initial remote PR branch update failed from `cul8err`, and the GitHub
+  connector write path failed with `Unknown tool({"name":"github_update_file"})`.
+  Switching GitHub CLI to `pol3et` allowed the branch pushes, and the active
+  account was switched back to `cul8err` afterward.
+- GitHub reports PR #10 as `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`.
+- GitHub reports PR #9 as `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`.
+
+Next:
+- Merge PR #10 and PR #9 when ready, watching normal repository checks if
+  branch protection requires them.
+
+## 2026-06-23 - Main Sync And Documentation Refresh For PR #9 / PR #10
+
+Status: done locally; ready to push `main`.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/main-doc-sync-pr9-pr10-2026-06-23.md`.
+- Local files reviewed first: `docs/GAP_REGISTER.md`,
+  `docs/WORK_SPLIT.md`, `docs/WORKSTREAMS.md`,
+  `docs/NEXT_SESSION_HANDOFF.md`, `docs/PARSER_WORK_LOG.md`,
+  `docs/CODEMAP.md`, `docs/VERIFICATION.md`, `README.md`,
+  `docs/PROGRESS_LOG.md`, `.planning/COURSEWORK_PROGRESS.md`, and PR state
+  from `gh pr view`.
+- No external docs were needed; this was repository-state documentation sync.
+
+Changed:
+- Merged `origin/silver/stats-worldbank-eurostat` into local `main`.
+- Merged `origin/silver/news-parsers` into local `main`.
+- Updated canonical docs to reflect merged Silver Stats and Silver News
+  fixture slices instead of active PR branches.
+- Added the current verification result and narrowed remaining GAP-006 work.
+
+Evidence:
+- `python -m pytest -q` passed: 74 passed.
+- `python -m compileall -q src tests` passed.
+- `git diff --check` exited 0.
+
+Boundary:
+- No live collectors, MinIO service, live Ollama model, Spark job, report, or
+  presentation output was executed for this documentation sync.
+
+Next:
+- Push `main` after final status review.

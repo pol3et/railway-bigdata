@@ -1,6 +1,6 @@
 # Parser Work Log
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 Purpose: make the parser state easy to split between classmates before pushing
 the project to GitHub. This log records what each parser collects, how it stores
@@ -16,7 +16,8 @@ For collaboration, the first practical milestone is narrower:
 
 1. Bronze parsers collect real raw data from selected sources.
 2. Each raw artifact is stored unchanged with metadata.
-3. Docs state how Silver can parse it later and which Gold features it can feed.
+3. Docs state how Silver parses it now or what parser still remains, and
+   which Gold features it can feed.
 4. Failures are documented with owners instead of hidden.
 
 Current bounded live evidence:
@@ -150,9 +151,9 @@ Still open and intentionally separate from the Bronze task:
 | Parser | Live status | Evidence | Current diagnosis | Next owner task |
 |---|---|---|---|---|
 | Eurostat | live-ok | Catalogue landed previously; bounded direct probe confirmed dataset fetch for `enpe_rail_go`: HTTP 200, 552 bytes, `text/tab-separated-values`. | Fixed quoted TOC dataset codes; discovery now returns 253 rail-related codes with `quoted_codes=[]`. First checked code `enpe_rail` still returns 404, but the next dataset `enpe_rail_go` downloads successfully. | Next Silver owner can parse downloaded TSV shape. |
-| World Bank | live-ok | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. Confirmed series probed live 2026-06-22: `IS.RRS.TOTL.KM` (HTTP 200, 17,556 obs), `IS.RRS.GOOD.MT.K6` (HTTP 200, HU 2021 = 11345.601), `IS.RRS.PASG.KM` (HTTP 200, HU 2021 = 5435.389). Evidence: `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. | Root cause confirmed: the API returns HTTP 200 even for archived ids; `BM.GSR.TRAN.CD` yields a 128-byte `{"message": ...}` envelope, so a status check could not catch it. Discovery now anchors on the word `rail*` (no longer matches `trail`/`trailer`/`curtail`), pulls a confirmed allowlist regardless of discovery, and `series_has_observations()` validates the payload before landing. | Wave 3: World Bank JSON -> StatFact (`silver/stats/merge.py::read_worldbank_json`). |
+| World Bank | live-ok; Silver fixture parser done | Catalogue landed: `stats/worldbank/_catalogue_indicators/.../indicators.json`; 9,316,675 bytes. Confirmed series probed live 2026-06-22: `IS.RRS.TOTL.KM` (HTTP 200, 17,556 obs), `IS.RRS.GOOD.MT.K6` (HTTP 200, HU 2021 = 11345.601), `IS.RRS.PASG.KM` (HTTP 200, HU 2021 = 5435.389). Evidence: `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. | Root cause confirmed: the API returns HTTP 200 even for archived ids; `BM.GSR.TRAN.CD` yields a 128-byte `{"message": ...}` envelope, so a status check could not catch it. Discovery now anchors on the word `rail*`, pulls a confirmed allowlist, and `series_has_observations()` validates the payload before landing. Silver now parses fixture World Bank JSON into `StatFact` rows and maps `AUT -> AT`. | Wire this parsed Silver output into the next persisted Silver/Gold evidence path. |
 | GDELT recent | mocked-rate-limit-ok; live retry failed | Current-code manifest: `output/evidence/gdelt-live-check-2026-06-22/manifest.json` with 0 artifacts and 2 failures. | Recent DOC API fetch now retries HTTP 429, respects `Retry-After`, and caps `maxrecords` at the documented 200-record bound. The latest bounded probe still failed: HU returned HTTP 429 after retries and AT disconnected. | Keep marked not live-ok until a future bounded probe lands a current artifact or the API limit is documented as unavailable for this environment. |
-| RSS media | partial live-ok | Current-code manifest: `output/evidence/rss-feed-health-2026-06-22/manifest.json` with 9 artifacts, 496,138 bytes, and 1 failure. | HU and AT feed collection works for 9/10 bounded attempts. `hu_origo` returned HTTP 404 and should be treated as stale/broken until refreshed or removed. | Prepare RSS XML -> article records for Silver; optionally refresh/remove `hu_origo` and continue feed health checks. |
+| RSS media | partial live-ok; Silver fixture parser done | Current-code manifest: `output/evidence/rss-feed-health-2026-06-22/manifest.json` with 9 artifacts, 496,138 bytes, and 1 failure. | HU and AT feed collection works for 9/10 bounded attempts. `hu_origo` returned HTTP 404 and should be treated as stale/broken until refreshed or removed. Silver now parses RSS XML fixtures into `ArticleRecord` rows, prefers full `content:encoded` text, and uses stable fallback IDs. | Persist Silver news outputs, count extraction failures, optionally refresh/remove `hu_origo`, and continue feed health checks. |
 | KSH STADAT | live-ok | Current-code live-check manifest: `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts, 92,509 bytes, and 0 failures. Seed/title audit manifest: `output/evidence/ksh-live-check-2026-06-22/manifest.json`. | `parser/ksh-stadat` Bronze scope is done. The earlier three seeds were reachable but mislabelled: `sza0010` is inland waterway goods, `sza0006` is road goods, and `sza0009` is rail freight, not passenger. The active seed set now uses six title-verified rail tables and rejects empty, malformed, or non-XLSX HTTP-200 bodies. | Open follow-up: Wave 3 Silver KSH XLSX -> `StatFact` parser and tests. |
 | Statistik Austria | live-ok for rail `.ods` | Current-code manifest: `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json` with 5 rail `.ods` artifacts. | OGD JSON now uses `?dataset=<id>` and empty/non-ODS HTTP-200 responses are rejected. The OGD catalogue has no rail dataset, so current rail evidence comes from statistik.at `.ods`; passenger and network-length values remain Eurostat/STATcube/PDF follow-up. | Wave 3: Statistik Austria `.ods` -> `StatFact` parser and tests. |
 | UIC | live-ok for public PDFs | Current-code live-check manifest: `output/evidence/uic-live-check-2026-06-22/manifest.json` with 2 artifacts, 2,109,240 bytes, and 0 failures. | Stale public XLS seeds were replaced with current free RAILISA resource PDFs. RAILISA CSV/Excel downloads and REST API access remain subscription/auth-bound. | Future Silver owner can parse the public synopsis PDF or use subscribed CSV/Excel exports if credentials become available. |
@@ -167,9 +168,8 @@ Interpretation:
 - Bronze MVP is not blocked by the failed recent GDELT live probe. Use the
   proven Bronze sources above for the first dataset, and keep GDELT as an
   optional hardening task if time remains.
-- Eurostat and World Bank still need Silver parsing work before they feed
-  Gold features, but their current Bronze dataset/series pulls have bounded
-  live evidence.
+- Eurostat and World Bank now have deterministic Silver fixture parsers before
+  Gold, but the live persisted Silver/Gold path is still not evidenced.
 - UIC public PDF collection is a Bronze success; extracting facts from those
   PDFs, or from subscribed RAILISA CSV/Excel exports, is Silver work.
 - Recent GDELT now has mocked retry coverage, but the latest bounded live
@@ -270,9 +270,9 @@ Update 2026-06-22 — `parser/uic-refresh`:
 | Parser | Module | Source family | What it collects | Storage shape | Downstream transform | Status |
 |---|---|---|---|---|---|---|
 | Eurostat | `src/railway_lakehouse/bronze/sources/eurostat.py` | Eurostat catalogue and SDMX TSV API | Rail, regional transport, and transport safety statistical datasets. Lands catalogue plus raw gzipped TSV datasets. | `bronze/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<dataset_id>.tsv.gz` plus `.meta.json`. | `silver/stats/merge.py::read_eurostat_tsv`, then crosswalk to canonical features. | Dataset code cleanup fixed; bounded direct probe confirms one real TSV dataset (`enpe_rail_go`, HTTP 200, 552 bytes). |
-| World Bank | `src/railway_lakehouse/bronze/sources/worldbank.py` | World Bank Indicators API | Indicator catalogue and all-country time series JSON for rail-related indicators. | `bronze/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json` plus `.meta.json`. | `silver/stats/merge.py::read_worldbank_json`, then crosswalk. | Live-ok: word-anchored discovery + confirmed allowlist + payload validation (rejects HTTP-200 error envelopes); three confirmed indicators verified live; mocked-HTTP tests added. |
+| World Bank | `src/railway_lakehouse/bronze/sources/worldbank.py` | World Bank Indicators API | Indicator catalogue and all-country time series JSON for rail-related indicators. | `bronze/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json` plus `.meta.json`. | `silver/stats/load.py` + `silver/stats/merge.py::read_worldbank_json`, then crosswalk. | Live-ok Bronze; Silver fixture parser done for World Bank JSON with provenance, unmapped-label audit, Parquet persistence, and correct `AUT -> AT` normalization. |
 | GDELT recent | `src/railway_lakehouse/bronze/sources/gdelt.py` | GDELT DOC 2.0 API | Recent rail-related news article lists for HU/AT source countries. | `bronze/news/gdelt/<geo>/ingest_date=YYYY-MM-DD/gdelt_doc_<geo>_<timespan>.json` plus `.meta.json`. | `silver/news/extract.py::gdelt_passthrough` or article extraction, then Gold news aggregation. | Query and mocked 429 retry behavior unit-tested; request size capped at 200 records. Latest bounded live retry failed with HU HTTP 429 and AT remote disconnect. |
-| RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | HU/AT media and official RSS feeds | Whole RSS feeds, unfiltered, to avoid losing sparse rail items. | `bronze/news/rss/<geo_outlet>/ingest_date=YYYY-MM-DD/<geo_outlet>.xml` plus `.meta.json`. | Future RSS parser should extract article records, then `silver/news/extract.py`. | Partial live-ok: current-code manifest records 9 artifacts, 496,138 bytes, and one stale/broken feed (`hu_origo` HTTP 404); registry unit test added. |
+| RSS media | `src/railway_lakehouse/bronze/sources/rss_media.py` | HU/AT media and official RSS feeds | Whole RSS feeds, unfiltered, to avoid losing sparse rail items. | `bronze/news/rss/<geo_outlet>/ingest_date=YYYY-MM-DD/<geo_outlet>.xml` plus `.meta.json`. | `silver/news/rss.py::parse_rss_xml` -> `ArticleRecord` -> `silver/news/extract.py`. | Partial live-ok Bronze; Silver fixture parser done for RSS XML, including full-content preference, stable fallback IDs, and local pipeline fixture wiring. |
 | KSH | `src/railway_lakehouse/bronze/sources/ksh.py` | Hungarian Central Statistical Office STADAT files | Six title-verified rail or rail-bearing XLSX tables: freight, passenger by mode, rolling stock, road and rail network, regional line length, and narrow gauge. | `bronze/stats/ksh/<dataset_id>/ingest_date=YYYY-MM-DD/<code>.xlsx` plus `.meta.json`. | Future KSH parser should read XLSX and emit `StatFact` rows using the Wave 3 KSH plan. | Live-ok: 6/6 active tables verified by current-code live check; mocked validation tests added; active seeds reject empty, malformed, or non-XLSX HTTP-200 bodies. |
 | Statistik Austria | `src/railway_lakehouse/bronze/sources/statistik_austria.py` | statistik.at `.ods` rail files plus OGD JSON/CSV helpers | Rail freight and rolling-stock `.ods` files. | `bronze/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.ods` plus `.meta.json`. | Future parser should read `.ods` and emit `StatFact` rows (plan below). | Live-ok: real rail `.ods` landed; API path fixed (`?dataset=`); empty and non-ODS HTTP-200 bodies rejected; mocked tests added. OGD has no rail dataset; STATcube needs login. |
 | UIC | `src/railway_lakehouse/bronze/sources/uic.py` | UIC RAILISA public statistical publications | Current free UIC public PDFs: traffic trends and railway statistics synopsis. | `bronze/stats/uic/<dataset_id>/ingest_date=YYYY-MM-DD/<filename>.pdf` plus `.meta.json`. | Future UIC parser can extract facts from the public synopsis PDF, or use subscribed RAILISA CSV/Excel exports if access becomes available. | Live-ok for public PDFs: 2/2 current public resources verified by current-code live check; subscribed CSV/Excel/API access remains access-limited. |
@@ -339,7 +339,7 @@ Parallel owner tasks:
 |---|---|---|---|
 | Eurostat owner | `bronze/sources/eurostat.py`, `tests/test_bronze_characterization.py` | Quoted TOC codes are stripped; at least one real TSV dataset is downloadable in a bounded probe. | DONE 2026-06-22: fixture test plus direct Eurostat probe: `enpe_rail_go`, HTTP 200, 552 bytes; tests pass with the documented GAP-004 xfail. |
 | World Bank owner | `bronze/sources/worldbank.py`, Silver stats tests | Discovery keeps confirmed rail indicators and rejects API error payloads. | DONE 2026-06-22: word-anchored discovery, confirmed allowlist, `series_has_observations()`/`is_error_payload()` validation; mocked-HTTP error-payload test; live evidence in `output/evidence/worldbank-live-check-2026-06-22/manifest.json`. |
-| RSS owner | `bronze/sources/rss_media.py`, `tests/test_bronze_characterization.py` | Feed registry includes HU and AT feeds; bounded local check lands reachable feeds and records stale ones as failures. | DONE 2026-06-22 for feed registry + bounded health check: unit test added; manifest `output/evidence/rss-feed-health-2026-06-22/manifest.json` records 9 artifacts / 496,138 bytes / 1 failure (`hu_origo` HTTP 404). Follow-up: RSS XML -> article records in Silver and optional `hu_origo` refresh/removal. |
+| RSS owner | `bronze/sources/rss_media.py`, `tests/test_bronze_characterization.py` | Feed registry includes HU and AT feeds; bounded local check lands reachable feeds and records stale ones as failures. | DONE 2026-06-22 for feed registry + bounded health check; Silver RSS XML -> `ArticleRecord` fixture parser merged 2026-06-23. Follow-up: optional `hu_origo` refresh/removal and persisted Silver news output/error accounting. |
 | GDELT owner | `bronze/sources/gdelt.py`, `bronze/sources/past_recordings.py` | Bounded query handles 429 with retry/backoff and never starts long backfill accidentally. | DONE for mocked coverage 2026-06-22: shared GDELT retry helper, `Retry-After` handling, 200-record DOC bound, historical `--dry-run`, and default `--max-pages 1`. Latest bounded live retry failed with HU HTTP 429 and AT remote disconnect. |
 | KSH owner | `bronze/sources/ksh.py` | All seeded STADAT tables are verified or marked stale. | DONE 2026-06-22 for `parser/ksh-stadat` Bronze scope: retired two non-rail seeds, corrected `sza0009` to freight, added six curated rail tables, XLSX workbook-container validation, mocked tests, seed/title audit manifest `output/evidence/ksh-live-check-2026-06-22/manifest.json`, and current-code live-check manifest `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` with 6 artifacts / 0 failures. Silver XLSX -> `StatFact` remains Wave 3. |
 | Statistik Austria owner | `bronze/sources/statistik_austria.py` | Refresh OGD IDs/API path and reject empty or non-ODS HTTP-200 responses. | DONE 2026-06-22: API path fixed to `?dataset=`, empty/non-ODS 200 responses rejected, fictional ids removed, OGD-has-no-rail finding documented, real rail `.ods` landed, mocked tests added, evidence `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json`. |
@@ -379,13 +379,25 @@ Owner: Silver stats and Silver news owners.
 
 Start only after the related Bronze parser has a real artifact.
 
+Done 2026-06-23:
+
+- Eurostat TSV(.gz) fixture bytes -> `StatFact` rows through
+  `silver/stats/load.py`.
+- World Bank JSON fixture bytes -> `StatFact` rows through
+  `silver/stats/load.py` and `silver/stats/merge.py`, including `AUT -> AT`
+  normalization.
+- RSS XML fixture bytes -> `ArticleRecord` rows through
+  `silver/news/rss.py`, wired into the local pipeline reader.
+- GDELT ArtList JSON -> `ArticleRecord` rows through
+  `silver/news/gdelt.py`.
+
 Tasks:
 
 - KSH XLSX -> `StatFact`
 - Statistics Austria `.ods` or future JSON-stat/CSV -> `StatFact`
 - UIC public PDF or subscribed RAILISA CSV/Excel -> `StatFact`
-- RSS XML -> article records -> `NewsFeature`
-- GDELT ArtList JSON -> article records or passthrough -> `NewsFeature`
+- DONE 2026-06-23: RSS XML -> article records -> `NewsFeature` extraction bridge
+- DONE 2026-06-23: GDELT ArtList JSON -> article records -> `NewsFeature` extraction bridge or passthrough
 
 #### Wave 3 - KSH XLSX -> StatFact Plan
 

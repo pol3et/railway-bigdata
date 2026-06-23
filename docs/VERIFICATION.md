@@ -4,18 +4,20 @@
 
 Deterministic characterization tests now exist under `tests/`.
 
-Fresh results from 2026-06-22:
+Fresh results from 2026-06-23 after syncing PR #9 and PR #10 into `main`:
 
 ```bash
 python -m pytest -q
-python -m compileall src tests
+python -m compileall -q src tests
 git diff --check
 ```
 
 Observed results:
 
-- Full suite passed: 56 passed.
+- Full suite passed: 74 passed.
 - GAP-004 fixture pipeline tests passed; there is no current expected xfail.
+- GAP-006 merged slice tests now cover World Bank/Eurostat Silver stats
+  fixtures and RSS/GDELT Silver news parser fixtures.
 - Compileall passed.
 - `git diff --check` passed.
 

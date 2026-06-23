@@ -1,6 +1,6 @@
 # Code Map
 
-Last mapped: 2026-06-21
+Last mapped: 2026-06-23
 
 Scope: current filesystem under `bigdata/course_proj`.
 
@@ -27,7 +27,7 @@ Path: `src/railway_lakehouse/`
 | File | Responsibility |
 |---|---|
 | `__init__.py` | Package marker for editable installs. |
-| `pipeline.py` | End-to-end Bronze -> Silver -> Gold orchestration skeleton with local fixture-backed Bronze reads. |
+| `pipeline.py` | End-to-end Bronze -> Silver -> Gold orchestration skeleton with local fixture-backed Bronze reads, including JSON news and RSS XML fixture reads. |
 
 ## Bronze
 
@@ -59,10 +59,18 @@ Path: `src/railway_lakehouse/silver/`
 | `schema.py` | Dataclass schemas for `StatFact` and `NewsFeature`, plus news validation. |
 | `ollama_client.py` | JSON-mode Ollama client with retries and loose JSON parsing. |
 | `run.py` | Silver orchestration helpers for stats and news; storage I/O remains unwired. |
-| `stats/merge.py` | Deterministic readers, cached crosswalk, and long-format stats merge. |
-| `news/extract.py` | Article-to-`NewsFeature` extraction via Ollama plus GDELT passthrough. |
+| `stats/load.py` | Bronze fixture/storage-style stats loader for World Bank JSON and Eurostat TSV(.gz), with optional Parquet persistence. |
+| `stats/merge.py` | Deterministic readers, cached crosswalk, World Bank geo normalization, and long-format stats merge. |
+| `news/extract.py` | Article-to-`NewsFeature` extraction via Ollama plus GDELT passthrough and `ArticleRecord` batch bridge. |
+| `news/gdelt.py` | GDELT ArtList JSON -> `ArticleRecord` parser. |
+| `news/records.py` | Stable article ID helper shared by news parsers. |
+| `news/rss.py` | RSS XML -> `ArticleRecord` parser and RSS extraction bridge. |
 
-Current status: transformation logic is characterized by unit tests. Bronze/Silver storage integration remains GAP-006, including the open KSH XLSX -> `StatFact` parser/tests follow-up.
+Current status: Eurostat TSV and World Bank JSON Bronze fixtures become
+auditable Silver `StatFact` rows, and RSS/GDELT news fixtures become
+`ArticleRecord` rows. Remaining GAP-006 work includes KSH XLSX, Statistik
+Austria `.ods`, UIC PDF/subscribed export parsing, and broader persisted
+Silver news output/error accounting.
 
 ## Gold
 
@@ -83,8 +91,10 @@ Current status: deterministic Gold logic is characterized by unit tests. Silver-
 | `tests/test_bronze_live_check.py` | Local Bronze live-check manifest, source-result, RSS, and KSH collector behavior with mocked HTTP. |
 | `tests/test_bronze_live_check_integration.py` | Deterministic integration fixture for KSH live-check manifest, raw Bronze file, and metadata writing. |
 | `tests/test_silver_characterization.py` | Silver stats melt/crosswalk/merge and news validation/extraction behavior. |
+| `tests/test_silver_stats_integration.py` | GAP-006 Silver stats integration from Bronze World Bank/Eurostat fixtures through Parquet output. |
+| `tests/test_silver_news_parsers.py` | RSS XML and GDELT ArtList parsers, stable article IDs, and ArticleRecord extraction bridge coverage. |
 | `tests/test_gold_characterization.py` | Gold conflict resolution, pivot, news aggregation, zero fill, Parquet write. |
-| `tests/test_pipeline_gaps.py` | GAP-004 fixture-backed Bronze reader and Bronze -> Silver -> Gold integration coverage. |
+| `tests/test_pipeline_gaps.py` | GAP-004 fixture-backed Bronze reader and Bronze -> Silver -> Gold integration coverage, including RSS XML fixture reads. |
 
 ## Missing Or Not Yet Implemented
 
