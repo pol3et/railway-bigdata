@@ -1,0 +1,14 @@
+{
+  "source_system": "worldbank",
+  "domain": "stats",
+  "dataset_id": "EN.GHG.CO2.TR.MT.CE.AR5",
+  "source_url": "https://api.worldbank.org/v2/country/all/indicator/EN.GHG.CO2.TR.MT.CE.AR5?format=json&per_page=20000",
+  "original_filename": "EN.GHG.CO2.TR.MT.CE.AR5.json",
+  "content_type": "application/json",
+  "http_status": 200,
+  "byte_size": 519,
+  "sha256": "e008bec99bc1ddd4c8f9fb0da1e94dd0b019c15ec6e3475663a453a206ffc72e",
+  "fetch_timestamp_utc": "2026-06-22T10:15:00+00:00",
+  "ingest_run_id": "fixture",
+  "extra": {}
+}
