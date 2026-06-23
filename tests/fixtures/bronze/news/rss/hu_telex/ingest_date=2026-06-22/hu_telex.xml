@@ -1,0 +1,11 @@
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <item>
+      <title>RSS rail upgrade announced</title>
+      <link>https://example.test/rss-rail-upgrade</link>
+      <pubDate>2026-06-22</pubDate>
+      <description>Short RSS teaser.</description>
+      <content:encoded>Full RSS article text about a railway upgrade.</content:encoded>
+    </item>
+  </channel>
+</rss>
