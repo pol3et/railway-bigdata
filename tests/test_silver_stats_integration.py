@@ -45,6 +45,12 @@ def test_build_silver_stats_from_bronze_fixtures(tmp_path, monkeypatch):
     assert wb["value"] == 5435.389
     assert wb["source_dataset"] == "IS.RRS.PASG.KM"
 
+    at_wb = unified[(unified["source_system"] == "worldbank")
+                    & (unified["geo"] == "AT") & (unified["year"] == 2021)].iloc[0]
+    assert at_wb["feature"] == "rail_passenger_km"
+    assert at_wb["value"] == 13127.0
+    assert "AU" not in set(unified["geo"])
+
     # Eurostat passengers mapped + flag-stripped numeric
     es = unified[(unified["source_system"] == "eurostat")
                  & (unified["geo"] == "HU") & (unified["year"] == 2020)].iloc[0]

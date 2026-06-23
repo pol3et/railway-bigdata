@@ -232,6 +232,40 @@ def test_load_worldbank_frame_parses_meta_records_and_tags_source():
         frame[frame["year"] == 2022].iloc[0]["value"])
 
 
+def test_load_worldbank_frame_maps_iso3_country_codes_to_project_geo():
+    payload = [
+        {"page": 1, "total": 2},
+        [
+            {"indicator": {"id": "IS.RRS.PASG.KM",
+                           "value": "Railways, passengers carried (million passenger-km)"},
+             "countryiso3code": "HUN", "date": "2021", "value": 5435.389},
+            {"indicator": {"id": "IS.RRS.PASG.KM",
+                           "value": "Railways, passengers carried (million passenger-km)"},
+             "countryiso3code": "AUT", "date": "2021", "value": 13127.0},
+        ],
+    ]
+    frame = stats_load.load_worldbank_frame(_json.dumps(payload).encode(), "IS.RRS.PASG.KM")
+
+    assert set(frame["geo"]) == {"HU", "AT"}
+    at = frame[frame["geo"] == "AT"].iloc[0]
+    assert at["value"] == 13127.0
+
+
+def test_load_worldbank_frame_uses_worldbank_iso2_country_id_as_fallback():
+    payload = [
+        {"page": 1, "total": 1},
+        [
+            {"indicator": {"id": "IS.RRS.PASG.KM",
+                           "value": "Railways, passengers carried (million passenger-km)"},
+             "country": {"id": "DE", "value": "Germany"},
+             "countryiso3code": "DEU", "date": "2021", "value": 13127.0},
+        ],
+    ]
+    frame = stats_load.load_worldbank_frame(_json.dumps(payload).encode(), "IS.RRS.PASG.KM")
+
+    assert list(frame["geo"]) == ["DE"]
+
+
 def test_load_worldbank_frame_rejects_error_envelope_and_empty():
     err = b'[{"message": [{"id": "175", "key": "Invalid format", "value": "deleted"}]}]'
     assert stats_load.load_worldbank_frame(err, "BM.GSR.TRAN.CD").empty

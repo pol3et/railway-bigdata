@@ -30,6 +30,25 @@ from ..schema import StatFact
 logger = logging.getLogger("silver.stats.merge")
 
 CANON_KEYS = list(CANONICAL_FEATURES.keys())
+_WORLD_BANK_ISO3_TO_GEO = {
+    "HUN": "HU",
+    "AUT": "AT",
+    "CZE": "CZ",
+}
+
+
+def _worldbank_geo(record: dict) -> str:
+    iso3 = str(record.get("countryiso3code") or "").upper()
+    if iso3 in _WORLD_BANK_ISO3_TO_GEO:
+        return _WORLD_BANK_ISO3_TO_GEO[iso3]
+
+    country = record.get("country")
+    if isinstance(country, dict):
+        iso2 = str(country.get("id") or "").upper()
+        if iso2:
+            return iso2
+
+    return iso3[:2]
 
 
 # --------------------------------------------------------------------------
@@ -58,7 +77,7 @@ def read_eurostat_tsv(df: pd.DataFrame, dataset_id: str) -> pd.DataFrame:
 def read_worldbank_json(records: list, dataset_id: str) -> pd.DataFrame:
     rows = []
     for r in records or []:
-        rows.append({"geo": (r.get("countryiso3code") or "")[:2].upper(),
+        rows.append({"geo": _worldbank_geo(r),
                      "year": pd.to_numeric(r.get("date"), errors="coerce"),
                      "value": r.get("value"),
                      "unit": "worldbank_native",
