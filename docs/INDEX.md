@@ -18,6 +18,7 @@ This documentation set is the project-local starting point for agents and contri
 | `AGENTIC_WORKFLOW.md` | How agents should work, log, and hand off. |
 | `VERIFICATION.md` | Verification strategy and evidence requirements. |
 | `GAP_REGISTER.md` | Owner-ready gap register and test failure mapping. |
+| `GAP_TASKS.md` | Per-gap implementation specs — one pick-up-cold task each (context, steps, Definition-of-Done contract, verification), grouped by urgency. |
 | `STATE_AND_ROADMAP.md` | Authoritative state snapshot, data inventory, task 9-12 status, completion roadmap, and big-data engine decision. |
 | `TASKS.md` | Canonical named task board (stable slug names cross-linked to chat, roadmap phases, and gap IDs). |
 | `index.html` | Compact visual status dashboard (pipeline line, inventory, fan-out/fan-in stages, engine). Served live via GitHub Pages at https://pol3et.github.io/railway-bigdata/ ; or open `docs/index.html` locally. |

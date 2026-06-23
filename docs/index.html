@@ -357,7 +357,7 @@
 
       <div class="ucol cross">
         <h3>Spark · Report · Ops</h3>
-        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark==3.5.*</span> + delta-spark + JDK 17 (plain install pulls Spark 4.x). Spark prerequisite.</span></div>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> adopt the <b>Spark 4.1 stack</b> (<span class="mono">pyspark 4.1.* · delta-spark 4.1.x · hadoop-aws 3.4.1 · JDK 17/21</span>) — Python 3.14 needs Spark 4.1; Spark 4 doesn't clash. Spark prerequisite.</span></div>
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — fast-track goal.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors + commit a lockfile.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
@@ -379,11 +379,11 @@
         <div class="wave-head"><span class="wave-no">WAVE 1</span><span class="wave-title">Unblock &amp; pin</span><span class="wave-par">3 in parallel</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="u urgent">!</span> GAP-012 fix regen recipe</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u urgent">!</span> GAP-017/018 pin pyspark 3.5.* + JDK 17 + bound pandas/pyarrow</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u urgent">!</span> GAP-017/018 pin Spark 4.1 stack (pyspark 4.1.* / delta 4.1.x / hadoop-aws 3.4.1 / JDK 17–21) + bound pandas/pyarrow</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GAP-020 test s3 read-back</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract A</div><div class="cbody">On a clean checkout the documented command regenerates the real Gold + <span class="mono">counts.json</span>; <span class="mono">pip install .[spark]</span> resolves Spark 3.5.x on JDK 17; <span class="mono">pytest -q</span> green.</div></div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract A</div><div class="cbody">On a clean checkout the documented command regenerates the real Gold + <span class="mono">counts.json</span>; <span class="mono">pip install .[spark]</span> resolves Spark 4.1.x on JDK 17/21; <span class="mono">pytest -q</span> green.</div></div>
 
       <div class="flow">↓</div>
 
@@ -439,11 +439,11 @@
     <div class="callout">
       <p><b>Apache Spark (PySpark)</b> — rubric-aligned (course names MapReduce/Spark/Storm), scales laptop→cluster. Run local now, then a standalone cluster to prove horizontal scaling. Write Gold as <b>Delta Lake</b> on Parquet; keep <b>DuckDB/Polars</b> as an EDA + benchmark sidecar. Raise real volume via the GDELT backfill so Spark is justified.</p>
       <div class="pillrow">
-        <span class="lib"><b>pyspark</b> 3.5.* <span style="color:var(--amber);">(pin — GAP-017)</span></span>
-        <span class="lib"><b>delta-spark</b> 3.2.x</span>
-        <span class="lib"><b>hadoop-aws</b> 3.3.4</span>
-        <span class="lib">JDK <b>17</b></span>
-        <span class="lib">winutils <b>3.3.x</b></span>
+        <span class="lib"><b>pyspark</b> 4.1.* <span style="color:var(--amber);">(Py 3.14 — GAP-017)</span></span>
+        <span class="lib"><b>delta-spark</b> 4.1.x</span>
+        <span class="lib"><b>hadoop-aws</b> 3.4.1</span>
+        <span class="lib">JDK <b>17 / 21</b></span>
+        <span class="lib">winutils <b>3.4.x</b></span>
         <span class="lib">news LLM: <b>Qwen3-4B</b> q4_K_M (6 GB fit)</span>
       </div>
     </div>

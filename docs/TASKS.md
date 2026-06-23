@@ -118,12 +118,12 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 ### Wave 1 — Unblock & pin (parallel)
 - `[!]` GAP-012 — fix the documented Bronze→Gold regen recipe
-- `[!]` GAP-017 / GAP-018 — pin `pyspark==3.5.*` + `delta-spark`, install JDK 17, bound pandas/pyarrow majors
+- `[!]` GAP-017 / GAP-018 — pin the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`), install **JDK 17/21**, bound pandas/pyarrow majors. (Spark 4.1 is the only line that supports the repo's Python 3.14.)
 - `M` GAP-020 — test the s3/MinIO Bronze read-back path
 
 **Contract A (verify before Wave 2):**
 - [ ] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (no empty Gold).
-- [ ] `pip install .[spark]` resolves a pyspark **3.5.x** (not 4.x); `JAVA_HOME` points to JDK 17.
+- [ ] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1); `JAVA_HOME` points to JDK 17 or 21.
 - [ ] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
 
 ### Wave 2 — Spark fast track (parallel)
@@ -155,4 +155,4 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops
 - → re-run Spark on the larger dataset → finalize report.
 
-See also: `STATE_AND_ROADMAP.md`, `GAP_REGISTER.md`, `WORK_SPLIT.md`.
+See also: `GAP_TASKS.md` (detailed per-gap implementation specs + contracts), `STATE_AND_ROADMAP.md`, `GAP_REGISTER.md`, `WORK_SPLIT.md`.

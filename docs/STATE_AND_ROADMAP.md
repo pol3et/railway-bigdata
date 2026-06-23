@@ -187,8 +187,16 @@ named-technologies list — use only as a comparison point.
 
 ### Pinned stack (avoid JAR/version hell)
 
-`Spark 3.5.x` · `Scala 2.12` · `delta-spark 3.2.x` · `hadoop-aws 3.3.4` (must equal
-Spark's bundled Hadoop) · `JDK 17`. `pip install pyspark==3.5.* delta-spark==3.2.1`.
+**Updated 2026-06-24 (GAP-017 research):** use the **Spark 4.1 stack**, not 3.5 — the repo
+runs on **Python 3.14**, and Spark 4.1 is the first release to support Python 3.14 (3.5/4.0
+cannot run in this interpreter). Spark 4 is GA and a coherent 4.1 stack exists, so it does
+not clash:
+
+`Spark 4.1.x` · `Scala 2.13` · `delta-spark 4.1.x` (Delta 4.1.0+/4.3.0, built on Spark 4.1.0;
+Maven `io.delta:delta-spark_4.1_2.13`) · `hadoop-aws 3.4.1` (must equal Spark 4.x's bundled
+Hadoop; AWS SDK **v2** for s3a) · `JDK 17 or 21`. `pip install "pyspark==4.1.*" "delta-spark==4.1.*"`.
+Spark 4 turns ANSI SQL on by default (net positive; use `try_cast`). Reading plain Parquet
+needs no extra JARs; `hadoop-aws` is only for the `s3a://` MinIO path.
 
 ### Integration pattern
 
@@ -204,8 +212,9 @@ a **directory** of part-files + `_SUCCESS`, not a single `.parquet` file.
 
 ### Windows setup notes
 
-- Install JDK 17, set `JAVA_HOME` (Spark 3.5 is validated on Java 8/11/17, not 21+).
-- `winutils.exe` + `hadoop.dll` (matching Hadoop 3.3.x, e.g. from cdarlint/winutils)
+- Install **JDK 17 or 21**, set `JAVA_HOME` (Spark 4.x requires Java 17/21; Java 8/11 are
+  dropped — the box currently has Java 8, so this is a required install).
+- `winutils.exe` + `hadoop.dll` (matching Hadoop **3.4.x** for Spark 4.1, e.g. from cdarlint/winutils)
   are **required to write** to local `file://`; set `HADOOP_HOME` and add `bin` to
   PATH; copy `hadoop.dll` to `System32`.
 - Set `PYSPARK_PYTHON`/`PYSPARK_DRIVER_PYTHON` to the same venv interpreter.
