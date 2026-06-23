@@ -1,5 +1,49 @@
 # Coursework Progress
 
+## 2026-06-23 - State Analysis, Inventory, And Spark Roadmap
+
+Status: done for read-only analysis/planning; no source code changed.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/state-analysis-spark-roadmap-2026-06-23.md`.
+- `research-orchestrator` was used. Routed MCP providers: Context7, Tavily, Exa,
+  Ref (some Ref pages credit-limited).
+- Local files read first: `AGENTS.md`, `README.md`, `TASK.md`, `WIRING.md`,
+  `docs/GAP_REGISTER.md`, `docs/NEXT_SESSION_HANDOFF.md`, `docs/ARCHITECTURE.md`,
+  `docs/DATA_CONTRACTS.md`, `docs/SILVER_DESIGN.md`, `docs/PIPELINE.md`,
+  `docs/VERIFICATION.md`, `.planning/COURSEWORK_PROGRESS.md`, all Bronze source
+  adapters, Silver stats/news parsers, `pipeline.py`, `gold/build.py`/`run.py`,
+  and committed `output/evidence/**` manifests.
+
+Findings:
+- Project sits at the end of the storage-boundary phase / start of the Spark
+  phase. Bronze landing operational (4 scheduled sources; KSH/StatAustria/UIC
+  live-proven as raw bytes but not scheduled, GAP-005). Silver normalizes
+  World Bank + Eurostat stats and RSS + GDELT news IN-MEMORY only; no persisted
+  Silver writer (GAP-006). Gold matrix builder works + writes Parquet but only
+  from a 4-row fixture; `gold/run.py` storage-load is a stub (GAP-007).
+- Only end-to-end artifact: `output/evidence/fixture-e2e/railway_ml.parquet`
+  (4 rows x 3 cols, news skipped). Live evidence proves raw Bronze landing only.
+- Task list 9-12: #9 stats-parsers 2/5 (Eurostat+World Bank done; KSH XLSX /
+  StatAustria ODS / UIC PDF readers missing; list was stale on UIC=XLS and
+  StatAustria=JSON/CSV). #10 news-parsers 3/3 (LLM step mocked in tests). #11
+  gold feature-matrix done on fixture. #12 spark/evidence-job 0/3, not started.
+- Engine recommendation: Apache Spark/PySpark (rubric-aligned), Delta Lake on
+  Parquet, pinned Spark 3.5.x/Scala 2.12/delta-spark 3.2.x/hadoop-aws 3.3.4/JDK
+  17 + winutils on Windows; DuckDB/Polars as EDA/benchmark sidecar. Raise real
+  volume via the existing `past_recordings` GDELT backfill so Spark is justified.
+
+Evidence:
+- No source edits, tests, live collectors, MinIO, Ollama, or Spark runs were
+  executed for this analysis. Produced a visual status/roadmap dashboard
+  (Artifact) plus the research note above.
+
+Next:
+- Critical path: GAP-006 (min Silver persist) -> GAP-007 (Gold<-Silver) ->
+  GAP-009 (Spark evidence) -> GAP-011 (report). GAP-010 live + GDELT volume
+  backfill run in parallel.
+
 ## 2026-06-23 - PR #9 And #10 Review
 
 Status: done for read-only review.

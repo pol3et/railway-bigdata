@@ -2,6 +2,48 @@
 
 This is the single persistent log for `bigdata/course_proj`. Future agents should append here before stopping.
 
+## 2026-06-23 - State Snapshot, Inventory, And Spark Roadmap
+
+Status: done for read-only analysis + documentation; no source code changed.
+
+Changed:
+- `docs/STATE_AND_ROADMAP.md` (new authoritative state + roadmap + engine decision)
+- `docs/INDEX.md` (index row for the new doc)
+- `docs/PROGRESS_LOG.md` (this entry)
+- `.planning/coursework/research/bigdata/state-analysis-spark-roadmap-2026-06-23.md` (new research log)
+- `.planning/COURSEWORK_PROGRESS.md` (session entry)
+
+Findings:
+- Project is at the end of the storage-boundary phase / start of the Spark phase.
+  Bronze landing operational (4 scheduled; KSH/StatAustria/UIC live-proven but not
+  scheduled, GAP-005). Silver normalizes World Bank + Eurostat stats and RSS +
+  GDELT news in-memory only; no persisted Silver writer (GAP-006). Gold matrix
+  builder works + writes Parquet but only from a 4-row fixture; `gold/run.py`
+  storage-load is a stub (GAP-007).
+- Only end-to-end artifact: `output/evidence/fixture-e2e/railway_ml.parquet`
+  (4 rows x 3 cols, news skipped). Live evidence proves raw Bronze landing only.
+- Task list 9-12: #9 stats-parsers 2/5 (Eurostat + World Bank done; KSH XLSX /
+  Statistik Austria ODS / UIC PDF readers missing). #10 news-parsers 3/3 (LLM step
+  mocked in tests). #11 gold feature-matrix done on fixture (GAP-007 storage-load
+  open). #12 spark/evidence-job 0/3, not started (GAP-009).
+- Stale-list corrections: UIC is PDF (not XLS); Statistik Austria is ODS (its OGD
+  JSON/CSV has no rail dataset). `merge.read_tabular_long` and
+  `extract.gdelt_passthrough` are written-but-uncalled stubs ready to wire.
+- Engine recommendation: Apache Spark/PySpark (rubric-aligned), Delta Lake on
+  Parquet, pinned Spark 3.5.x / Scala 2.12 / delta-spark 3.2.x / hadoop-aws 3.3.4
+  / JDK 17 + winutils on Windows; DuckDB/Polars as EDA/benchmark sidecar; raise
+  real volume via the existing `past_recordings` GDELT backfill.
+
+Evidence:
+- No source edits, tests, live collectors, MinIO, Ollama, or Spark runs were
+  executed for this analysis. Research routed via `research-orchestrator`
+  (Context7, Tavily, Exa, Ref); citations in the research log above.
+
+Next:
+- Critical path: GAP-006 (min Silver persist) -> GAP-007 (Gold<-Silver) ->
+  GAP-009 (Spark evidence) -> GAP-011 (report). GAP-010 live + GDELT volume
+  backfill run in parallel. Estimated ~2.5-4 days to first Spark evidence.
+
 ## 2026-06-23 - PR #9 And #10 Ship-PR Review
 
 Status: done for read-only review; no PR comments posted and no PR branches changed.

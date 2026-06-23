@@ -18,6 +18,7 @@ This documentation set is the project-local starting point for agents and contri
 | `AGENTIC_WORKFLOW.md` | How agents should work, log, and hand off. |
 | `VERIFICATION.md` | Verification strategy and evidence requirements. |
 | `GAP_REGISTER.md` | Owner-ready gap register and test failure mapping. |
+| `STATE_AND_ROADMAP.md` | Authoritative state snapshot, data inventory, task 9-12 status, completion roadmap, and big-data engine decision. |
 | `ORGANIZATION_PLAN.md` | Staged plan to turn the dump into a clean repo. |
 | `MERGE_STRATEGY.md` | Clean GitHub repo merge plan and gap register. |
 | `TEST_FIRST_INTEGRATION_PLAN.md` | Next-session plan to add tests before merging code. |
