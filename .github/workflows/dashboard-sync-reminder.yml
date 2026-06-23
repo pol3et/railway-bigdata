@@ -1,0 +1,70 @@
+name: dashboard-sync-reminder
+
+# Non-blocking reminder: if a PR changes pipeline code or the gap register but does
+# not update the live dashboard (docs/index.html) or the task board (docs/TASKS.md),
+# post a comment. Enforces the AGENTS.md "keep the dashboard in sync" Hard Rule.
+# Uses pull_request_target + the REST file list (no checkout of PR code) so it also
+# works for fork PRs and never executes untrusted code.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner, repo, pull_number: issue_number, per_page: 100,
+            });
+            const names = files.map(f => f.filename);
+
+            const touchesPipeline = names.some(
+              n => n.startsWith('src/railway_lakehouse/') || n === 'docs/GAP_REGISTER.md'
+            );
+            const touchesDashboard = names.some(
+              n => n === 'docs/index.html' || n === 'docs/TASKS.md'
+            );
+
+            const marker = '<!-- dashboard-sync-reminder -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+
+            if (touchesPipeline && !touchesDashboard) {
+              const body = [
+                marker,
+                '',
+                '⚠️ **Dashboard sync reminder**',
+                '',
+                'This PR changes pipeline code (`src/railway_lakehouse/**`) or `docs/GAP_REGISTER.md`, but does not update `docs/index.html` or `docs/TASKS.md`.',
+                '',
+                'Per **AGENTS.md** (Hard Rules), if this changes pipeline state — advances/closes a gap, wires a parser, persists a layer, lands Spark/report evidence, or changes a source’s collection status — update the dashboard + task board in this PR so the live dashboard stays current. If it does **not** change status, ignore this.',
+                '',
+                '_Non-blocking automated reminder._',
+              ].join('\n');
+              if (existing) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+              } else {
+                await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              }
+            } else if (existing) {
+              const body = [
+                marker,
+                '',
+                '✅ Dashboard sync reminder resolved — `docs/index.html` / `docs/TASKS.md` updated, or no pipeline-state change.',
+              ].join('\n');
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            }
