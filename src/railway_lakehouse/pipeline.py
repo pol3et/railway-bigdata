@@ -26,7 +26,9 @@ from railway_lakehouse.bronze.lander import RawLander
 from railway_lakehouse.bronze.sources import eurostat
 from railway_lakehouse.bronze.sources import past_recordings
 
+
 # Silver
+from railway_lakehouse.silver.stats import load as stats_load
 from railway_lakehouse.silver.stats import merge as stats_merge
 from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver.news.rss import parse_rss_xml
@@ -59,6 +61,11 @@ def main(argv=None):
         default=None,
         help="write/read the Silver stats crosswalk cache at this path",
     )
+    ap.add_argument(
+        "--counts-out",
+        default=None,
+        help="write a JSON row/column summary for the generated Gold Parquet",
+    )
     args = ap.parse_args(argv)
 
     return run_pipeline(
@@ -67,6 +74,7 @@ def main(argv=None):
         bronze_root=args.bronze_root,
         skip_news_extraction=args.skip_news_extraction,
         crosswalk_path=args.crosswalk_path,
+        counts_out=args.counts_out,
     )
 
 
@@ -77,6 +85,7 @@ def run_pipeline(
     bronze_root: str | None = None,
     skip_news_extraction: bool = False,
     crosswalk_path: str | None = None,
+    counts_out: str | None = None,
 ) -> str:
     ollama_reachable = False if skip_news_extraction else health_check()
 
@@ -91,20 +100,26 @@ def run_pipeline(
         past_recordings.ingest(lander, target_articles=news)  # ~N articles, raw JSON
 
     # ---------------- SILVER (stats) ----------------
-    # Read the raw Eurostat TSVs you just landed or supplied as fixtures.
-    raw_eurostat_tables = _read_bronze_eurostat(lander)       # -> {dataset_id: DataFrame}
-    frames = []
-    for dataset_id, df in raw_eurostat_tables.items():
-        long = stats_merge.read_eurostat_tsv(df, dataset_id)
-        long["source_system"] = "eurostat"
-        frames.append(long)
+    # Local Bronze mode uses the shared stats loader, so Eurostat and World Bank
+    # are both read from the canonical Bronze tree. Live MinIO mode keeps the
+    # existing Eurostat-only fallback for now.
+    frames = _read_bronze_stats_frames(lander)
     log.info("SILVER stats: %d source frames", len(frames))
 
-    # crosswalk (Eurostat maps by rule; LLM only if reachable, only for HU/DE)
+    # crosswalk (Eurostat/World Bank maps by rule; LLM only if reachable)
     if crosswalk_path:
         stats_merge.CROSSWALK_PATH = crosswalk_path
+
     labels = sorted({l for fr in frames for l in fr["source_column"].astype(str)})
-    crosswalk = stats_merge.build_crosswalk(labels, use_llm=ollama_reachable)
+    sources = {}
+    for fr in frames:
+        if fr.empty or "source_system" not in fr:
+            continue
+        source_system = fr["source_system"].iloc[0]
+        for label in fr["source_column"].astype(str).unique():
+            sources[label] = source_system
+
+    crosswalk = stats_merge.build_crosswalk(labels, sources=sources, use_llm=ollama_reachable)
     stats_long = stats_merge.merge_sources(frames, crosswalk)
 
     # ---------------- SILVER (news) ----------------
@@ -121,8 +136,43 @@ def run_pipeline(
 
     # ---------------- GOLD ----------------
     out_path = build_from_silver(stats_long, news_rows, out)
+    if counts_out:
+        counts_path = write_gold_counts(out_path, counts_out)
+        log.info("GOLD counts -> %s", counts_path)
     log.info("DONE -> %s", out_path)
     return out_path
+
+
+def write_gold_counts(parquet_path: str, counts_out: str) -> str:
+    """Write a small reproducibility summary for a generated Gold Parquet file."""
+    path = Path(parquet_path)
+    df = pd.read_parquet(path)
+    counts: dict[str, object] = {
+        "path": path.as_posix(),
+        "rows": int(len(df)),
+        "columns": int(len(df.columns)),
+        "column_names": [str(column) for column in df.columns],
+    }
+
+    if "geo" in df.columns:
+        geos = df["geo"].dropna().astype(str)
+        counts["geos_count"] = int(geos.nunique())
+        counts["contains_AT"] = bool((geos == "AT").any())
+        counts["contains_HU"] = bool((geos == "HU").any())
+
+    if "year" in df.columns:
+        years = pd.to_numeric(df["year"], errors="coerce").dropna()
+        counts["year_min"] = int(years.min()) if not years.empty else None
+        counts["year_max"] = int(years.max()) if not years.empty else None
+
+    if {"geo", "year"}.issubset(df.columns):
+        counts["at_rows"] = int((df["geo"].astype(str) == "AT").sum())
+        counts["hu_rows"] = int((df["geo"].astype(str) == "HU").sum())
+
+    counts_path = Path(counts_out)
+    counts_path.parent.mkdir(parents=True, exist_ok=True)
+    counts_path.write_text(json.dumps(counts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return counts_path.as_posix()
 
 
 def _read_bronze_eurostat(lander) -> dict:
@@ -137,6 +187,27 @@ def _read_bronze_eurostat(lander) -> dict:
         dataset_id = _dataset_id_from_path(path, "eurostat")
         tables[dataset_id] = _read_tsv(lander, path)
     return tables
+
+
+
+def _read_bronze_stats_frames(lander) -> list[pd.DataFrame]:
+    """Return Silver stats frames from Bronze stats artifacts.
+
+    Local Bronze mode reads all supported stats sources through
+    silver.stats.load. At the moment this includes Eurostat and World Bank.
+    Live MinIO mode keeps the existing Eurostat-only fallback.
+    """
+    local_root = getattr(lander, "bronze_root", None)
+    if local_root is not None:
+        return stats_load.frames_from_bronze(local_root)
+
+    raw_eurostat_tables = _read_bronze_eurostat(lander)
+    frames = []
+    for dataset_id, df in raw_eurostat_tables.items():
+        long = stats_merge.read_eurostat_tsv(df, dataset_id)
+        long["source_system"] = "eurostat"
+        frames.append(long)
+    return frames
 
 
 def _read_bronze_news(lander, limit: int) -> list:

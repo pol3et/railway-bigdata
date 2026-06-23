@@ -20,7 +20,7 @@ python -m pytest -q
 Current verification result for this scaffold:
 
 - `python -m pip install --no-cache-dir -e ".[test]"` passed.
-- `python -m pytest -q` passed with 74 tests after merging PR #9 and PR #10.
+- `python -m pytest -q` passed with 83 tests after adding Silver persistence and the local stats Bronze -> Gold evidence path.
 - `python -m compileall src tests` passed.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
 
@@ -29,9 +29,9 @@ Current verification result for this scaffold:
 The project now has one installable source tree:
 
 - `src/railway_lakehouse/bronze/` contains raw ingestion, landing, scheduler, and source adapters.
-- `src/railway_lakehouse/silver/` contains stats/news normalization and validation logic. Eurostat TSV + World Bank JSON fixtures now become `StatFact` rows; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
+- `src/railway_lakehouse/silver/` contains stats/news normalization, validation logic, and local Parquet persistence. Eurostat TSV + World Bank JSON fixtures now become `StatFact` rows; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
 - `src/railway_lakehouse/gold/` contains deterministic feature matrix builders and Parquet writing.
-- `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze stats/news fixtures via `--bronze-root`, including RSS XML; live MinIO runs are still unproven.
+- `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze stats/news fixtures via `--bronze-root`, including RSS XML, and can reproduce a bounded local stats-only Gold result from rerun Eurostat/World Bank raw Bronze artifacts. Live MinIO/Ollama/Spark runs are still unproven.
 - `tests/` contains deterministic characterization and integration tests, including the GAP-004 fixture E2E path.
 
 ## Start Here
@@ -59,4 +59,4 @@ Current implementation uses Python, MinIO/S3-style paths, pandas transformations
 
 ## Development Rule
 
-Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven path is deterministic fixture Bronze -> Silver -> Gold only.
+Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven paths are deterministic fixture Bronze -> Silver -> Gold, local Silver Parquet persistence, and a bounded local stats-only Bronze -> Gold reproduction from Eurostat/World Bank raw artifacts; the committed Gold feature in that real run is World Bank `rail_network_length_km`.

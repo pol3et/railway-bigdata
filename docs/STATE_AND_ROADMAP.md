@@ -20,24 +20,28 @@ Today the train is at **Gold**; the next stop is **Spark**.
 | Stage | Signal | State |
 |---|---|---|
 | Bronze (ingest) | operational | Raw landing works. 4 sources scheduled (Eurostat, World Bank, GDELT, RSS); KSH, Statistik Austria, UIC, GDELT-history are live-proven but **not scheduled** (GAP-005). |
-| Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly, but **in-memory only** inside `pipeline.py`. No persisted Silver writer; `silver/run.py` is a stub (GAP-006). |
-| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet, but only from a 4-row fixture. `gold/run.py` cannot load Silver from storage yet (GAP-007). |
+| Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly inside fixture/local pipeline paths. Local Parquet persistence now exists for `StatFact` and successful `NewsFeature` rows; MinIO/s3fs persistence, extraction-failure accounting, and `silver/run.py` remain open. |
+| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current real Gold feature is World Bank `rail_network_length_km`; Eurostat raw bytes landed but remained unmapped in this smoke. `gold/run.py` still cannot load persisted Silver from storage yet (GAP-007). |
 | Spark (big-data jobs) | not built | No `spark_jobs/` package exists. The registered command `python -m railway_lakehouse.spark_jobs.coverage` cannot import (GAP-009). This is the graded deliverable. |
 | Report / presentation | not started | Blocked: every claim must cite generated evidence that does not exist yet (GAP-011). |
 
 ### At A Glance
 
-- `python -m pytest -q`: **74 passed**, 0 xfail.
+- `python -m pytest -q`: **83 passed**, 0 xfail.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
 - Stats parsers to `StatFact`: **2 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
 - Gaps closed: **5 / 11** (GAP-001..004, 008).
-- Only end-to-end Bronze->Silver->Gold artifact:
-  `output/evidence/fixture-e2e/railway_ml.parquet` = **4 rows x 3 cols**, news skipped.
+- End-to-end Bronze->Silver->Gold artifacts:
+  - fixture: `output/evidence/fixture-e2e/railway_ml.parquet` = **4 rows x 3 cols**, news skipped.
+  - first real stats-only run: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` = **2,139 rows x 3 cols**, World Bank `rail_network_length_km`, includes `AT` and `HU`, news skipped.
 
 ### Evidence Reality Check
 
-Live runs proved **raw Bronze landing only**, not Silver/Gold:
+Earlier source-specific live runs proved **raw Bronze landing only**, not Silver/Gold.
+The local stats evidence additionally proves a bounded raw-Bronze-to-Gold
+reproduction for World Bank route-km; it is not a live MinIO, Ollama, news, or
+Spark run.
 
 - KSH: 6 STADAT XLSX, HTTP 200, 92,509 B
   (`output/evidence/ksh-live-check-2026-06-22-current/manifest.json`).
@@ -51,7 +55,7 @@ Live runs proved **raw Bronze landing only**, not Silver/Gold:
   correctly rejected (`output/evidence/worldbank-live-check-2026-06-22/manifest.json`).
 - GDELT live: **failed** (HU HTTP 429, AT RemoteDisconnected) -> fixture-only.
 
-There is no live Silver/Gold output and no Spark output.
+There is no live MinIO/Ollama/news Silver/Gold output and no Spark output.
 
 ## Data Inventory
 
@@ -110,7 +114,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | GAP-001..003 | closed | deps/install, single import root, Bronze package |
 | GAP-004 | closed | fixture-backed Bronze reads (E2E) |
 | GAP-005 | open | scheduler wiring for KSH/StatAustria/UIC/history |
-| GAP-006 | open | Silver persistence + remaining stats parsers |
+| GAP-006 | open | local Silver persistence done; remaining stats parsers/news failure accounting |
 | GAP-007 | open | Gold loads persisted Silver |
 | GAP-008 | closed | deterministic test suite |
 | GAP-009 | open | Spark/big-data job (the deliverable) |
@@ -128,14 +132,15 @@ on a parallel track.
 
 ### Main line (critical path, ~2.5-4 days)
 
-1. **Persist Silver outputs** — GAP-006 (min), ~0.5-1d. Decide the canonical
-   persisted Silver stats and news Parquet paths and write them. Gold needs a
-   documented input to load from.
+1. **Persist Silver outputs** — GAP-006 (min) is done for local Parquet
+   snapshots. MinIO/s3fs persistence and news extraction-failure accounting
+   remain follow-up work.
 2. **Wire Gold <- persisted Silver** — GAP-007, ~1d (HARD). Wire
    `build_from_silver()` into `gold/run.py main()` to read the Silver Parquet,
    write the Gold matrix, and record row/column counts. Close with
-   `python -m pytest -q -m integration`. Produces the first real (non-fixture)
-   Gold dataset.
+   `python -m pytest -q -m integration`. Produces the first persisted-Silver
+   Gold dataset; the bounded local stats-only non-fixture Gold smoke already
+   exists from the pipeline path.
 3. **Spark evidence job** — GAP-009, ~1-2d (THE TARGET). Create
    `src/railway_lakehouse/spark_jobs/coverage.py` + a SparkSession that reads the
    Gold Parquet and writes evidence to `output/evidence/spark/`, recording Spark

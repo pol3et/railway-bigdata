@@ -1,0 +1,17 @@
+{
+  "path": "output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet",
+  "rows": 2139,
+  "columns": 3,
+  "column_names": [
+    "geo",
+    "year",
+    "rail_network_length_km"
+  ],
+  "geos_count": 116,
+  "contains_AT": true,
+  "contains_HU": true,
+  "year_min": 1995,
+  "year_max": 2021,
+  "at_rows": 27,
+  "hu_rows": 27
+}

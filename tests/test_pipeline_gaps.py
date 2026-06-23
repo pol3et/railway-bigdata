@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -34,6 +35,17 @@ def test_pipeline_bronze_readers_load_local_fixtures():
         }
     ]
 
+def test_pipeline_stats_reader_loads_eurostat_and_worldbank_fixtures():
+    import railway_lakehouse.pipeline as pipeline
+
+    reader = SimpleNamespace(bronze_root=FIXTURE_BRONZE)
+
+    frames = pipeline._read_bronze_stats_frames(reader)
+
+    assert {frame["source_system"].iloc[0] for frame in frames if not frame.empty} >= {
+        "eurostat",
+        "worldbank",
+    }
 
 def test_pipeline_news_reader_honors_zero_limit():
     import railway_lakehouse.pipeline as pipeline
@@ -68,6 +80,7 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
 
     out_path = tmp_path / "gold" / "railway_ml.parquet"
     crosswalk_path = tmp_path / "crosswalk.json"
+    counts_path = tmp_path / "gold" / "counts.json"
     monkeypatch.setattr(pipeline, "health_check", lambda: True)
 
     def fake_generate_json(prompt, *, schema=None, system=None):
@@ -99,12 +112,21 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
             str(out_path),
             "--crosswalk-path",
             str(crosswalk_path),
+            "--counts-out",
+            str(counts_path),
         ]
     )
 
     assert returned == str(out_path)
     assert crosswalk_path.exists()
+    assert counts_path.exists()
     gold = pd.read_parquet(out_path)
+    counts = json.loads(counts_path.read_text(encoding="utf-8"))
+    assert counts["path"] == out_path.as_posix()
+    assert counts["rows"] == len(gold)
+    assert counts["columns"] == len(gold.columns)
+    assert counts["contains_AT"] is True
+    assert counts["contains_HU"] is True
     assert set(gold["geo"]) == {"AT", "HU"}
     hu_2020 = gold[(gold["geo"] == "HU") & (gold["year"] == 2020)].iloc[0]
     at_2020 = gold[(gold["geo"] == "AT") & (gold["year"] == 2020)].iloc[0]

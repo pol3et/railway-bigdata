@@ -41,11 +41,16 @@ def test_build_crosswalk_maps_english_labels_by_rule_without_llm(tmp_path, monke
     monkeypatch.setattr(stats_merge, "CROSSWALK_PATH", str(tmp_path / "crosswalk.json"))
 
     crosswalk = stats_merge.build_crosswalk(
-        ["Rail passengers total", "Unrelated metric"],
+        [
+            "Rail passengers total",
+            "Rail lines (total route-km)",
+            "Unrelated metric",
+        ],
         use_llm=False,
     )
 
     assert crosswalk["Rail passengers total"] == "rail_passengers"
+    assert crosswalk["Rail lines (total route-km)"] == "rail_network_length_km"
     assert crosswalk["Unrelated metric"] == "unmapped"
     assert (tmp_path / "crosswalk.json").exists()
 

@@ -75,8 +75,8 @@ develop against it independently with no schema collisions.
 
 | Task (slug) | RU title | Stage | Depends on | Status | Maps to |
 |---|---|---|---|---|---|
-| `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | todo | Phase A |
-| `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | todo | Phase A · **MILESTONE** |
+| `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | done | Phase A |
+| `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done (stats-only World Bank route-km feature; Eurostat landed raw) | Phase A · **MILESTONE** |
 | `silver/persist-contract` | Заморозить схему и пути Parquet для локального Parquet-персиста Silver stats/news | 1 | — | done (frozen in `docs/DATA_CONTRACTS.md`) | GAP-006 · **unblocker** |
 | `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | todo | GAP-010 · Phase C |
 | `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | todo | LLM setup |
