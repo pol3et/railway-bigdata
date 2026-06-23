@@ -1,5 +1,45 @@
 # Coursework Progress
 
+## 2026-06-24 - GAP-018 Dependency Bounds And Lockfile
+
+Status: done for implementation and local verification.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/gap-018-dependency-bounds-lockfile-2026-06-24.md`.
+- Local files reviewed first: `AGENTS.md`, `pyproject.toml`, `.gitignore`,
+  `tests/test_infra_minio.py`, README/verification/gap/task/dashboard docs,
+  `docs/PROGRESS_LOG.md`, and this progress log.
+- `research-orchestrator` was used. Ref was credit-blocked; Context7 supplied
+  Python 3.14 `tomllib.load` and pip constraints documentation.
+
+Changed:
+- Bounded `requires-python`, pandas, pyarrow, requests, and schedule in
+  `pyproject.toml` while preserving the four exact S3 pins and leaving `[spark]`
+  untouched for GAP-017.
+- Added root `constraints.txt` for the active Python 3.14 runtime/test closure.
+- Added offline unit guard `tests/test_env_versions.py`.
+- Updated Quickstart, verification docs, GAP register, roadmap, task contract,
+  dashboard, and the implementation plan/research artifacts.
+
+Evidence:
+- Guard test RED before implementation: 2 failed, 3 passed.
+- Guard test GREEN: 5 passed.
+- Full suite: 92 passed.
+- Unit marker: 82 passed, 10 deselected.
+- Integration marker: 10 passed, 82 deselected.
+- Compileall: `python -m compileall -q src tests` exited 0.
+- Constrained dry-run: `python -m pip install --dry-run -e ".[test]" -c constraints.txt`
+  kept pandas 3.0.3 and pyarrow 24.0.0.
+- `git diff --check` exited 0.
+
+Boundary:
+- No live collectors, MinIO/Ollama/Spark jobs, raw Bronze writes, or data-layer
+  behavior changes were used for this ops task.
+
+Next:
+- Push `impl/gap-018`, open the PR against `main`, and confirm mergeability.
+
 ## 2026-06-23 - State Analysis, Inventory, And Spark Roadmap
 
 Status: done for read-only analysis/planning; no source code changed.

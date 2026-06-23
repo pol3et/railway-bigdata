@@ -124,13 +124,13 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 ### Wave 1 — Unblock & pin (parallel)
 - `[x]` GAP-012 — documented Bronze→Gold regen recipe fixed
-- `[!]` GAP-017 / GAP-018 — pin the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`), install **JDK 17/21**, bound pandas/pyarrow majors. (Spark 4.1 is the only line that supports the repo's Python 3.14.)
+- `[!]` GAP-017 / `[x]` GAP-018 — pin the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`), install **JDK 17/21**; GAP-018 is done with bounded pandas/pyarrow majors, `constraints.txt`, and an env guard. (Spark 4.1 is the only line that supports the repo's Python 3.14.)
 - `[x]` GAP-020 — s3/MinIO Bronze read-back path covered by fsspec memory:// tests (closed 2026-06-24; also closes GAP-014 UTF-8 read parity)
 
 **Contract A (verify before Wave 2):**
 - [x] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (2,139×3; no empty Gold).
 - [ ] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1); `JAVA_HOME` points to JDK 17 or 21.
-- [ ] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
+- [x] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
 
 ### Wave 2 — Spark fast track (parallel)
 - `[!]` GAP-009 — `spark/evidence-job`: Spark reads real Gold → writes evidence

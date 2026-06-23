@@ -101,6 +101,7 @@
   .u.urgent { color:#fff; background:var(--red); }
   .u.high { color:var(--ground); background:var(--amber); }
   .u.mid { color:var(--ground); background:var(--accent); }
+  .u.done { color:var(--ground); background:var(--green); }
   .u.low { color:var(--muted); border:1px solid var(--line-strong); }
   .ucols { display:grid; gap:12px; grid-template-columns:repeat(4,1fr); align-items:start; }
   .ucol { background:var(--surface); border:1px solid var(--line); border-top:3px solid var(--accent); border-radius:3px; padding:12px 13px; }
@@ -358,7 +359,8 @@
         <h3>Spark · Report · Ops</h3>
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> adopt the <b>Spark 4.1 stack</b> (<span class="mono">pyspark 4.1.* · delta-spark 4.1.x · hadoop-aws 3.4.1 · JDK 17/21</span>) — Python 3.14 needs Spark 4.1; Spark 4 doesn't clash. Spark prerequisite.</span></div>
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — fast-track goal.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors + commit a lockfile.</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors, committed <span class="mono">constraints.txt</span>, and added the env guard.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-028</b> CI that runs the test suite on PRs.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-027</b> note MinIO default creds are local-only.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-030</b> fix pipeline docstring (compose ships MinIO, not Ollama).</span></div>

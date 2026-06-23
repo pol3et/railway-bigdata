@@ -2,6 +2,41 @@
 
 This is the single persistent log for `bigdata/course_proj`. Future agents should append here before stopping.
 
+## 2026-06-24 - GAP-018 Dependency Bounds And Lockfile
+
+Status: done for implementation and local verification; PR opened from `impl/gap-018`.
+
+Changed:
+- `pyproject.toml`
+- `constraints.txt`
+- `tests/test_env_versions.py`
+- `README.md`
+- `docs/VERIFICATION.md`
+- `docs/GAP_REGISTER.md`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gap-018-dependency-bounds-lockfile-2026-06-24.md`
+- `.planning/coursework/plans/bigdata/gap-018-dependency-bounds-lockfile.md`
+
+Findings:
+- Active validated environment is Python 3.14.0 with pandas 3.0.3, pyarrow 24.0.0, requests 2.33.1, schedule 1.2.2, and the existing S3 pins (`s3fs`/`fsspec` 2024.6.1, `aiobotocore` 2.13.1, `botocore` 1.34.131).
+- GAP-018 is ops-only: no Bronze/Silver/Gold data-path code changed, the four exact S3 pins stayed unchanged, and the `[spark]` extra stayed untouched for GAP-017.
+- `constraints.txt` records the runtime + `[test]` closure from the active env and excludes editable self-references and unrelated IDE/build packages.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_env_versions.py` failed before metadata/constraints edits with 2 failed, 3 passed (missing `requires-python` upper bound and missing `constraints.txt`).
+- GREEN: `python -m pytest -q tests/test_env_versions.py` passed: 5 passed.
+- `python -m pytest -q` passed: 92 passed.
+- `python -m pytest -q -m unit` passed: 82 passed, 10 deselected.
+- `python -m pytest -q -m integration` passed: 10 passed, 82 deselected.
+- `python -m compileall -q src tests` exited 0.
+- `python -m pip install --dry-run -e ".[test]" -c constraints.txt` exited 0 and reported pandas 3.0.3 for `pandas<4,>=2.2` and pyarrow 24.0.0 for `pyarrow<25,>=15`.
+- `git diff --check` exited 0.
+
+Next:
+- Review and merge the GAP-018 PR after GitHub reports it mergeable.
+
 ## 2026-06-23 - State Snapshot, Inventory, And Spark Roadmap
 
 Status: done for read-only analysis + documentation; no source code changed.
