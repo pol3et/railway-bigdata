@@ -4,6 +4,10 @@ This directory is being shaped into a standalone course-project repo for railway
 
 The assignment prompt is in `task.png`. It requires web-based data gathering with automatic updates, a Big Data technology implementation, processing and analysis of stored data, and report/presentation outputs.
 
+## Live Status Dashboard
+
+[Visual progress dashboard](https://pol3et.github.io/railway-bigdata/) (GitHub Pages, served from `docs/`) — pipeline status, data inventory, and the fan-out/fan-in execution stages. Auto-updates on every push to `main` (allow up to ~10 min). Source: `docs/index.html`; task slugs match `docs/TASKS.md`.
+
 ## Quickstart
 
 Use Python 3.12 or newer from this directory:
