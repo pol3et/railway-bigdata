@@ -61,3 +61,52 @@ first Spark job (read Gold Parquet → coverage evidence) needs neither Delta no
 - `docs/index.html` Engine pills + GAP-017 chip + Wave-1 chip + Contract A updated to the 4.1 stack.
 - `docs/GAP_TASKS.md` GAP-017 task carries the full implementation spec (pin pyproject, guard test,
   README section). Implementation of the pins themselves is the GAP-017 task, not this doc pass.
+
+## GAP-017 implementation confirmation — 2026-06-24
+
+Local files re-read first: `AGENTS.md`, `pyproject.toml`, `README.md`, `.env.example`,
+`tests/test_infra_minio.py`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/STATE_AND_ROADMAP.md`,
+`docs/index.html`, `docs/PROGRESS_LOG.md`, and `.planning/COURSEWORK_PROGRESS.md`.
+
+Live environment commands:
+
+- `python --version` -> `Python 3.14.0`.
+- `python -c "import pandas,pyarrow,numpy;print(pandas.__version__,pyarrow.__version__,numpy.__version__)"`
+  -> `3.0.3 24.0.0 2.4.4`.
+- `java -version` -> `1.8.0_491`.
+- `JAVA_HOME` is unset.
+
+External docs checked during implementation:
+
+- Apache Spark 4.1.2 overview: Spark docs identify this as Spark 4.1.2 documentation and state
+  Spark runs on Java 17/21, Scala 2.13, and Python 3.10+:
+  https://spark.apache.org/docs/latest/
+- Apache Spark 4.1.1 docs via Context7 confirmed the same Java 17/21, Scala 2.13, Python 3.10+
+  requirement and the PySpark 4.1 pandas/pyarrow minimums:
+  https://spark.apache.org/docs/4.1.1/index.html and
+  https://spark.apache.org/docs/4.1.1/api/python/migration_guide/pyspark_upgrade.html
+- Apache Spark downloads page confirms Spark 4.1.2 is a current stable release and Spark 3.5.8 is a
+  separate older line: https://spark.apache.org/downloads.html
+- Delta Lake 4.1.0 release notes state full Apache Spark 4.1.0 support, the
+  `delta-spark_4.1_2.13` Maven artifact naming, Java 17+, and dropped Spark 3.5 support:
+  https://delta.io/blog/2026-03-01-delta-lake-4-1-0-released/
+- Delta Lake GitHub releases show later Delta Spark 4.x releases publishing Spark 4.1 / Scala 2.13
+  artifacts and the Python `delta-spark` artifact: https://github.com/delta-io/delta/releases
+- Hadoop 3.4.1 `hadoop-aws` docs state the page version is 3.4.1, S3A uses the AWS Java V2 SDK,
+  `hadoop-aws` and `hadoop-common` versions must be identical, and the AWS V2 shaded `bundle`
+  JAR is required with S3A:
+  https://hadoop.apache.org/docs/r3.4.1/hadoop-aws/tools/hadoop-aws/index.html and
+  https://hadoop.apache.org/docs/r3.4.1/hadoop-aws/tools/hadoop-aws/aws_sdk_upgrade.html
+
+Package-index checks:
+
+- `python -m pip index versions pyspark` -> latest/resolved `4.1.2`; available line includes
+  `4.1.2, 4.1.1, 4.1.0` and older `3.5.x`.
+- `python -m pip index versions delta-spark` -> latest `4.3.0`; available line includes
+  `4.1.0`.
+- `python -m pip index versions hadoop-aws` -> no matching PyPI distribution. The `hadoop-aws`
+  pin therefore records the required JVM/Maven coordinate for Spark's `s3a://` path; pip cannot
+  install that artifact as a Python wheel.
+
+Decision held: Stack A remains non-viable for this repo's Python 3.14 runtime, so GAP-017 pins the
+Spark 4.1 line and records the JDK/JVM connector requirements without claiming any live Spark run.

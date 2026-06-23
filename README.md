@@ -92,3 +92,17 @@ docker compose down
 ```
 
 Use `docker compose down -v` only when you intentionally want to delete the local MinIO volume.
+
+## Spark / Big Data engine setup
+
+GAP-017 pins the optional Spark stack to the Python 3.14-compatible line:
+
+```bash
+python -m pip install -e ".[spark]"
+```
+
+That resolves PySpark 4.1.x and `delta-spark` 4.1.x. Spark runtime execution also requires a JDK 17 or 21 install with `JAVA_HOME` set; the Java 8 runtime is not sufficient for Spark 4.x. For Delta sessions use the matching Spark 4.1 Maven coordinate `io.delta:delta-spark_4.1_2.13`; for `s3a://` MinIO paths use `org.apache.hadoop:hadoop-aws:3.4.1` plus the AWS SDK v2 `software.amazon.awssdk:bundle` artifact. The `hadoop-aws` version must match Spark 4.x's bundled Hadoop 3.4.1 generation.
+
+Spark 4.x runs with ANSI SQL behavior enabled by default. Prefer `try_cast()` for dirty source fields; use `spark.sql.ansi.enabled=false` only as a last resort and record that choice in evidence. PySpark writes Parquet as a directory containing part files and `_SUCCESS`, not as a single `.parquet` file.
+
+On native Windows, `winutils.exe` and `hadoop.dll` must match Hadoop 3.4.x, not 3.3.x. WSL2 or Dockerized Spark avoids the native Hadoop DLL path.

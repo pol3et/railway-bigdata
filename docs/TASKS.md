@@ -113,8 +113,10 @@ folded into the tasks above:
   decode UTF-8 from bytes and covering it in `tests/test_pipeline_s3_readback.py`.
 - **GAP-020** (medium) — closed 2026-06-24 by deterministic fsspec memory:// unit tests
   for the s3 Bronze read-back branch; no Docker/MinIO required.
-- Also relevant to `spark/evidence-job`: **GAP-017** (`pyspark>=3.5` resolves to Spark 4.x;
-  pin 3.5.* + JDK 17) and **GAP-015/016** (Gold unit normalization + deterministic news schema).
+- Also relevant to `spark/evidence-job`: **GAP-017** pins the chosen Spark 4.1 stack
+  (`pyspark==4.1.*`, `delta-spark==4.1.*`, `hadoop-aws==3.4.1`) and records the
+  JDK 17/21 + `JAVA_HOME` requirement; **GAP-015/016** cover Gold unit normalization
+  + deterministic news schema.
 
 ## Execution waves & contracts (2026-06-24)
 
@@ -124,7 +126,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 ### Wave 1 — Unblock & pin (parallel)
 - `[x]` GAP-012 — documented Bronze→Gold regen recipe fixed
-- `[!]` GAP-017 / `[x]` GAP-018 — pin the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`), install **JDK 17/21**; GAP-018 is done with bounded pandas/pyarrow majors, `constraints.txt`, and an env guard. (Spark 4.1 is the only line that supports the repo's Python 3.14.)
+- `[x]` GAP-017 / `[x]` GAP-018 — pinned the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`) with **JDK 17/21** + `JAVA_HOME` documented (GAP-017), and bounded pandas/pyarrow majors + `constraints.txt` + env guard (GAP-018). (Spark 4.1 is the only line that supports the repo's Python 3.14.)
 - `[x]` GAP-020 — s3/MinIO Bronze read-back path covered by fsspec memory:// tests (closed 2026-06-24; also closes GAP-014 UTF-8 read parity)
 
 **Contract A (verify before Wave 2):**

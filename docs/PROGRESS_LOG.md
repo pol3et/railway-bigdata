@@ -1164,7 +1164,7 @@ Evidence:
 
 Next:
 - Fix GAP-012 (regen recipe) and GAP-013 (live MinIO World Bank) before relying on the live path.
-- Then GAP-007 (Gold reads persisted Silver), GAP-009 Spark (pin pyspark 3.5.* + JDK 17 per GAP-017), report.
+- Then GAP-007 (Gold reads persisted Silver), GAP-009 Spark (Spark 4.1 stack + JDK 17/21 per GAP-017), report.
 - Live MinIO stack left up; `docker compose down` to stop.
 
 ## 2026-06-24 - GAP-012 Regen Recipe Guard
@@ -1230,3 +1230,37 @@ Evidence:
 
 Next:
 - Open the GAP-020 PR; remaining active-path gaps include GAP-012, GAP-013, GAP-017/018, Spark evidence, persisted-Silver Gold loading, and report work.
+
+## 2026-06-24 - GAP-017 Spark 4.1 Stack Pin
+
+Status: done for dependency/docs/test guard; no live Spark run was executed.
+
+Changed:
+- `pyproject.toml`
+- `tests/test_spark_stack_pins.py`
+- `README.md`
+- `.env.example`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/index.html`
+- `docs/TASKS.md`
+- `docs/GAP_REGISTER.md`
+- `.planning/coursework/research/bigdata/spark4-vs-35-stack-2026-06-24.md`
+
+Findings:
+- Live environment re-confirmed: Python 3.14.0, pandas 3.0.3, pyarrow 24.0.0, numpy 2.4.4; Java is 1.8.0_491 and `JAVA_HOME` is unset.
+- Stack A is not viable for this repo's Python 3.14/pandas 3.0/pyarrow 24 runtime, so GAP-017 adopted the Spark 4.1 stack: `pyspark==4.1.*`, `delta-spark==4.1.*`, Hadoop/S3A generation `hadoop-aws==3.4.1`, and JDK 17/21.
+- `hadoop-aws` is a JVM/Maven connector generation, not a PyPI package; the Python dry-run resolves PySpark/Delta and docs record the S3A Maven/AWS SDK v2 requirement for GAP-009.
+
+Evidence:
+- `python --version` -> Python 3.14.0.
+- `python -c "import pandas,pyarrow,numpy;print(pandas.__version__,pyarrow.__version__,numpy.__version__)"` -> `3.0.3 24.0.0 2.4.4`.
+- `java -version` -> `1.8.0_491`; `JAVA_HOME` unset.
+- `python -m pip install --dry-run ".[spark]"` -> would install `pyspark-4.1.2`, `delta-spark-4.1.0`, `py4j-0.10.9.9`.
+- `python -m pytest -q tests/test_spark_stack_pins.py` -> 1 passed.
+- `python -m pytest -q -m unit tests/test_spark_stack_pins.py` -> 1 passed.
+- `python -m pytest -q` -> 88 passed.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- GAP-009 `spark/evidence-job`: install JDK 17 or 21, set `JAVA_HOME`, then build and run the bounded Spark evidence job. Do not claim a live Spark run until its output is under `output/evidence/`.
