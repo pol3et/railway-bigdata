@@ -570,7 +570,7 @@ def main(argv: list[str] | None = None) -> int:
         "--max-artifacts",
         type=int,
         default=DEFAULT_MAX_ARTIFACTS,
-        help="Maximum URL attempts/artifacts per selected source",
+        help="Maximum bounded data artifacts per source; catalogue artifacts may be additional",
     )
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     args = parser.parse_args(argv)

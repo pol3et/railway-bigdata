@@ -23,10 +23,18 @@ Observed results:
 
 Additional local stats Bronze -> Gold validation from 2026-06-23:
 
-```bash
+Raw Bronze bytes under `output/evidence/**/bronze/` are intentionally ignored by
+Git. Re-run the live-check command first on a clean checkout; the committed
+manifest is the audit snapshot. `--max-artifacts 1` means one bounded dataset or
+series per stats source, plus the required source catalogue artifact.
+
+```powershell
+$env:PYTHONPATH='src'
+python -c "import pathlib, railway_lakehouse; print(pathlib.Path(railway_lakehouse.__file__).as_posix())"
 python -m pytest -q
 python -m railway_lakehouse.bronze.live_check --sources eurostat,worldbank --out output/evidence/local-stats-bronze --max-artifacts 1 --timeout-seconds 60
-python -m railway_lakehouse.pipeline --bronze-root output/evidence/local-stats-bronze/bronze --skip-news-extraction --news 0 --out output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet --crosswalk-path output/evidence/first-real-gold-local-stats-v2/crosswalk_cache.json
+python -m railway_lakehouse.pipeline --bronze-root output/evidence/local-stats-bronze/bronze --skip-news-extraction --news 0 --out output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet --crosswalk-path output/evidence/first-real-gold-local-stats-v2/crosswalk_cache.json --counts-out output/evidence/first-real-gold-local-stats-v2/counts.json
+python -m json.tool output/evidence/first-real-gold-local-stats-v2/counts.json
 ```
 Observed results:
 
@@ -35,9 +43,12 @@ Observed results:
 * Bronze evidence snapshot: output/evidence/local-stats-bronze/manifest.json.
 * Live bounded Bronze artifacts: 4 artifacts, 14,996,995 bytes.
 * First real stats-only Gold written to output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet.
-* Gold counts recorded in output/evidence/first-real-gold-local-stats-v2/counts.json.
+* Gold counts recorded by the pipeline in output/evidence/first-real-gold-local-stats-v2/counts.json.
 * Gold shape: 2,139 rows x 3 columns.
 * Gold columns: geo, year, rail_network_length_km.
+* The Gold feature is the World Bank route-km series. Eurostat raw bytes were
+  landed in Bronze, but the bounded Eurostat dataset did not contribute a Gold
+  feature in this smoke because its label remained unmapped.
 * Gold includes both target countries: AT and HU.
 * Gold year range: 1995-2021.
 * News extraction was intentionally skipped with --skip-news-extraction; this does not prove live LLM/news extraction.
