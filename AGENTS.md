@@ -78,6 +78,7 @@ Use this table to pick the right surface before editing:
 - Do not move files or change imports without a written plan. The tree is already split; accidental moves can break relative imports.
 - Put runtime outputs under `output/` or a documented lakehouse bucket/path, not next to source modules.
 - Preserve user changes and do not revert unrelated files.
+- Keep the live dashboard in sync. Any PR (or direct push) that changes pipeline state — advances or closes a gap, adds or wires a parser, persists a layer, lands Spark/report evidence, or changes a source's collection status — must update `docs/TASKS.md` (task status) and `docs/index.html` (the matching stage chip, source row, or metric signal) in the same change. `docs/` is published via GitHub Pages, so merging to `main` republishes the dashboard at https://pol3et.github.io/railway-bigdata/. Treat this as part of Definition of Done, alongside the `docs/PROGRESS_LOG.md` handoff entry.
 
 ## Recommended Checks
 
@@ -91,7 +92,7 @@ For future implementation, add project-local tests and document exact commands i
 
 ## Handoff Template
 
-When stopping, append to `docs/PROGRESS_LOG.md`:
+When stopping, append to `docs/PROGRESS_LOG.md` (and, if stage/gap/source status changed, also update `docs/TASKS.md` and `docs/index.html` — see Hard Rules):
 
 ```md
 ## YYYY-MM-DD - <short session title>
