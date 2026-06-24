@@ -344,3 +344,22 @@ Corrections to earlier wording in this doc:
 - `[spark]` is pinned to the Spark 4.1 stack. GAP-009 provisioned JDK 21 for the
   local Spark evidence run; native Windows local writes also needed
   `HADOOP_HOME` with Hadoop 3.4.x `winutils.exe` and `hadoop.dll`.
+
+
+## Update 2026-06-24 — KSH XLSX stats reader
+
+`silver/stats-ksh-xlsx-reader` adds deterministic parsing for Hungarian KSH XLSX files.
+
+Implemented:
+- `openpyxl` dependency for XLSX support.
+- KSH XLSX reader in `silver/stats/load.py`.
+- `ksh` source registration for Bronze `stats/ksh/.../*.xlsx` partitions.
+- Unit coverage in `tests/test_silver_stats_ksh.py`.
+
+Verified:
+- KSH reader tests: 4 passed.
+- Full test suite: 130 passed, 1 skipped.
+
+Boundary:
+- KSH XLSX can now flow from Bronze raw files into the Silver StatFact contract.
+- Statistik Austria ODS and UIC PDF readers are still pending.

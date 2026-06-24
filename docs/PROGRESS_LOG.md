@@ -1478,3 +1478,23 @@ Evidence:
 
 Next:
 - Merge PR; rebase GAP-019's PR over the shared GAP_REGISTER/dashboard rows.
+
+
+## 2026-06-24 - KSH XLSX Silver Stats Reader
+
+Status: done for `silver/stats-ksh-xlsx-reader`.
+
+Changed:
+- Added `openpyxl` dependency for deterministic XLSX parsing.
+- Added KSH XLSX parsing in `src/railway_lakehouse/silver/stats/load.py`.
+- Registered `ksh` in the Silver stats source registry.
+- Added `tests/test_silver_stats_ksh.py`.
+
+Verified:
+- `python -m pytest -q tests/test_silver_stats_ksh.py`: 4 passed.
+- `python -m pytest -q`: 130 passed, 1 skipped.
+- The skipped test is Spark-related and is skipped locally because `pyspark` is not installed.
+
+Scope:
+- This implements KSH XLSX -> Silver StatFact.
+- Statistik Austria ODS and UIC PDF readers remain separate pending tasks.

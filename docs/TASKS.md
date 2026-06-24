@@ -74,6 +74,7 @@ develop against it independently with no schema collisions.
 | `spark/evidence-job` | Spark reads real Gold and writes evidence | done (`output/evidence/spark/manifest.json`; Spark 4.1.2; Gold 2,968×4 -> coverage 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
 | `report/draft` | Report + presentation drafts from committed evidence | done (`output/report/REPORT.md`, `output/presentation/PRESENTATION.md`, `tests/test_report_evidence_links.py`) | GAP-011 |
 | `silver/eurostat-to-gold` | Eurostat: resilient Bronze + dataset-aware SDMX → canonical features → Gold | done (PR #21) — 6 national rail datasets → Silver 9,744 rows → Gold **1,554×10** (8 mapped features, 42 geos, 1962–2025); evidence `output/evidence/eurostat-silver-gold/` | GAP-023 · 2nd real source |
+| `silver/stats-ksh-xlsx-reader` | KSH XLSX → Silver `StatFact` | done — deterministic `openpyxl` reader registered as `ksh`; `tests/test_silver_stats_ksh.py` passed 4 tests; full suite passed 130 tests, 1 skipped | GAP-006 · extra stats parser 1/3 |
 
 ## Now — active path
 
@@ -96,7 +97,7 @@ develop against it independently with no schema collisions.
 |---|---|---|---|---|---|
 | `bronze/gdelt-history-backfill` | Бэкафилл истории GDELT до 100k+ статей (объём) | 4 | `infra/minio-storage` | later | volume track |
 | `silver/gdelt-gkg-parser` | Парсер GKG csv.zip → ArticleRecord (подключить `gdelt_passthrough`) | 4 | `bronze/gdelt-history-backfill` | later | volume track |
-| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | later | GAP-006 (extra) |
+| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | in_progress — KSH XLSX done; Statistik Austria ODS + UIC PDF pending | GAP-006 (extra) |
 | `bronze/scheduler-wiring` | Завести KSH/StatAustria/UIC в `bronze/run.py` (автообновления) | 4 | — | later | GAP-005 |
 
 ## Newly found gaps (re-audit 2026-06-24)
@@ -163,7 +164,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - [ ] A scheduled run lands fresh Bronze (automatic-updates demo).
 
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
-- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring
+- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX reader done; StatAustria ODS and UIC PDF still pending
 - `M` GDELT history backfill + GKG parser (volume)
 - `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops
