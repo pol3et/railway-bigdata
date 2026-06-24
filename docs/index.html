@@ -208,7 +208,7 @@
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live FAILS (429)</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord (fixture)</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
-          <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no PDF extractor</span></td></tr>
+          <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG missing</span></td></tr>
         </tbody>
       </table>
@@ -279,12 +279,13 @@
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">uic</span>
-          <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl red" title="Silver: no extractor">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
-        <div class="lvlnote">UIC RAILISA. Bronze lands public PDFs (live-validated); PDF table extraction to StatFact not built.</div>
+          <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl green" title="Silver: PDF table reader">S</span><span class="lvl red" title="Gold: not rerun with UIC">G</span></div></div>
+        <div class="lvlnote">UIC RAILISA. Bronze lands public PDFs (live-validated); the Synopsis country/operator table now parses to StatFact rows. Traffic Trends has no country-level synopsis table and is skipped.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw PDF · bronze/stats/uic/&lt;pub&gt;/ingest_date=…/&lt;pub&gt;.pdf</div>
           <div class="sl"><span class="c">     2 public RAILISA PDFs · 2,109,240 B · %PDF- validated</span></div>
-          <div class="sl"><span class="x">S</span> — no PDF→StatFact extractor</div>
+          <div class="sl"><span class="k">S</span> StatFact · 39 rows · AT/HU · 9 mapped features</div>
+          <div class="sl"><span class="x">G</span> — Gold rerun with UIC pending</div>
         </div>
       </div>
 

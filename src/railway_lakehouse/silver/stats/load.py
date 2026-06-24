@@ -13,6 +13,8 @@ Bronze layout consumed (same as the RawLander wrote it):
 
     <root>/stats/worldbank/<indicator>/ingest_date=YYYY-MM-DD/<indicator>.json
     <root>/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.tsv[.gz]
+    <root>/stats/ksh/<table>/ingest_date=YYYY-MM-DD/<file>.xlsx
+    <root>/stats/uic/<publication>/ingest_date=YYYY-MM-DD/<file>.pdf
 """
 import gzip
 import io
@@ -337,12 +339,208 @@ def load_ksh_frame(raw: bytes, dataset_id: str) -> pd.DataFrame:
         return _empty()
 
 
+_UIC_GEO_CODES = {
+    "AT": "AT",
+    "AUT": "AT",
+    "HU": "HU",
+    "HUN": "HU",
+}
+_UIC_COUNTRIES = {
+    "austria": "AT",
+    "hungary": "HU",
+}
+_UIC_SYNOPSIS_FIXED_COLUMNS = {
+    2: ("Average staff strength", "thousands"),
+    4: ("Length of lines worked at end of year - Total", "kilometres"),
+    6: ("Length of lines worked at end of year - electrified lines", "kilometres"),
+    7: ("Locomotives including Light Rail Motor-tractors", "count"),
+    10: ("Railway's wagons", "count"),
+    13: ("Passengers carried", "millions"),
+    15: ("Passenger.kilometres", "millions"),
+    17: ("Tonnes carried", "millions"),
+    19: ("Tonne.kilometres", "millions"),
+}
+
+
+def _looks_like_pdf(raw: bytes) -> bool:
+    return bool(raw and raw[:5] == b"%PDF-")
+
+
+def _clean_uic_text(value) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return " ".join(str(value).replace("\u202f", " ").replace("\xa0", " ").split())
+
+
+def _normalize_uic_text(value) -> str:
+    return _clean_uic_text(value).lower()
+
+
+def _parse_uic_number(text: str) -> float | None:
+    cleaned = _clean_uic_text(text)
+    if not cleaned or cleaned.lower() in {"na", "n/a", "-", "none"}:
+        return None
+    match = re.search(r"[-+]?\d[\d\s.,]*", cleaned)
+    if not match:
+        return None
+    token = match.group(0).replace(" ", "")
+    if "," in token:
+        token = token.replace(".", "").replace(",", ".")
+    try:
+        return float(token)
+    except ValueError:
+        return None
+
+
+def _uic_geo_from_cells(code_cell, country_cell=None) -> str | None:
+    raw_code = _clean_uic_text(code_cell)
+    if raw_code and raw_code == raw_code.upper():
+        code = raw_code.upper()
+        if code in _UIC_GEO_CODES:
+            return _UIC_GEO_CODES[code]
+
+    country = _normalize_uic_text(country_cell)
+    return _UIC_COUNTRIES.get(country)
+
+
+def _uic_year_from_company(value) -> int | None:
+    text = _clean_uic_text(value)
+    match = re.search(r"\((19\d{2}|20\d{2})\)", text) or re.search(r"\b(19\d{2}|20\d{2})\b", text)
+    return int(match.group(1)) if match else None
+
+
+def _uic_compact_column_specs(header: list) -> dict[int, tuple[str, str]]:
+    specs = {}
+    for idx, cell in enumerate(header):
+        text = _normalize_uic_text(cell)
+        if not text:
+            continue
+        if "length of lines worked" in text and "total" in text:
+            specs[idx] = ("Length of lines worked at end of year - Total", "kilometres")
+        elif "electrified" in text and "line" in text:
+            specs[idx] = ("Length of lines worked at end of year - electrified lines", "kilometres")
+        elif "passenger.kilometres" in text or "passenger kilometres" in text:
+            specs[idx] = ("Passenger.kilometres", "millions")
+        elif "tonne.kilometres" in text or "tonne kilometres" in text:
+            specs[idx] = ("Tonne.kilometres", "millions")
+        elif "passengers carried" in text:
+            specs[idx] = ("Passengers carried", "millions")
+        elif "tonnes carried" in text:
+            specs[idx] = ("Tonnes carried", "millions")
+        elif "average staff" in text:
+            specs[idx] = ("Average staff strength", "thousands")
+    return specs
+
+
+def _uic_table_specs(table: list[list]) -> tuple[dict[int, tuple[str, str]], int] | None:
+    header_text = " ".join(_normalize_uic_text(cell) for row in table[:14] for cell in row)
+    widest_row = max((len(row) for row in table), default=0)
+    if widest_row >= 20 and "country code" in header_text and "railway company" in header_text:
+        if "revenue rail traffic" in header_text:
+            return dict(_UIC_SYNOPSIS_FIXED_COLUMNS), 0
+
+    for idx, row in enumerate(table[:10]):
+        row_text = " ".join(_normalize_uic_text(cell) for cell in row)
+        if "country code" not in row_text or "railway company" not in row_text:
+            continue
+        specs = _uic_compact_column_specs(row)
+        if specs:
+            return specs, idx + 1
+    return None
+
+
+def _extract_uic_pdf_text_and_tables(raw: bytes) -> tuple[str, list[list[list]]]:
+    import pdfplumber
+
+    text_chunks = []
+    tables = []
+    with pdfplumber.open(io.BytesIO(raw)) as pdf:
+        for page in pdf.pages:
+            text_chunks.append(page.extract_text() or "")
+            tables.extend(page.extract_tables() or [])
+    return "\n".join(text_chunks), tables
+
+
+def _uic_rows_from_tables(tables: list[list[list]], dataset_id: str) -> pd.DataFrame:
+    rows = []
+    for table in tables:
+        if not table:
+            continue
+        table_meta = _uic_table_specs(table)
+        if table_meta is None:
+            continue
+        specs, data_start = table_meta
+        current_geo = None
+        for row in table[data_start:]:
+            if not row or len(row) < 2:
+                continue
+
+            code_cell = row[0] if len(row) > 0 else None
+            country_cell = row[21] if len(row) > 21 else None
+            code_text = _clean_uic_text(code_cell)
+            if code_text:
+                current_geo = _uic_geo_from_cells(code_cell, country_cell)
+
+            geo = current_geo
+            if geo is None:
+                continue
+
+            year = _uic_year_from_company(row[1])
+            if year is None:
+                continue
+
+            for col_idx, (label, unit) in specs.items():
+                if col_idx >= len(row):
+                    continue
+                value = _parse_uic_number(row[col_idx])
+                if value is None:
+                    continue
+                rows.append({
+                    "geo": geo,
+                    "year": year,
+                    "value": value,
+                    "unit": unit,
+                    "source_dataset": dataset_id,
+                    "source_column": label,
+                    "source_system": "uic",
+                })
+
+    return pd.DataFrame(rows, columns=_LONG_COLS)
+
+
+def load_uic_frame(raw: bytes, dataset_id: str) -> pd.DataFrame:
+    """Read UIC public PDF tables into the Silver long stats contract."""
+    try:
+        if not _looks_like_pdf(raw):
+            logger.warning("uic %s: non-PDF payload; skipping", dataset_id)
+            return _empty()
+
+        text, tables = _extract_uic_pdf_text_and_tables(raw)
+        if not text.strip() and not tables:
+            logger.warning("uic %s: no extractable PDF text or tables; skipping", dataset_id)
+            return _empty()
+
+        frame = _uic_rows_from_tables(tables, dataset_id)
+        if frame.empty:
+            logger.info("uic %s: no parseable UIC table rows; skipping", dataset_id)
+            return _empty()
+
+        frame = frame.dropna(subset=["year", "value"])
+        if frame.empty:
+            return _empty()
+        return frame[_LONG_COLS]
+    except Exception as exc:
+        logger.warning("uic %s: PDF parse failed: %s", dataset_id, exc)
+        return _empty()
+
+
 # source -> (loader, accepted data-file suffixes); "_"-prefixed datasets
 # (e.g. _catalogue_*) are skipped.
 _SOURCES = {
     "worldbank": (load_worldbank_frame, (".json",)),
     "eurostat": (load_eurostat_frame, (".tsv", ".tsv.gz", ".gz")),
     "ksh": (load_ksh_frame, (".xlsx",)),
+    "uic": (load_uic_frame, (".pdf",)),
 }
 
 def _latest_partition(dataset_dir: Path):

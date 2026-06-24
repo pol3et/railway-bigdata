@@ -14,7 +14,7 @@ The course project builds a railway lakehouse for Hungary and Austria, with inte
 | Eurostat | TSV/SDMX | Parser path exists, but the 2026-06-23 live inventory run recorded `status=failed` on catalogue fetch; Eurostat-to-Gold mapping remains a gap. | `output/evidence/inventory-live-2026-06-23/manifest.json` |
 | KSH | XLSX | Raw Hungarian rail workbooks live-check passed with `artifact_count=6`, `byte_count=92509`. Silver XLSX parsing is still open. | `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` |
 | Statistik Austria | ODS | Live probe found `5` rail ODS files and `rolling_stock_total_2024=20863`; ODS-to-Silver parsing is still open. | `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json` |
-| UIC | PDF | Raw public UIC PDF live-check passed with `artifact_count=2`, `byte_count=2109240`. PDF extraction is still open. | `output/evidence/uic-live-check-2026-06-22/manifest.json` |
+| UIC | PDF | Raw public UIC PDF live-check passed with `artifact_count=2`, `byte_count=2109240`. The public Synopsis PDF now parses to 39 Silver rows, but the headline Gold result has not been rerun with UIC. | `output/evidence/uic-live-check-2026-06-22/manifest.json`; `output/evidence/pr26-uic-pdf-silver-probe/manifest.json` |
 | RSS media | XML | Raw RSS collection is partially live-proven with `artifact_count=9`, `byte_count=496138`, and `status=partial`. Live LLM extraction is not proven. | `output/evidence/rss-feed-health-2026-06-22/manifest.json` |
 | GDELT | JSON DOC API | Recent live probe did not land usable bytes: `status=failed`, `artifact_count=0`. Fixture parsing exists, but live collection needs follow-up. | `output/evidence/gdelt-live-check-2026-06-22/manifest.json` |
 
@@ -96,7 +96,7 @@ The Spark job reads the real Gold Parquet and writes coverage output under `outp
 
 - GAP-013: the headline Gold result used the local `--bronze-root` path, not the live MinIO stats read branch. The live MinIO branch still drops World Bank, so a true live MinIO stats matrix is not proven. See [docs/GAP_REGISTER.md](../../docs/GAP_REGISTER.md).
 - GAP-023: Eurostat raw/stat paths exist, but Eurostat-to-Gold mapping remains incomplete. The 2026-06-23 inventory run recorded Eurostat `status=failed` in `output/evidence/inventory-live-2026-06-23/manifest.json`.
-- GAP-006: KSH XLSX, Statistik Austria ODS, UIC PDF readers, and persisted news failure accounting remain open. The news feature status is `LLM-pending (Ollama not installed); NewsFeature schema frozen, extractor mocked in tests` in `output/evidence/inventory-live-2026-06-23/inventory_samples.json`.
+- GAP-006: Statistik Austria ODS parsing and persisted news failure accounting remain open. KSH XLSX and UIC public PDF now have deterministic Silver readers, but the headline Gold report has not been rerun with those rows. The news feature status is `LLM-pending (Ollama not installed); NewsFeature schema frozen, extractor mocked in tests` in `output/evidence/inventory-live-2026-06-23/inventory_samples.json`.
 - GAP-019: automatic updates are not yet deployable; the scheduler remains a follow-up in [docs/GAP_REGISTER.md](../../docs/GAP_REGISTER.md).
 - Full live MinIO/Ollama/news/Spark end-to-end execution is not claimed by this report. The proven pieces are the committed Gold inventory run, MinIO smoke, and Spark coverage job cited above.
 
@@ -123,6 +123,7 @@ The Spark job reads the real Gold Parquet and writes coverage output under `outp
 | MinIO buckets | `output/evidence/minio-smoke/manifest.json` | `buckets=["bronze","silver","gold"]` |
 | KSH Bronze coverage | `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` | `artifact_count=6`; `byte_count=92509` |
 | UIC Bronze coverage | `output/evidence/uic-live-check-2026-06-22/manifest.json` | `artifact_count=2`; `byte_count=2109240` |
+| UIC Silver PDF probe | `output/evidence/pr26-uic-pdf-silver-probe/manifest.json` | `unified_rows=39`; `pdf_count=2`; `feature_counts` includes 9 mapped UIC features |
 | World Bank indicator probe | `output/evidence/worldbank-live-check-2026-06-22/manifest.json` | `confirmed_rail_indicators=3`; rejected controls `2` |
 | RSS Bronze coverage | `output/evidence/rss-feed-health-2026-06-22/manifest.json` | `artifact_count=9`; `byte_count=496138`; `status=partial` |
 | Statistik Austria probe | `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json` | `landed_artifacts=5`; `rolling_stock_total_2024=20863` |

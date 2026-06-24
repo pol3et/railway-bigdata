@@ -1577,3 +1577,38 @@ Evidence:
 
 Next:
 - Push PR #25 fixes, wait for GitHub checks, merge PR #25, and remove the temporary PR worktree.
+
+## 2026-06-24 - PR 26 UIC PDF reader review fixes
+
+Status: done for review fixes.
+
+Changed:
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `tests/test_silver_stats_uic_pdf.py`
+- `pyproject.toml`
+- `constraints.txt`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/GAP_REGISTER.md`
+- `output/report/REPORT.md`
+- `.planning/coursework/research/bigdata/pr26-uic-pdf-reader-fix-2026-06-24.md`
+- `output/evidence/pr26-uic-pdf-silver-probe/manifest.json`
+
+Findings:
+- The original UIC line heuristic parsed zero rows because the real Synopsis PDF stores feature labels in table headers and values in separate country/operator rows.
+- OCR is not needed for the current public Synopsis PDF; `pdfplumber` extracts text and a table from it.
+- The current Traffic Trends PDF has no country-level Synopsis table and is skipped rather than parsed by narrative heuristics.
+- UIC parsing is deliberately scoped to recognized UIC stat tables and exact AT/HU country codes for this project.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py` -> 6 passed.
+- Real UIC PDF probe with `PYTHONPATH=src` over `output/evidence/uic-live-check-2026-06-22/bronze`: Synopsis parsed to 39 rows; Traffic Trends parsed to 0 rows; `build_silver_stats` produced 39 unified rows across 9 mapped UIC features.
+- Evidence manifest: `output/evidence/pr26-uic-pdf-silver-probe/manifest.json`.
+- External reference used through Context7: `pdfplumber` `Page.extract_tables()` docs at https://github.com/jsvine/pdfplumber/blob/stable/README.md.
+
+Next:
+- Run the focused/full verification suite, push the rebased PR #26 branch, and merge after checks pass.
+- Keep GAP-005 open until UIC is scheduled through `src/railway_lakehouse/bronze/run.py`.
+- Add UIC-to-Gold real-data evidence when persisted Silver/Gold runs include UIC rows.
