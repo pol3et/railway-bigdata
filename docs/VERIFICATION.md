@@ -139,10 +139,14 @@ Observed results:
 Run from `bigdata/course_proj`:
 
 ```bash
-python -m pip install -e ".[test]"
+python -m pip install -e ".[test]" -c constraints.txt
+python -m pip install --dry-run -e ".[test]" -c constraints.txt
+python -m pytest -q tests/test_env_versions.py
 python -m pytest -q -m unit
 python -m pytest -q
 ```
+
+Use `-c constraints.txt` to reproduce the graded pandas/pyarrow/S3 runtime stack. Omitting `-c` allows resolver drift; the environment guard fails if pandas or pyarrow moves outside the validated major window.
 
 Do not run `live`, `spark`, or `slow` tests unless the command is explicit and the services are available.
 
@@ -153,6 +157,7 @@ tests/
   test_bronze_characterization.py
   test_bronze_live_check.py
   test_bronze_live_check_integration.py
+  test_env_versions.py
   test_silver_characterization.py
   test_silver_persist.py
   test_silver_persist_integration.py

@@ -305,6 +305,19 @@ Verified this session (real, on disk):
 - Silver `StatFact` (35,112 rows) persisted via `silver/persist.py` and reloaded identically;
   the parquet was also uploaded to the MinIO `silver` bucket as a manual demonstration.
 
+## Update 2026-06-24 — GAP-018 reproducibility guard
+
+- Dependency bounds: `requires-python` is now `>=3.12,<3.15`; pandas is `>=2.2,<4`;
+  pyarrow is `>=15,<25`; requests and schedule also have next-major caps. The exact S3
+  pins stayed unchanged, and the `[spark]` extra remains GAP-017 scope.
+- `constraints.txt` at the repo root pins the graded Python 3.14 runtime/test closure,
+  including pandas 3.0.3, pyarrow 24.0.0, s3fs/fsspec 2024.6.1, aiobotocore 2.13.1,
+  botocore 1.34.131, requests 2.33.1, schedule 1.2.2, and pytest 9.0.3.
+- Verification: `python -m pytest -q tests/test_env_versions.py` -> 5 passed;
+  `python -m pytest -q` -> 92 passed; `python -m compileall -q src tests` exited 0;
+  `python -m pip install --dry-run -e ".[test]" -c constraints.txt` kept pandas 3.0.3
+  and pyarrow 24.0.0.
+
 Corrections to earlier wording in this doc:
 
 - The real Gold is now **two** World Bank features (freight tonne-km + network route-km), not one;

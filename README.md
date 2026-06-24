@@ -10,18 +10,20 @@ The assignment prompt is in `task.png`. It requires web-based data gathering wit
 
 ## Quickstart
 
-Use Python 3.12 or newer from this directory:
+Use Python 3.12 through 3.14 from this directory:
 
 ```bash
-python -m pip install -e ".[test]"
+python -m pip install -e ".[test]" -c constraints.txt
 python -m pytest -q
 ```
 
+The `-c constraints.txt` flag reproduces the graded Python 3.14 runtime/test stack. Omitting it lets the resolver drift to newer dependency majors; `tests/test_env_versions.py` catches unsupported pandas/pyarrow majors.
+
 Current verification result for this scaffold:
 
-- `python -m pip install --no-cache-dir -e ".[test]"` passed.
-- `python -m pytest -q` passed with 87 tests after adding Silver persistence, the local stats Bronze -> Gold evidence path, and the MinIO infra guard.
-- `python -m compileall src tests` passed.
+- `python -m pip install --dry-run -e ".[test]" -c constraints.txt` confirmed pandas 3.0.3 and pyarrow 24.0.0 under the committed constraints.
+- `python -m pytest -q` passed with 92 tests after adding Silver persistence, the local stats Bronze -> Gold evidence path, the MinIO infra guard, and the environment-version guard.
+- `python -m compileall -q src tests` passed.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
 
 ## Current Status
