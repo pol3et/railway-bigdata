@@ -85,3 +85,33 @@ gaps' done-states. `spark_jobs/`, `tests/`, `pyproject.toml` (pytest `pythonpath
 
 **Status:** Contract B passed (all three items, incl. bonus). 🏁 Spark evidence exists. Advancing to
 Wave 3 (GAP-011 report/draft) — the final fast-track step.
+
+## Wave 3 — Report kickoff (2026-06-24) — 🏁 END OF FAST TRACK
+
+**Merged to `main`:**
+
+| PR | Gap | Squash commit | Suite on merge |
+|---|---|---|---|
+| #20 | GAP-011 — evidence-grounded `output/report/REPORT.md` + `output/presentation/PRESENTATION.md` + `tests/test_report_evidence_links.py` (deterministic evidence-link checker) | `4353806` | `-m unit` 93 passed |
+
+**Review:** `codex_review` returned **request_changes** (P2: report overstated news as part of the
+current reportable dataset; P2: the checker guarded REPORT but not PRESENTATION numbers). A
+`ship-it:ship-reviewer` deep pass independently confirmed every quantitative claim matched its cited
+evidence JSON exactly and all honest-scope disclaimers were present. Both P2s fixed via resume
+(commit `744604f`): REPORT.md now states the current Gold is **stats-only, news pending GAP-006**, and
+the checker now asserts exact `key=value` headline claims in **both** documents from the evidence JSON.
+No open P1/P2 at merge.
+
+**Deliverables (on `main`):** `output/report/REPORT.md`, `output/presentation/PRESENTATION.md`,
+`tests/test_report_evidence_links.py`. Every quantitative claim cites a committed `output/evidence/...`
+artifact; the checker test (3 unit tests) fails if any cited path is missing or any headline number
+drifts from its evidence JSON. The report fills the Spark RESULTS section from
+`output/evidence/spark/manifest.json` (Spark 4.1.2, 2,968×4 → 2,968×5) and honestly scopes the project
+to World Bank stats-only Gold, flagging GAP-013 (live-MinIO stats), GAP-023 (Eurostat→Gold), GAP-006
+(news/Ollama), GAP-019 (scheduler) as not-yet-proven.
+
+**🏁 END OF FAST TRACK reached:** Spark evidence exists (Wave 2) **and** the report draft is authored
+and evidence-grounded (Wave 3). Final `main` = `4353806`. Dashboard + docs synced.
+
+**Beyond the fast track (Wave 4+, not in scope here):** Contract C — ≥2 stats sources + `news_*` in
+Gold, a live-MinIO end-to-end run, and a scheduled fresh-Bronze run — remains the next milestone.
