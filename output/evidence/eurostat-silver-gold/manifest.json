@@ -1,0 +1,41 @@
+{
+  "generated": "2026-06-24",
+  "pipeline": "live Eurostat seeds -> Bronze -> Silver(build_silver_stats) -> Gold(build_gold)",
+  "seeds_landed": [
+    "rail_go_total",
+    "rail_pa_total",
+    "rail_if_line_tr",
+    "rail_eq_locon",
+    "rail_eq_wagon",
+    "rail_if_electri"
+  ],
+  "silver_total_rows": 9744,
+  "silver_eurostat_rows": 9744,
+  "silver_eurostat_features": [
+    "rail_electrified_km",
+    "rail_freight_tonne_km",
+    "rail_freight_tonnes",
+    "rail_locomotives",
+    "rail_network_length_km",
+    "rail_passenger_km",
+    "rail_passengers",
+    "rail_wagons"
+  ],
+  "gold_shape": [
+    1554,
+    10
+  ],
+  "gold_feature_columns": [
+    "rail_electrified_km",
+    "rail_freight_tonne_km",
+    "rail_freight_tonnes",
+    "rail_locomotives",
+    "rail_network_length_km",
+    "rail_passenger_km",
+    "rail_passengers",
+    "rail_wagons"
+  ],
+  "gold_geos": 42,
+  "gold_year_min": 1962,
+  "gold_year_max": 2025
+}
