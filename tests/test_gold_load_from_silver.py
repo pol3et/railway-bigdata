@@ -48,5 +48,6 @@ def test_gold_cli_loads_persisted_silver_and_writes_counts(tmp_path, monkeypatch
     assert counts["rows"] == len(gold)
     assert counts["columns"] == len(gold.columns)
     assert counts["column_names"] == [str(column) for column in gold.columns]
+    assert counts["geo_level_counts"] == {"country": 4}
     assert counts["contains_AT"] is True
     assert counts["contains_HU"] is True

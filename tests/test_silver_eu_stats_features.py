@@ -148,11 +148,22 @@ def test_regional_rail_network_from_tran_r_net():
 def test_geo_level_classification_in_gold():
     from railway_lakehouse.gold.build import build_gold
     stats = pd.DataFrame({
-        "geo": ["AT", "AT11", "EU27_2020"], "year": [2021, 2021, 2021],
-        "feature": ["rail_network_length_km"] * 3, "value": [5000.0, 500.0, 200000.0],
-        "unit": ["KM"] * 3, "source_system": ["eurostat"] * 3,
-        "source_dataset": ["x"] * 3, "source_column": ["rail_network_length_km"] * 3,
+        "geo": ["AT", "AT11", "EU27_2020", "EU", "1A", "Z4"],
+        "year": [2021] * 6,
+        "feature": ["rail_network_length_km"] * 6,
+        "value": [5000.0, 500.0, 200000.0, 210000.0, 1.0, 2.0],
+        "unit": ["KM"] * 6,
+        "source_system": ["eurostat"] * 6,
+        "source_dataset": ["x"] * 6,
+        "source_column": ["rail_network_length_km"] * 6,
     })
     gold = build_gold(stats, [])
     levels = dict(zip(gold["geo"], gold["geo_level"]))
-    assert levels == {"AT": "country", "AT11": "region", "EU27_2020": "aggregate"}
+    assert levels == {
+        "AT": "country",
+        "AT11": "region",
+        "EU27_2020": "aggregate",
+        "EU": "aggregate",
+        "1A": "aggregate",
+        "Z4": "aggregate",
+    }

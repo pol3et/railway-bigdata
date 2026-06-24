@@ -1528,3 +1528,52 @@ Evidence:
 Next:
 - Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
 - Add KSH-to-Gold real-data evidence when persisted Silver/Gold runs include KSH rows.
+
+## 2026-06-24 - PR 25 broad stats pipeline review fixes
+
+Status: done.
+
+Changed:
+- `src/railway_lakehouse/bronze/sources/eurostat.py`
+- `src/railway_lakehouse/bronze/sources/worldbank.py`
+- `src/railway_lakehouse/bronze/live_check.py`
+- `src/railway_lakehouse/pipeline.py`
+- `src/railway_lakehouse/silver/config.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `src/railway_lakehouse/gold/build.py`
+- `scripts/bronze_volume.py`
+- `tests/test_bronze_live_check.py`
+- `tests/test_bronze_characterization.py`
+- `tests/test_eurostat_hardening.py`
+- `tests/test_silver_eu_stats_features.py`
+- `tests/test_silver_stats_integration.py`
+- `tests/test_bronze_volume.py`
+- `tests/test_pipeline_live_stats_worldbank.py`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `docs/GAP_REGISTER.md`
+- `.planning/coursework/research/bigdata/pr25-bigdata-stats-pipeline-review-2026-06-24.md`
+
+Findings:
+- PR #25's broad stats goal was directionally correct, but production ingestion and bounded live checks had drifted; shared selector helpers now drive both.
+- Unknown World Bank IDs no longer fall back to human labels, preventing non-rail transport indicators from mapping into rail features by substring.
+- Eurostat and World Bank catalogue IDs are path-safe filtered before Bronze landing.
+- Eurostat collection now has dataset-count and byte-size bounds; dataset reads use bounded streaming when supported.
+- `scripts/bronze_volume.py` now handles missing roots and bounded artifact/file reads instead of assuming a small trusted tree.
+- The review branch was rebased/merged over current `main`; stale conflict markers in `pipeline.py` and `tests/test_pipeline_live_stats_worldbank.py` were resolved before verification.
+
+Evidence:
+- Focused review suite: 69 passed.
+- `python -m pytest -q -m unit` -> 144 passed, 18 deselected.
+- `python -m pytest -q -m integration` -> 16 passed, 146 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 161 passed, 1 skipped (known Windows Spark `HADOOP_HOME`/`winutils.exe` skip).
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q -m spark` -> 1 passed, 1 skipped, 160 deselected.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+- Bounded live Eurostat/World Bank run under `output/runtime/pr25-live-bounded/`: Eurostat passed, World Bank partial on one no-series discovered indicator, 9 artifacts, 23,209,819 bytes.
+- Stats-only Bronze-to-Gold smoke from that live Bronze tree: 3,548 rows x 9 columns, 157 geos, 1962-2025, AT/HU present.
+- `python scripts/bronze_volume.py output/runtime/pr25-live-bounded/bronze --out output/runtime/pr25-live-bounded/bronze_volume.json` -> 9 datasets/artifacts, 99,937 observations.
+- `python scripts/minio_smoke.py` against existing `railway-minio` -> 32 B write/read/delete round-trip passed.
+
+Next:
+- Push PR #25 fixes, wait for GitHub checks, merge PR #25, and remove the temporary PR worktree.

@@ -57,10 +57,11 @@ def test_build_silver_stats_from_bronze_fixtures(tmp_path, monkeypatch):
     assert es["feature"] == "rail_passengers"
     assert es["value"] == 100
 
-    # the broad CO2 indicator is UNMAPPED: visible in the cache, absent from output
+    # the broad CO2 transport indicator is UNMAPPED: visible in the cache as a
+    # source-id label, absent from output, and not exposed to substring matching.
     import json
     cache = json.loads(cache_path.read_text(encoding="utf-8"))
-    co2_label = next(k for k in cache if "Carbon dioxide" in k)
+    co2_label = "worldbank_unmapped:EN.GHG.CO2.TR.MT.CE.AR5"
     assert cache[co2_label] == "unmapped"
     assert "EN.GHG.CO2.TR.MT.CE.AR5" not in set(unified["source_dataset"])
 

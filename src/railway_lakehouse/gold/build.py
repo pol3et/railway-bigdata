@@ -19,6 +19,7 @@ Two deterministic stages, no LLM:
 import json
 import logging
 from pathlib import Path
+import re
 from typing import Optional
 
 import pandas as pd
@@ -31,6 +32,7 @@ logger = logging.getLogger("gold.build")
 # value from the highest-priority source (most authoritative / rail-specific first).
 SOURCE_PRIORITY = ["eurostat", "uic", "ksh", "statistik_austria", "worldbank"]
 _SENTIMENT_MAP = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
+_NUTS_GEO_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{1,3}$")
 
 
 # --------------------------------------------------------------------------
@@ -130,11 +132,13 @@ def _geo_level(geo) -> str:
     """Classify a geo code: country (2-letter), aggregate (EU*/EA* totals),
     or region (NUTS code). Lets the country+region matrix be filtered by level."""
     g = str(geo).strip().upper()
-    if g.startswith(("EU", "EA")) and any(c.isdigit() for c in g):
+    if g.startswith(("EU", "EA")):
         return "aggregate"
     if len(g) == 2 and g.isalpha():
         return "country"
-    return "region"
+    if _NUTS_GEO_RE.fullmatch(g):
+        return "region"
+    return "aggregate"
 
 
 def build_gold(stats_long: pd.DataFrame, news_rows: list, *,
@@ -196,6 +200,12 @@ def write_gold_counts(parquet_path: str, counts_out: str) -> str:
         counts["geos_count"] = int(geos.nunique())
         counts["contains_AT"] = bool((geos == "AT").any())
         counts["contains_HU"] = bool((geos == "HU").any())
+
+    if "geo_level" in df.columns:
+        counts["geo_level_counts"] = {
+            str(level): int(count)
+            for level, count in df["geo_level"].value_counts(dropna=False).sort_index().items()
+        }
 
     if "year" in df.columns:
         years = pd.to_numeric(df["year"], errors="coerce").dropna()

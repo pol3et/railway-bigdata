@@ -188,12 +188,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">120</div><div class="cap">tests passing · +2 spark env</div></div>
+      <div class="card green"><div class="big">161</div><div class="cap">tests passing · 1 spark skip</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card green"><div class="big">1</div><div class="cap">Spark job · evidence</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Report drafts now live under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span> with an evidence-link checker. <b>Eurostat is now a 2nd real source (PR #21):</b> live national rail datasets → Silver → Gold <b>1,554 rows × 10 cols</b> (8 mapped rail features incl. passengers, freight, network km, electrified km, locomotives, wagons; 42 geos, 1962–2025) — evidence in <span class="mono">output/evidence/eurostat-silver-gold/</span>. Still open: live MinIO stats path, cross-source unit normalization (GAP-015), and news LLM.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Report drafts now live under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span> with an evidence-link checker. <b>Eurostat is now a 2nd real source (PR #21):</b> live national rail datasets → Silver → Gold <b>1,554 rows × 10 cols</b> (8 mapped rail features incl. passengers, freight, network km, electrified km, locomotives, wagons; 42 geos, 1962–2025) — evidence in <span class="mono">output/evidence/eurostat-silver-gold/</span>. PR #25 broadens the automatic stats net; bounded live evidence landed Eurostat + World Bank together and built <b>3,550×11</b> Gold under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>. Still open: full MinIO/Ollama/news/Spark E2E, cross-source unit normalization (GAP-015), and news LLM.</p>
   </section>
 
   <section>
@@ -202,8 +202,8 @@
       <table>
         <thead><tr><th>Source</th><th>Collected</th><th>Bronze</th><th>Silver → rows</th></tr></thead>
         <tbody>
-          <tr><td><span class="src">eurostat</span></td><td>rail SDMX series (TSV) · EU+HU/AT</td><td><span class="sig green"><span class="dot green"></span>live-proven (hardened)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓ (8 feats)</span></td></tr>
-          <tr><td><span class="src">worldbank</span></td><td>rail indicators (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓</span></td></tr>
+          <tr><td><span class="src">eurostat</span></td><td>curated rail/economy/population/living + transport SDMX (TSV)</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓ (8 feats)</span></td></tr>
+          <tr><td><span class="src">worldbank</span></td><td>EU-stats indicators + discovered rail IDs (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓</span></td></tr>
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live FAILS (429)</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord (fixture)</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
@@ -224,7 +224,7 @@
       <div class="pcard">
         <div class="pcard-top"><span class="src">worldbank</span>
           <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: works">S</span><span class="lvl green" title="Gold: works">G</span></div></div>
-        <div class="lvlnote">Full spine. Live JSON → StatFact (35,112 rows) → 2 real Gold features. The one source that reaches Gold today.</div>
+        <div class="lvlnote">Full spine. Live JSON → StatFact (35,112 rows) → 2 real Gold features. PR #25 keeps the production World Bank selector aligned with bounded live checks and filters dead/error indicator payloads.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw JSON · {"countryiso3code":"AUT","date":"2021","value":4962,"indicator":{"id":"IS.RRS.TOTL.KM"}}</div>
           <div class="sl"><span class="k">S</span> StatFact · AT 1995 rail_network_length_km 5672 worldbank_native IS.RRS.TOTL.KM</div>
@@ -353,7 +353,7 @@
         </tbody>
       </table>
     </div>
-    <p class="small muted" style="margin-top:10px;">Live Gold today is single-source (World Bank: <b>2,968×4</b>, 151 geos, 1995–2021). Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path; the union schema above is what the matrix holds once both land in one run. <b>Grain</b>: <span class="mono">(geo, year)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; only <span class="mono">news_*</span> counts fill to 0.</p>
+    <p class="small muted" style="margin-top:10px;">Committed live Gold evidence is World Bank-only (<b>2,968×4</b>, 151 geos, 1995–2021), and Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path. PR #25's bounded review smoke landed Eurostat + World Bank together and built a stats-only local <b>3,550×11</b> Gold matrix under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>; it is not the full MinIO/Ollama/news/Spark E2E. <b>Grain</b>: <span class="mono">(geo, year)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; only <span class="mono">news_*</span> counts fill to 0.</p>
   </section>
 
   <section>

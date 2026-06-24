@@ -1339,3 +1339,36 @@ Evidence:
 Next:
 - Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
 - Add KSH-to-Gold real-data evidence when persisted Silver/Gold runs include KSH rows.
+
+## 2026-06-24 - PR 25 broad stats pipeline review
+
+Status: done.
+
+Changed:
+- Review fixes for Eurostat/World Bank production selectors, bounded live checks,
+  unknown World Bank label handling, path-safe remote IDs, Bronze volume counting,
+  and docs/dashboard sync.
+- Required research note:
+  `.planning/coursework/research/bigdata/pr25-bigdata-stats-pipeline-review-2026-06-24.md`.
+
+Findings:
+- Production ingestion now uses the same bounded selector helpers as live checks.
+- Unknown World Bank IDs are recorded as `worldbank_unmapped:<id>` so broad
+  non-rail indicators cannot map through English substring rules.
+- Bounded local live evidence proves the broader stats net can land Eurostat and
+  World Bank together and build a stats-only Gold matrix, but the full
+  MinIO/Ollama/news/Spark E2E path remains open.
+
+Evidence:
+- Focused review suite: 69 passed.
+- Unit/integration/full: 144 unit passed; 16 integration passed; 161 passed, 1
+  known Spark/Windows skip in the full suite.
+- Spark marker: 1 passed, 1 known Windows skip.
+- Bounded live Eurostat/World Bank: 9 artifacts, 23,209,819 bytes; World Bank
+  partial only for a no-series discovered indicator.
+- Bronze volume: 9 datasets/artifacts, 99,937 observations.
+- Stats-only live Bronze-to-Gold smoke: 3,548 rows x 9 columns.
+- Live MinIO smoke against existing `railway-minio`: 32 B round-trip passed.
+
+Next:
+- Push PR #25 branch, let GitHub checks settle, merge PR #25.
