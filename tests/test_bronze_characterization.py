@@ -383,9 +383,14 @@ _ERROR_PAYLOAD = [
 ]
 
 
-def test_ingest_skips_error_payloads_and_lands_real_series():
+def test_ingest_skips_error_payloads_and_lands_real_series(monkeypatch):
     # Empty catalogue -> discovery falls back to the confirmed allowlist, so we
     # know exactly which three series get requested.
+    monkeypatch.setattr(
+        worldbank,
+        "EU_STATS_INDICATORS",
+        list(worldbank.CONFIRMED_RAIL_INDICATORS),
+    )
     routes = {
         "v2/indicator?": _FakeResponse([{"page": 1}, []]),  # catalogue
         "IS.RRS.TOTL.KM": _FakeResponse(_ERROR_PAYLOAD),    # 200 + error body
@@ -405,6 +410,40 @@ def test_ingest_skips_error_payloads_and_lands_real_series():
     # returned paths cover only the real series (not the catalogue)
     assert len(paths) == 2
     assert all("IS.RRS.TOTL.KM" not in p for p in paths)
+
+
+def test_ingest_pulls_broad_eu_stats_indicators(monkeypatch):
+    monkeypatch.setattr(worldbank, "EU_STATS_INDICATORS", ["NY.GDP.MKTP.CD"])
+    monkeypatch.setattr(worldbank, "CONFIRMED_RAIL_INDICATORS", [])
+    routes = {
+        "v2/indicator?": _FakeResponse([{"page": 1}, []]),
+        "NY.GDP.MKTP.CD": _FakeResponse(_valid_series("NY.GDP.MKTP.CD")),
+    }
+    session = _FakeSession(routes)
+    lander = _RecordingLander()
+
+    paths = worldbank.ingest(lander, session=session)
+
+    landed_ids = {artifact.dataset_id for artifact in lander.landed}
+    assert "NY.GDP.MKTP.CD" in landed_ids
+    assert len(paths) == 1
+
+
+def test_worldbank_collection_rejects_path_unsafe_indicator_ids(monkeypatch):
+    monkeypatch.setattr(worldbank, "EU_STATS_INDICATORS", ["NY.GDP.MKTP.CD", "../escape"])
+    monkeypatch.setattr(worldbank, "CONFIRMED_RAIL_INDICATORS", [])
+    catalogue = [
+        {"page": 1},
+        [
+            {"id": "IS.RRS.PASG.KM", "name": "Railways passengers"},
+            {"id": "bad/name", "name": "Railways unsafe"},
+        ],
+    ]
+
+    assert worldbank.indicators_for_collection(catalogue) == [
+        "NY.GDP.MKTP.CD",
+        "IS.RRS.PASG.KM",
+    ]
 
 
 # --- KSH: curated STADAT seeds + XLSX validation -----------------------------

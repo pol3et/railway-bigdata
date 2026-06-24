@@ -17,6 +17,11 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+DEFAULT_MAX_ARTIFACTS = 5000
+DEFAULT_MAX_FILE_BYTES = 100 * 1024 * 1024
+DEFAULT_MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024
+DEFAULT_MAX_JSON_BYTES = 100 * 1024 * 1024
+
 
 def _human(n: int) -> str:
     f = float(n)
@@ -35,7 +40,19 @@ def _open(path: Path):
         else open(path, "rt", encoding="utf-8", errors="replace")
 
 
-def _decompressed_size(path: Path) -> int:
+def _zero_record() -> dict:
+    return {
+        "datasets": 0,
+        "artifacts": 0,
+        "bytes_on_disk": 0,
+        "bytes_decompressed": 0,
+        "data_rows": 0,
+        "observations": 0,
+        "skipped_artifacts": 0,
+    }
+
+
+def _decompressed_size(path: Path, *, max_bytes: int) -> int:
     if path.suffix == ".gz":
         try:
             with gzip.open(path, "rb") as fh:
@@ -45,6 +62,8 @@ def _decompressed_size(path: Path) -> int:
                     if not chunk:
                         break
                     total += len(chunk)
+                    if total > max_bytes:
+                        raise ValueError(f"decompressed bytes exceed {max_bytes}")
                 return total
         except Exception:
             return path.stat().st_size
@@ -64,9 +83,11 @@ def _count_tsv(path: Path):
         return 0, 0
 
 
-def _count_wb_json(path: Path):
+def _count_wb_json(path: Path, *, max_json_bytes: int):
     """World Bank series JSON is [pagination, [observation, ...]]."""
     try:
+        if path.stat().st_size > max_json_bytes:
+            raise ValueError(f"JSON bytes exceed {max_json_bytes}")
         payload = json.loads(path.read_text(encoding="utf-8", errors="replace"))
         if isinstance(payload, list) and len(payload) >= 2 and isinstance(payload[1], list):
             n = len(payload[1])
@@ -76,11 +97,23 @@ def _count_wb_json(path: Path):
     return 0, 0
 
 
-def measure(root: Path) -> dict:
+def measure(
+    root: Path,
+    *,
+    max_artifacts: int = DEFAULT_MAX_ARTIFACTS,
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+    max_decompressed_bytes: int = DEFAULT_MAX_DECOMPRESSED_BYTES,
+    max_json_bytes: int = DEFAULT_MAX_JSON_BYTES,
+) -> dict:
     stats_root = root / "stats"
     blank = lambda: {"datasets": set(), "artifacts": 0, "bytes_on_disk": 0,
-                     "bytes_decompressed": 0, "data_rows": 0, "observations": 0}
+                     "bytes_decompressed": 0, "data_rows": 0, "observations": 0,
+                     "skipped_artifacts": 0}
     per_source = defaultdict(blank)
+    if not stats_root.is_dir():
+        return {"bronze_root": str(root), "sources": {}, "total": _zero_record()}
+
+    processed = 0
     for f in stats_root.rglob("*"):
         if not f.is_file() or f.name.endswith(".meta.json"):
             continue
@@ -89,14 +122,21 @@ def measure(root: Path) -> dict:
             continue
         source, dataset = rel[0], rel[1]
         rec = per_source[source]
+        if processed >= max_artifacts or f.stat().st_size > max_file_bytes:
+            rec["datasets"].add(dataset)
+            rec["skipped_artifacts"] += 1
+            continue
+        processed += 1
         rec["datasets"].add(dataset)
         rec["artifacts"] += 1
         rec["bytes_on_disk"] += f.stat().st_size
-        rec["bytes_decompressed"] += _decompressed_size(f)
+        rec["bytes_decompressed"] += _decompressed_size(
+            f, max_bytes=max_decompressed_bytes
+        )
         if f.name.endswith((".tsv", ".tsv.gz", ".gz")):
             r, o = _count_tsv(f)
         elif f.name.endswith(".json"):
-            r, o = _count_wb_json(f)
+            r, o = _count_wb_json(f, max_json_bytes=max_json_bytes)
         else:
             r, o = 0, 0
         rec["data_rows"] += r
@@ -106,30 +146,45 @@ def measure(root: Path) -> dict:
     for src, rec in sorted(per_source.items()):
         d = {"datasets": len(rec["datasets"]), "artifacts": rec["artifacts"],
              "bytes_on_disk": rec["bytes_on_disk"], "bytes_decompressed": rec["bytes_decompressed"],
-             "data_rows": rec["data_rows"], "observations": rec["observations"]}
+             "data_rows": rec["data_rows"], "observations": rec["observations"],
+             "skipped_artifacts": rec["skipped_artifacts"]}
         sources[src] = d
         for k, v in d.items():
             tot[k] += v
-    return {"bronze_root": str(root), "sources": sources, "total": dict(tot)}
+    total = _zero_record()
+    total.update(dict(tot))
+    return {"bronze_root": str(root), "sources": sources, "total": total}
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("bronze_root")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--max-artifacts", type=int, default=DEFAULT_MAX_ARTIFACTS)
+    ap.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)
+    ap.add_argument("--max-decompressed-bytes", type=int, default=DEFAULT_MAX_DECOMPRESSED_BYTES)
+    ap.add_argument("--max-json-bytes", type=int, default=DEFAULT_MAX_JSON_BYTES)
     args = ap.parse_args(argv)
 
-    report = measure(Path(args.bronze_root))
+    report = measure(
+        Path(args.bronze_root),
+        max_artifacts=args.max_artifacts,
+        max_file_bytes=args.max_file_bytes,
+        max_decompressed_bytes=args.max_decompressed_bytes,
+        max_json_bytes=args.max_json_bytes,
+    )
     t = report["total"]
     print(f"Bronze root: {report['bronze_root']}")
-    hdr = f"{'source':<14}{'datasets':>9}{'on-disk':>11}{'decompr.':>11}{'data_rows':>14}{'observations':>16}"
+    hdr = f"{'source':<14}{'datasets':>9}{'on-disk':>11}{'decompr.':>11}{'data_rows':>14}{'observations':>16}{'skipped':>10}"
     print(hdr)
     for src, d in report["sources"].items():
         print(f"{src:<14}{d['datasets']:>9}{_human(d['bytes_on_disk']):>11}"
-              f"{_human(d['bytes_decompressed']):>11}{_group(d['data_rows']):>14}{_group(d['observations']):>16}")
+              f"{_human(d['bytes_decompressed']):>11}{_group(d['data_rows']):>14}"
+              f"{_group(d['observations']):>16}{d['skipped_artifacts']:>10}")
     print("-" * len(hdr))
     print(f"{'TOTAL':<14}{t['datasets']:>9}{_human(t['bytes_on_disk']):>11}"
-          f"{_human(t['bytes_decompressed']):>11}{_group(t['data_rows']):>14}{_group(t['observations']):>16}")
+          f"{_human(t['bytes_decompressed']):>11}{_group(t['data_rows']):>14}"
+          f"{_group(t['observations']):>16}{t['skipped_artifacts']:>10}")
 
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)

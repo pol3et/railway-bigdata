@@ -300,7 +300,10 @@ def read_worldbank_json(records: list, dataset_id: str) -> pd.DataFrame:
     feature = _WB_INDICATOR_FEATURE.get(dataset_id)
     rows = []
     for r in records or []:
-        label = feature or (r.get("indicator") or {}).get("value", dataset_id)
+        # Unknown World Bank IDs must not fall through to generic English-label
+        # rules; labels like "Air transport, passengers carried" would otherwise
+        # be mapped into rail features by substring.
+        label = feature or f"worldbank_unmapped:{dataset_id}"
         rows.append({"geo": _worldbank_geo(r),
                      "year": pd.to_numeric(r.get("date"), errors="coerce"),
                      "value": r.get("value"),

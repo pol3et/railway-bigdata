@@ -12,6 +12,30 @@ from railway_lakehouse.bronze.sources import eurostat
 pytestmark = pytest.mark.unit
 
 
+class _Response:
+    def __init__(self, content: bytes, status_code: int = 200, content_type: str = "text/plain"):
+        self.content = content
+        self.status_code = status_code
+        self.headers = {"Content-Type": content_type}
+
+    @property
+    def text(self):
+        return self.content.decode("utf-8")
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise AssertionError(f"HTTP {self.status_code}")
+
+
+class _RecordingLander:
+    def __init__(self):
+        self.landed = []
+
+    def land(self, artifact):
+        self.landed.append(artifact)
+        return f"bronze/{artifact.source}/{artifact.dataset_id}/{artifact.filename}"
+
+
 def test_build_session_sets_user_agent_and_is_idempotent():
     s = eurostat.build_session()
     assert "User-Agent" in s.headers
@@ -135,3 +159,54 @@ def test_discover_transport_datasets_keeps_rail_tran_drops_excluded():
     for dropped in ("avia_paoc", "tran_sf_aviaac", "tran_sf_marac",
                     "tran_sf_roadus", "mar_go_qm", "road_go_ta_tott"):
         assert dropped not in got
+
+
+def test_discovery_rejects_path_unsafe_dataset_ids():
+    toc_text = "\n".join([
+        'Rail passengers\t"rail_pa_total"\t"dataset"',
+        'Bad rail dataset\t"../rail_escape"\t"dataset"',
+        'Bad transport dataset\t"tran_bad/name"\t"dataset"',
+    ])
+
+    assert eurostat.discover_transport_datasets(toc_text) == ["rail_pa_total"]
+    assert eurostat.datasets_for_collection(toc_text)[0] == "rail_pa_total"
+
+
+def test_ingest_uses_curated_allowlist_plus_transport_toc():
+    tsv = b"freq,unit,geo\\TIME_PERIOD\t2021\nA,MIO_PKM,HU\t1\n"
+
+    class Session:
+        def get(self, url, timeout):
+            if "catalogue/toc" in url:
+                return _Response(
+                    b'Modal split\t"tran_hv_frmod"\t"dataset"\n'
+                    b'Unrelated demo\t"xyz_demo"\t"dataset"\n'
+                )
+            return _Response(tsv, content_type="text/tab-separated-values")
+
+    lander = _RecordingLander()
+
+    eurostat.ingest(lander, session=Session())
+
+    landed_ids = {artifact.dataset_id for artifact in lander.landed}
+    assert "_catalogue_toc" in landed_ids
+    assert "nama_10_gdp" in landed_ids
+    assert "tran_hv_frmod" in landed_ids
+    assert "xyz_demo" not in landed_ids
+
+
+def test_ingest_skips_oversized_dataset_response(monkeypatch):
+    monkeypatch.setattr(eurostat, "MAX_DATASET_BYTES", 5)
+
+    class Session:
+        def get(self, url, timeout):
+            if "catalogue/toc" in url:
+                return _Response(b'Modal split\t"tran_hv_frmod"\t"dataset"\n')
+            return _Response(b"too-large", content_type="text/tab-separated-values")
+
+    lander = _RecordingLander()
+
+    eurostat.ingest(lander, session=Session())
+
+    landed_ids = {artifact.dataset_id for artifact in lander.landed}
+    assert landed_ids == {"_catalogue_toc"}

@@ -3,8 +3,17 @@ quality of life / modal split). Verifies dataset-aware extraction with the real
 coded dimensions, including the key case where two features share a unit but
 differ by another dimension (gov debt vs deficit, GVA vs compensation)."""
 import pandas as pd
+import pytest
 
 from railway_lakehouse.silver.stats import merge as stats_merge
+from railway_lakehouse.silver.config import CANONICAL_FEATURES
+
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _isolate_crosswalk_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(stats_merge, "CROSSWALK_PATH", str(tmp_path / "crosswalk_cache.json"))
 
 
 def _features(long):
@@ -95,6 +104,19 @@ def test_worldbank_indicator_code_maps_to_feature():
              "indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP (current US$)"}}]
     long = stats_merge.read_worldbank_json(recs, "NY.GDP.MKTP.CD")
     assert long["source_column"].iloc[0] == "gdp_current_usd"
+
+
+def test_worldbank_feature_map_only_emits_canonical_keys():
+    assert set(stats_merge._WB_INDICATOR_FEATURE.values()) <= set(CANONICAL_FEATURES)
+
+
+def test_unknown_worldbank_indicator_stays_unmapped_even_with_transport_label():
+    recs = [{"countryiso3code": "HUN", "date": "2021", "value": 1.0,
+             "indicator": {"id": "IS.AIR.PSGR", "value": "Air transport, passengers carried"}}]
+    long = stats_merge.read_worldbank_json(recs, "IS.AIR.PSGR")
+    assert long["source_column"].iloc[0] == "worldbank_unmapped:IS.AIR.PSGR"
+    cw = stats_merge.build_crosswalk(["worldbank_unmapped:IS.AIR.PSGR"], use_llm=False)
+    assert cw["worldbank_unmapped:IS.AIR.PSGR"] == "unmapped"
 
 
 def test_rail_traffic_aggregates_keep_total_breakdowns():

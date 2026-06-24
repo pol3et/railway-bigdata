@@ -25,6 +25,7 @@ from railway_lakehouse.bronze.config import BRONZE_BUCKET
 from railway_lakehouse.bronze.lander import RawLander
 from railway_lakehouse.bronze.sources import eurostat
 from railway_lakehouse.bronze.sources import past_recordings
+from railway_lakehouse.bronze.sources import worldbank
 
 
 # Silver
@@ -97,15 +98,15 @@ def run_pipeline(
         log.info("BRONZE: reading existing local Bronze root %s", local_bronze_root.as_posix())
         lander = SimpleNamespace(bronze_root=local_bronze_root)
     else:
-        log.info("BRONZE: landing Eurostat rail datasets + %d news articles", news)
+        log.info("BRONZE: landing Eurostat/World Bank stats + %d news articles", news)
         lander = RawLander()
-        eurostat.ingest(lander)  # all rail TSVs, raw
+        eurostat.ingest(lander)
+        worldbank.ingest(lander)
         past_recordings.ingest(lander, target_articles=news)  # ~N articles, raw JSON
 
     # ---------------- SILVER (stats) ----------------
-    # Local Bronze mode uses the shared stats loader, so Eurostat and World Bank
-    # are both read from the canonical Bronze tree. Live MinIO mode keeps the
-    # existing Eurostat-only fallback for now.
+    # Local Bronze and live MinIO mode both read supported stats sources:
+    # Eurostat TSV and World Bank JSON.
     frames = _read_bronze_stats_frames(lander)
     log.info("SILVER stats: %d source frames", len(frames))
 
@@ -205,24 +206,49 @@ def _read_bronze_eurostat(lander) -> dict:
     return tables
 
 
+def _read_bronze_worldbank(lander) -> dict:
+    """Return {indicator_id: raw bytes} from Bronze World Bank JSON artifacts."""
+    tables = {}
+    for path in _list_bronze_files(
+        lander,
+        domain="stats",
+        source="worldbank",
+        include=lambda name: name.endswith(".json"),
+    ):
+        dataset_id = _dataset_id_from_path(path, "worldbank")
+        if dataset_id.startswith("_"):
+            continue
+        tables[dataset_id] = _read_bytes(lander, path)
+    return tables
+
 
 def _read_bronze_stats_frames(lander) -> list[pd.DataFrame]:
     """Return Silver stats frames from Bronze stats artifacts.
 
     Local Bronze mode reads all supported stats sources through
-    silver.stats.load. At the moment this includes Eurostat and World Bank.
-    Live MinIO mode keeps the existing Eurostat-only fallback.
+    silver.stats.load. Live MinIO mode reads the same supported source families
+    from the lander's S3-compatible filesystem.
     """
     local_root = getattr(lander, "bronze_root", None)
     if local_root is not None:
         return stats_load.frames_from_bronze(local_root)
 
     raw_eurostat_tables = _read_bronze_eurostat(lander)
+    raw_worldbank_tables = _read_bronze_worldbank(lander)
     frames = []
     for dataset_id, df in raw_eurostat_tables.items():
         long = stats_merge.read_eurostat_tsv(df, dataset_id)
         long["source_system"] = "eurostat"
-        frames.append(long)
+        if not long.empty:
+            frames.append(long)
+    worldbank_frames = 0
+    for dataset_id, raw in raw_worldbank_tables.items():
+        long = stats_load.load_worldbank_frame(raw, dataset_id)
+        if not long.empty:
+            frames.append(long)
+            worldbank_frames += 1
+    if raw_worldbank_tables and worldbank_frames == 0:
+        log.warning("Bronze contained World Bank artifacts but none produced Silver rows.")
     return frames
 
 
@@ -295,6 +321,13 @@ def _read_text(lander, path) -> str:
         return path.read_text(encoding="utf-8")
     with lander.s3.open(path, "rb") as f:
         return f.read().decode("utf-8")
+
+
+def _read_bytes(lander, path) -> bytes:
+    if isinstance(path, Path):
+        return path.read_bytes()
+    with lander.s3.open(path, "rb") as f:
+        return f.read()
 
 
 def _dataset_id_from_path(path, source: str) -> str:

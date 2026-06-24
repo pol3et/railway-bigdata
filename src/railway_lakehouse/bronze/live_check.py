@@ -301,29 +301,54 @@ def collect_eurostat(
         )
     )
 
-    # Collection = curated allowlist (economy / population / quality of life /
-    # urban) PLUS the full transport theme (all sub-themes, incl. regional and
-    # sub-annual) discovered from the TOC.
-    transport = eurostat.discover_transport_datasets(toc_response.text)
-    codes = list(dict.fromkeys(
-        list(eurostat.EUROSTAT_CURATED_DATASETS) + transport))[:max_artifacts]
+    # Use the same dataset selection as the production Bronze ingester, then
+    # bound it for live-check runtime.
+    codes = eurostat.datasets_for_collection(toc_response.text)[:max_artifacts]
 
     for code in codes:
         url = eurostat.DATA_URL.format(code=code)
         try:
-            response = session.get(url, timeout=timeout_seconds, headers={"User-Agent": USER_AGENT})
+            response = eurostat._get_dataset_response(
+                session,
+                url,
+                timeout=timeout_seconds,
+                headers={"User-Agent": USER_AGENT},
+            )
         except requests.RequestException as exc:
             failures.append({"dataset_id": code, "url": url, "error": str(exc)})
             continue
 
         statuses.append(response.status_code)
-        if response.status_code != 200 or not response.content:
+        if response.status_code != 200:
             failures.append(
                 {
                     "dataset_id": code,
                     "url": url,
                     "http_status": response.status_code,
                     "bytes": len(response.content or b""),
+                    "error": "empty or non-200 dataset response",
+                }
+            )
+            continue
+        content = eurostat._bounded_dataset_content(response)
+        if content is None:
+            failures.append(
+                {
+                    "dataset_id": code,
+                    "url": url,
+                    "http_status": response.status_code,
+                    "bytes": int(response.headers.get("Content-Length") or 0),
+                    "error": f"dataset exceeds {eurostat.MAX_DATASET_BYTES} bytes",
+                }
+            )
+            continue
+        if not content:
+            failures.append(
+                {
+                    "dataset_id": code,
+                    "url": url,
+                    "http_status": response.status_code,
+                    "bytes": 0,
                     "error": "empty or non-200 dataset response",
                 }
             )
@@ -335,11 +360,11 @@ def collect_eurostat(
                 source="eurostat",
                 dataset_id=code,
                 filename=f"{code}.tsv.gz",
-                content=response.content,
+                content=content,
                 source_url=url,
                 content_type=response.headers.get("Content-Type", "application/gzip"),
                 http_status=response.status_code,
-                extra={"discovery": "bounded_eurostat_rail_dataset"},
+                extra={"discovery": "bounded_eurostat_dataset"},
             )
         )
 
@@ -451,11 +476,13 @@ def collect_worldbank(
     )
 
     try:
-        discovered = worldbank.discover_rail_indicators(catalogue_response.json())
+        indicators = worldbank.indicators_for_collection(catalogue_response.json())
     except Exception:  # noqa: BLE001
-        discovered = list(worldbank.CONFIRMED_RAIL_INDICATORS)
+        indicators = list(dict.fromkeys(
+            list(worldbank.EU_STATS_INDICATORS) + list(worldbank.CONFIRMED_RAIL_INDICATORS)
+        ))
 
-    indicators = list(dict.fromkeys(list(worldbank.EU_STATS_INDICATORS) + discovered))[:max_artifacts]
+    indicators = indicators[:max_artifacts]
 
     for indicator in indicators:
         url = worldbank.SERIES_URL.format(indicator=indicator)
@@ -514,7 +541,7 @@ def collect_worldbank(
                 source_url=url,
                 content_type=response.headers.get("Content-Type", "application/json"),
                 http_status=response.status_code,
-                extra={"discovery": "bounded_worldbank_rail_indicator"},
+                extra={"discovery": "bounded_worldbank_indicator"},
             )
         )
 

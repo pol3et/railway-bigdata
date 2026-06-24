@@ -65,6 +65,7 @@ CANONICAL_FEATURES = {
     # population
     "population_total":            "Total population on 1 January (count)",
     "population_density":          "Population density (people per sq km)",
+    "urban_population_pct":        "Urban population (% of total population)",
     "pop_growth_rate":             "Population growth rate",
     "birth_rate":                  "Crude birth rate (per 1000)",
     "death_rate":                  "Crude death rate (per 1000)",

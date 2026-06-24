@@ -25,6 +25,8 @@ Robustness notes (why this file is not a bare `requests.get`):
     non-fetchable rows, removing the 404 noise seen in earlier live checks.
 """
 import logging
+import os
+import re
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -43,6 +45,9 @@ DATA_URL = (
     "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/"
     "{code}/?format=TSV&compressed=true"
 )
+MAX_COLLECTION_DATASETS = int(os.environ.get("EUROSTAT_MAX_DATASETS", "300"))
+MAX_DATASET_BYTES = int(os.environ.get("EUROSTAT_MAX_DATASET_BYTES", str(50 * 1024 * 1024)))
+_DATASET_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 # A descriptive UA keeps Eurostat's CDN from silently closing the connection.
 USER_AGENT = (
@@ -109,6 +114,10 @@ def _strip(token: str) -> str:
     return token.strip().strip('"').strip("'")
 
 
+def _valid_dataset_id(code: str) -> bool:
+    return bool(_DATASET_ID_RE.fullmatch(code))
+
+
 def _qualifies(title_lc: str, code_lc: str) -> bool:
     if any(s in title_lc for s in STOP_TOKENS):
         return False
@@ -144,6 +153,8 @@ def discover_rail_datasets(toc_text: str) -> list[str]:
         code_lc = code.lower()
         # skip folders/aggregated tables ('t_' tables); we want fetchable datasets
         if not code or code_lc.startswith("t_"):
+            continue
+        if not _valid_dataset_id(code):
             continue
         # when the TOC carries a type column, only datasets are fetchable
         if len(parts) >= 3 and _strip(parts[2]).lower() in SKIP_TYPES:
@@ -223,6 +234,8 @@ def discover_transport_datasets(toc_text: str) -> list[str]:
         code_lc = code.lower()
         if not code or code_lc.startswith("t_"):
             continue
+        if not _valid_dataset_id(code):
+            continue
         if len(parts) >= 3 and _strip(parts[2]).lower() in SKIP_TYPES:
             continue
         if code_lc.startswith(EUROSTAT_TRANSPORT_EXCLUDE_PREFIXES):
@@ -252,6 +265,8 @@ def discover_eu_datasets(toc_text: str) -> list[str]:
         code = _strip(parts[1])
         code_lc = code.lower()
         if not code or code_lc.startswith("t_"):
+            continue
+        if not _valid_dataset_id(code):
             continue
         if len(parts) >= 3 and _strip(parts[2]).lower() in SKIP_TYPES:
             continue
@@ -292,6 +307,75 @@ EUROSTAT_CURATED_DATASETS = (
 )
 
 
+def datasets_for_collection(toc_text: str) -> list[str]:
+    """Return the Eurostat dataset ids collected by Bronze.
+
+    The production ingester and bounded live check use the same selection so the
+    automatic-update path does not drift from the evidence path.
+    """
+    datasets = list(dict.fromkeys(
+        list(EUROSTAT_CURATED_DATASETS) + discover_transport_datasets(toc_text)
+    ))
+    return [code for code in datasets if _valid_dataset_id(code)][:MAX_COLLECTION_DATASETS]
+
+
+def _get_dataset_response(session, url: str, *, timeout: int, headers: dict | None = None):
+    """Fetch a dataset with streaming when the session supports it."""
+    kwargs = {"timeout": timeout}
+    if headers is not None:
+        kwargs["headers"] = headers
+    try:
+        return session.get(url, **kwargs, stream=True)
+    except TypeError:
+        # Test doubles and some minimal session objects accept narrower call
+        # shapes than requests.Session.
+        try:
+            return session.get(url, **kwargs)
+        except TypeError:
+            return session.get(url, timeout=timeout)
+
+
+def _bounded_dataset_content(response) -> bytes | None:
+    length = response.headers.get("Content-Length")
+    if length:
+        try:
+            if int(length) > MAX_DATASET_BYTES:
+                return None
+        except ValueError:
+            pass
+
+    iter_content = getattr(response, "iter_content", None)
+    if callable(iter_content):
+        chunks = []
+        total = 0
+        try:
+            for chunk in iter_content(chunk_size=64 * 1024):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > MAX_DATASET_BYTES:
+                    close = getattr(response, "close", None)
+                    if callable(close):
+                        close()
+                    return None
+                chunks.append(chunk)
+            return b"".join(chunks)
+        except Exception:  # noqa: BLE001
+            close = getattr(response, "close", None)
+            if callable(close):
+                close()
+            raise
+
+    content = response.content or b""
+    if len(content) > MAX_DATASET_BYTES:
+        return None
+    return content
+
+
+def _content_too_large(response) -> bool:
+    return _bounded_dataset_content(response) is None
+
+
 def ingest(lander: RawLander, session: requests.Session | None = None) -> list[str]:
     session = build_session(session)
 
@@ -304,20 +388,29 @@ def ingest(lander: RawLander, session: requests.Session | None = None) -> list[s
         source_url=TOC_URL, content_type="text/plain; charset=utf-8",
         http_status=toc_resp.status_code,
     ))
-    codes = discover_rail_datasets(toc_resp.text)
+    codes = datasets_for_collection(toc_resp.text)
 
     # 2) land each dataset as raw gzipped TSV, unchanged
     landed = []
     for code in codes:
         url = DATA_URL.format(code=code)
         try:
-            r = session.get(url, timeout=120)
-            if r.status_code != 200 or not r.content:
+            r = _get_dataset_response(session, url, timeout=120)
+            if r.status_code != 200:
                 logger.warning("Skipping %s (HTTP %s)", code, r.status_code)
+                continue
+            content = _bounded_dataset_content(r)
+            if content is None:
+                logger.warning(
+                    "Skipping %s (dataset exceeds %d bytes)", code, MAX_DATASET_BYTES
+                )
+                continue
+            if not content:
+                logger.warning("Skipping %s (empty response)", code)
                 continue
             path = lander.land(RawArtifact(
                 domain="stats", source="eurostat", dataset_id=code,
-                filename=f"{code}.tsv.gz", content=r.content,
+                filename=f"{code}.tsv.gz", content=content,
                 source_url=url,
                 content_type=r.headers.get("Content-Type", "application/gzip"),
                 http_status=r.status_code,

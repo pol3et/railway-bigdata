@@ -74,6 +74,11 @@ EU_STATS_INDICATORS = [
 # Word-anchored match: "rail", "railway(s)", "railroad(s)" -- but NOT
 # "trail", "trailer", "curtail", "monorail", etc.
 _RAIL_RE = re.compile(r"\brail\w*", re.IGNORECASE)
+_INDICATOR_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _valid_indicator_id(indicator_id: str) -> bool:
+    return bool(_INDICATOR_ID_RE.fullmatch(indicator_id))
 
 
 def discover_rail_indicators(catalogue_json: list) -> list[str]:
@@ -88,8 +93,9 @@ def discover_rail_indicators(catalogue_json: list) -> list[str]:
     ids = []
     for ind in catalogue_json[1]:
         text = f"{ind.get('name', '')} {ind.get('sourceNote', '')}"
-        if _RAIL_RE.search(text):
-            ids.append(ind["id"])
+        indicator_id = str(ind.get("id", ""))
+        if _RAIL_RE.search(text) and _valid_indicator_id(indicator_id):
+            ids.append(indicator_id)
     # union with the confirmed family so we never regress
     return sorted(set(ids) | set(CONFIRMED_RAIL_INDICATORS))
 
@@ -133,6 +139,18 @@ def series_has_observations(series_json) -> bool:
     return isinstance(first, dict) and "date" in first
 
 
+def indicators_for_collection(catalogue_json: list) -> list[str]:
+    """Return the World Bank indicator ids collected by Bronze.
+
+    This keeps production ingestion aligned with bounded live checks: a curated
+    broad indicator set first, then any rail indicators discovered from the
+    catalogue.
+    """
+    discovered = discover_rail_indicators(catalogue_json)
+    indicators = list(dict.fromkeys(list(EU_STATS_INDICATORS) + discovered))
+    return [indicator for indicator in indicators if _valid_indicator_id(indicator)]
+
+
 def ingest(lander: RawLander, session: requests.Session | None = None) -> list[str]:
     session = session or requests.Session()
 
@@ -146,10 +164,10 @@ def ingest(lander: RawLander, session: requests.Session | None = None) -> list[s
         http_status=cat.status_code,
     ))
     try:
-        indicators = discover_rail_indicators(cat.json())
+        indicators = indicators_for_collection(cat.json())
     except Exception:                                   # noqa: BLE001
-        indicators = list(CONFIRMED_RAIL_INDICATORS)
-    logger.info("World Bank: %d rail indicators to pull.", len(indicators))
+        indicators = list(dict.fromkeys(list(EU_STATS_INDICATORS) + list(CONFIRMED_RAIL_INDICATORS)))
+    logger.info("World Bank: %d indicators to pull.", len(indicators))
 
     # 2) land each indicator's full series as raw JSON -- but only if it is a
     #    real time series. The API answers 200 with a {"message": ...} error
