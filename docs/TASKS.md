@@ -155,7 +155,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - `[x]` eurostat→Gold mapping (GAP-023) — **done (PR #21)**: 2nd real stats source, 8 mapped features → Gold 1,554×10 (evidence `output/evidence/eurostat-silver-gold/`)
 - `H` `infra/ollama-model` + `silver/news-llm-extraction` — news_* features into Gold
 - `[x]` GAP-013 (live-MinIO World Bank) — **closed 2026-06-24** (live stats path now reads WB + Eurostat)
-- `H` GAP-019 (deployable automatic updates)
+- `[x]` GAP-019 (deployable automatic updates) — **closed 2026-06-24** (preflight-degrade scheduler + Compose `scheduler` service + systemd/cron runbook)
 
 **Contract C (verify before Wave 5 / final report):**
 - [ ] Gold carries ≥2 stats sources **and** `news_*` columns.

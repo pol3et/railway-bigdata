@@ -94,6 +94,14 @@ docker compose down
 
 Use `docker compose down -v` only when you intentionally want to delete the local MinIO volume.
 
+## Bronze scheduler runbook
+
+One-line runbook: start automatic Bronze updates with `docker compose up -d minio createbuckets scheduler`, then inspect `docker compose logs -f scheduler` and `output/evidence/scheduler/*.json` for `status: "ok"` or `status: "degraded"`.
+
+The `scheduler` service runs `python -m railway_lakehouse.bronze.run schedule` with `restart: unless-stopped` and writes local run-evidence manifests under `output/evidence/scheduler/`. If MinIO is down at boot or a batch raises a storage connection error, the batch degrades by logging a warning and writing a `status: "degraded"` manifest instead of killing the loop.
+
+Native hosts can use a systemd timer or cron instead of the long-running Compose scheduler. The restart-safe native pattern is to run the one-off command `python -m railway_lakehouse.bronze.run all` from a host timer; systemd timers with `Persistent=true` can catch up one missed calendar activation after downtime. See `docs/OPERATIONS.md` for unit examples.
+
 ## Spark / Big Data engine setup
 
 GAP-017 pins the optional Spark stack to the Python 3.14-compatible line:

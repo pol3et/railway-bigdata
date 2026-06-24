@@ -2,6 +2,37 @@
 
 This is the single persistent log for `bigdata/course_proj`. Future agents should append here before stopping.
 
+## 2026-06-24 - GAP-019 Deployable Bronze Scheduler
+
+Status: closed — implemented by the Codex agent (its exec sandbox could not spawn `python`/`git`/`gh`, recorded honestly below); verified + shipped by the orchestrator: `python -m pytest -q -m unit tests/test_bronze_scheduler.py` → 4 passed; full `python -m pytest -q` (JAVA_HOME=jdk-21) → 127 passed, 1 skipped; `python -m compileall -q src tests` clean. Rebased on GAP-013 and merged via PR.
+
+Changed:
+- `src/railway_lakehouse/bronze/run.py`
+- `tests/test_bronze_scheduler.py`
+- `docker-compose.yml`
+- `Dockerfile`
+- `README.md`
+- `docs/OPERATIONS.md`
+- `docs/INDEX.md`
+- `docs/CODEMAP.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gap019-deployable-scheduler-spec-2026-06-24.md`
+- `.planning/coursework/plans/bigdata/gap-019-deployable-scheduler.md`
+
+Findings:
+- `RawLander` write semantics were not changed; GAP-019 edits are limited to scheduler orchestration, deploy host, docs, and deterministic tests.
+- The scheduler now preflights MinIO with `s3fs.S3FileSystem.exists(BRONZE_BUCKET)`, writes `ok`/`degraded` JSON manifests under `output/evidence/scheduler/`, and wraps `schedule.run_pending()` in `_tick()` so one failing batch does not kill cadence.
+- Compose now includes a `scheduler` service with `restart: unless-stopped`, `depends_on: minio`, internal `S3_ENDPOINT=http://minio:9000`, and host-mounted scheduler evidence.
+
+Evidence:
+- RED attempt: `python -m pytest -q -m unit tests/test_bronze_scheduler.py` could not start because the default shell runner failed spawning `python` with `windows sandbox: runner error: CreateProcessAsUserW failed: 5`.
+- Retry through Serena shell execution was rejected before running, so no pytest, compileall, `git diff --check`, commit, push, or PR result is claimed.
+
+Next:
+- Run `python -m pytest -q -m unit tests/test_bronze_scheduler.py`, `python -m pytest -q`, `python -m compileall -q src tests`, and `git diff --check`; fix any failures, then commit, push `impl/gap-019`, and open the PR against `main`.
+
 ## 2026-06-24 - GAP-018 Dependency Bounds And Lockfile
 
 Status: done for implementation and local verification; PR opened from `impl/gap-018`.
