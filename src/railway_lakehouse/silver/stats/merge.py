@@ -380,8 +380,18 @@ def _map_label_via_llm(label: str) -> Optional[str]:
 
 
 _ENGLISH_LABEL_RULES = [
+    ("length of lines worked at end of year - electrified lines", "rail_electrified_km"),
+    ("length of lines worked at end of year - total", "rail_network_length_km"),
+    ("of which electrified lines", "rail_electrified_km"),
+    ("passenger.kilometres", "rail_passenger_km"),
+    ("tonne.kilometres", "rail_freight_tonne_km"),
+    ("tonnes carried", "rail_freight_tonnes"),
+    ("average staff strength", "rail_employees"),
+    ("locomotives including", "rail_locomotives"),
+    ("railway's wagons", "rail_wagons"),
     ("electrified railway", "rail_electrified_km"),
     ("electrified rail", "rail_electrified_km"),
+    ("length of lines", "rail_network_length_km"),
     ("rail lines", "rail_network_length_km"),
     ("railway lines", "rail_network_length_km"),
     ("railway operated", "rail_network_length_km"),

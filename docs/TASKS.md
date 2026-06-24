@@ -67,7 +67,7 @@ develop against it independently with no schema collisions.
 
 | Task (slug) | RU title | Status | Maps to |
 |---|---|---|---|
-| `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (3 of 5 including KSH extra parser) | GAP-006 · orig. task #9 |
+| `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (4 of 5 including KSH and UIC extra parsers) | GAP-006 · orig. task #9 |
 | `silver/news-parsers` | Silver: RSS + GDELT → ArticleRecord → NewsFeature | done (LLM mocked in tests) | GAP-006 · orig. task #10 |
 | `gold/feature-matrix` | Gold: (geo, year) матрица + Parquet + counts | done on a 4-row fixture | orig. task #11 |
 | `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
@@ -76,6 +76,7 @@ develop against it independently with no schema collisions.
 | `silver/eurostat-to-gold` | Eurostat: resilient Bronze + dataset-aware SDMX → canonical features → Gold | done (PR #21) — 6 national rail datasets → Silver 9,744 rows → Gold **1,554×10** (8 mapped features, 42 geos, 1962–2025); evidence `output/evidence/eurostat-silver-gold/` | GAP-023 · 2nd real source |
 | `bronze/broad-stats-pipeline` | Broaden production Eurostat + World Bank stats collection without drifting from live checks | done (PR #25) — production and bounded live-check selectors are shared; Eurostat has curated+transport bounds and size caps; World Bank pulls curated EU-stats indicators plus discovered rail IDs; review evidence produced 14 Bronze stats artifacts, 152,054 counted observations, and a stats-only 3,550×11 Gold smoke under `output/evidence/pr25-bigdata-live-*` | GAP-010 · stats volume |
 | `silver/stats-ksh-xlsx-reader` | KSH XLSX → Silver `StatFact` | done — deterministic `openpyxl` reader registered as `ksh`; live KSH Bronze probe parsed all six current XLSX artifacts; `tests/test_silver_stats_ksh.py` passed 9 tests; full suite passed 136 tests, 1 skipped | GAP-006 · extra stats parser 1/3 |
+| `silver/stats-uic-pdf-reader` | UIC PDF → Silver `StatFact` | done — deterministic `pdfplumber` table reader registered as `uic`; current UIC synopsis PDF parsed to 39 unified rows across AT/HU and 9 mapped features; traffic-trends PDF skipped because it has no country-level synopsis table; evidence `output/evidence/pr26-uic-pdf-silver-probe/manifest.json` | GAP-006 · extra stats parser 2/3 |
 
 ## Now — active path
 
@@ -98,7 +99,7 @@ develop against it independently with no schema collisions.
 |---|---|---|---|---|---|
 | `bronze/gdelt-history-backfill` | Бэкафилл истории GDELT до 100k+ статей (объём) | 4 | `infra/minio-storage` | later | volume track |
 | `silver/gdelt-gkg-parser` | Парсер GKG csv.zip → ArticleRecord (подключить `gdelt_passthrough`) | 4 | `bronze/gdelt-history-backfill` | later | volume track |
-| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | in_progress — KSH XLSX done; Statistik Austria ODS + UIC PDF pending | GAP-006 (extra) |
+| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | in_progress — KSH XLSX and UIC PDF done; Statistik Austria ODS pending | GAP-006 (extra) |
 | `bronze/scheduler-wiring` | Завести KSH/StatAustria/UIC в `bronze/run.py` (автообновления) | 4 | — | later | GAP-005 |
 
 ## Newly found gaps (re-audit 2026-06-24)
@@ -168,7 +169,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
   no MinIO/Ollama/news/Spark claim).
 
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
-- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX reader done; StatAustria ODS and UIC PDF still pending
+- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX and UIC PDF readers done; StatAustria ODS still pending
 - `M` GDELT history backfill + GKG parser (volume)
 - `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops

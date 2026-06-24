@@ -72,7 +72,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | `gdelt` | JSON (DOC 2.0) | HU + AT · rail news | scheduled · **live FAILS (429)** | ArticleRecord · tested (fixture) |
 | `ksh` | XLSX | HU only · freight, passengers, rolling stock, network, regional + narrow-gauge lines | live-proven · **not scheduled** | StatFact reader · tested |
 | `statistik_austria` | ODS | AT only · freight, rolling-stock fleet (passengers/network are login-only -> use Eurostat) | live-proven · **not scheduled** | **MISSING — no ODS reader** |
-| `uic` | PDF | global UIC members · passenger-km, tonne-km, network, rolling stock, employees | live-proven · **not scheduled** | **MISSING — no PDF extractor** |
+| `uic` | PDF | global UIC members · passenger-km, tonne-km, network, rolling stock, employees | live-proven · **not scheduled** | StatFact reader · tested |
 | `past_recordings` | JSON · GKG csv.zip | HU + AT · deep news backfill (DOC ~10y; GKG v1 1979-2016) — the real volume play | CLI one-off · not scheduled | DOC pages OK · **GKG csv MISSING** |
 
 ### Extracted (proven) today
@@ -86,7 +86,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 ### Extractable next (bytes already land; only parsers missing)
 
 - Statistik Austria ODS -> `StatFact` (`read_excel engine=odf` -> `read_tabular_long`).
-- UIC PDF -> `StatFact` (pdfplumber/camelot table extraction; larger effort).
+- UIC PDF -> `StatFact` (public Synopsis table via `pdfplumber`; Traffic Trends has no country-level synopsis table).
 - GDELT history backfill via `past_recordings` to 100k+ articles, plus a GKG
   `.csv.zip` parser wiring the dormant `extract.gdelt_passthrough` stub — the
   highest-leverage move for real volume.
@@ -103,7 +103,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| 9 | silver/stats-parsers | **3 / 5** (GAP-006) | Eurostat ✓, World Bank ✓, KSH XLSX ✓; Statistik Austria ODS ✗, UIC PDF ✗. |
+| 9 | silver/stats-parsers | **4 / 5** (GAP-006) | Eurostat ✓, World Bank ✓, KSH XLSX ✓, UIC PDF ✓; Statistik Austria ODS ✗. |
 | 10 | silver/news-parsers | **3 / 3** (GAP-006, PR #9) | RSS ✓, GDELT ArtList ✓, ArticleRecord->NewsFeature ✓ (LLM step tested with mocked Ollama; live LLM unproven). |
 | 11 | gold/feature-matrix | **done on fixture + persisted Silver CLI** | Assemble `(geo, year)` ✓, write Parquet ✓, save row/col counts ✓ (4x3). `gold/run.py` now loads persisted local Silver Parquet and writes counts (GAP-007 closed). |
 | 12 | spark/evidence-job | **3 / 3 — local evidence written** (GAP-009) | `spark_jobs.coverage` reads the real Gold Parquet, writes `output/evidence/spark/coverage_by_geo_year/`, and records Spark version, counts, files, duration, and timestamps in `manifest.json`. |
@@ -164,8 +164,8 @@ on a parallel track.
   `past_recordings` backfiller to land a rail-filtered GDELT slice of 100k+
   articles, and add the missing GKG `.csv.zip` Silver parser. This is what makes
   a "depth and volume" rubric reward Spark.
-- **Extra stats coverage (optional, multi-day).** KSH XLSX, Statistik Austria
-  ODS, UIC PDF -> `StatFact`. Bytes already land live; only readers are missing.
+- **Extra stats coverage (optional, multi-day).** KSH XLSX and UIC PDF now feed
+  `StatFact`; Statistik Austria ODS is the remaining extra stats reader.
 - **Scheduler wiring (GAP-005).** Add ksh/statistik_austria/uic to
   `bronze/run.py` for the "automatic updates" requirement — pure orchestration.
 
@@ -363,4 +363,26 @@ Verified:
 
 Boundary:
 - KSH XLSX can now flow from Bronze raw files into the Silver StatFact contract.
-- Statistik Austria ODS and UIC PDF readers are still pending.
+- Statistik Austria ODS remains pending; UIC PDF is covered by the follow-up update below.
+
+## Update 2026-06-24 — UIC PDF stats reader
+
+`silver/stats-uic-pdf-reader` adds deterministic parsing for UIC public PDF tables.
+
+Implemented:
+- `pdfplumber` dependency for PDF table extraction.
+- UIC PDF table reader in `silver/stats/load.py`.
+- `uic` source registration for Bronze `stats/uic/.../*.pdf` partitions.
+- Rule-based crosswalk coverage for UIC original English column labels.
+- Unit coverage in `tests/test_silver_stats_uic_pdf.py`.
+- Real UIC PDF parse evidence in `output/evidence/pr26-uic-pdf-silver-probe/manifest.json`.
+
+Verified:
+- UIC reader tests: 6 passed.
+- Current UIC Synopsis PDF parsed to 39 unified Silver rows across AT/HU and 9 mapped features.
+- Current UIC Traffic Trends PDF produced 0 rows because it has no country-level synopsis table.
+
+Boundary:
+- UIC public Synopsis PDF can now flow from Bronze raw files into the Silver StatFact contract.
+- This does not claim OCR, subscribed RAILISA CSV/Excel/API access, or a Gold rerun including UIC.
+- Statistik Austria ODS remains the pending extra stats parser.

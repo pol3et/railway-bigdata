@@ -1,0 +1,61 @@
+{
+  "status": "passed",
+  "created_at_utc": "2026-06-24T20:54:50.217354+00:00",
+  "source_bronze_manifest": "output/evidence/uic-live-check-2026-06-22/manifest.json",
+  "source_raw_pdf_location": "output/evidence/uic-live-check-2026-06-22/bronze/ (ignored raw evidence tree on this workstation)",
+  "pdf_count": 2,
+  "pdf_results": [
+    {
+      "pdf": "uic_railway_statistics_synopsis_2025.pdf",
+      "dataset_id": "uic_railway_statistics_synopsis_2025",
+      "bytes": 1517491,
+      "rows": 39,
+      "geos": [
+        "AT",
+        "HU"
+      ],
+      "year_min": 2020,
+      "year_max": 2024,
+      "source_columns": [
+        "Average staff strength",
+        "Length of lines worked at end of year - Total",
+        "Length of lines worked at end of year - electrified lines",
+        "Locomotives including Light Rail Motor-tractors",
+        "Passenger.kilometres",
+        "Passengers carried",
+        "Railway's wagons",
+        "Tonne.kilometres",
+        "Tonnes carried"
+      ],
+      "note": "parsed UIC synopsis country/operator table"
+    },
+    {
+      "pdf": "uic_traffic_trends_2024.pdf",
+      "dataset_id": "uic_traffic_trends_2024",
+      "bytes": 591749,
+      "rows": 0,
+      "geos": [],
+      "year_min": null,
+      "year_max": null,
+      "source_columns": [],
+      "note": "no country-level UIC synopsis table detected; skipped"
+    }
+  ],
+  "frames_from_bronze": 1,
+  "raw_silver_rows": 39,
+  "unified_rows": 39,
+  "feature_counts": {
+    "rail_electrified_km": 2,
+    "rail_employees": 6,
+    "rail_freight_tonne_km": 5,
+    "rail_freight_tonnes": 5,
+    "rail_locomotives": 5,
+    "rail_network_length_km": 3,
+    "rail_passenger_km": 5,
+    "rail_passengers": 5,
+    "rail_wagons": 3
+  },
+  "commands": [
+    "PYTHONPATH=src python <probe script using railway_lakehouse.silver.stats.load_uic_frame/build_silver_stats>"
+  ]
+}

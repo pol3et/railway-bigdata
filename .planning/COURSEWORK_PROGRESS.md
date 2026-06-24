@@ -1372,3 +1372,28 @@ Evidence:
 
 Next:
 - Push PR #25 branch, let GitHub checks settle, merge PR #25.
+
+## 2026-06-24 - PR 26 UIC PDF reader review fixes
+
+Status: done for review fixes.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/pr26-uic-pdf-reader-fix-2026-06-24.md`.
+- Local research inspected the current UIC public PDFs and showed the Synopsis PDF has extractable table rows; OCR is not required for that artifact.
+- External docs check used Context7 for `pdfplumber` `Page.extract_tables()` behavior.
+
+Changed:
+- Rebased/rebuilt PR branch on current `main` to remove stale KSH overlap.
+- Added deterministic UIC PDF table extraction in `src/railway_lakehouse/silver/stats/load.py`.
+- Added UIC label crosswalk rules in `src/railway_lakehouse/silver/stats/merge.py`.
+- Added PDF table, real UIC table-shape, decimal-comma, false-`at`, and `build_silver_stats` tests in `tests/test_silver_stats_uic_pdf.py`.
+- Added `pdfplumber` runtime dependency and constraint pins.
+- Updated dashboard/status docs and report caveats.
+- Added `output/evidence/pr26-uic-pdf-silver-probe/manifest.json`.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py` -> 6 passed.
+- Real UIC PDF probe: Synopsis -> 39 rows, Traffic Trends -> 0 rows, unified Silver -> 39 rows and 9 mapped features.
+
+Next:
+- Run focused/full verification, push PR #26, wait for GitHub checks, and merge if clean.
