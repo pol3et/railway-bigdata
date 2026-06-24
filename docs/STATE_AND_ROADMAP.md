@@ -22,7 +22,7 @@ Today the train is at **Gold**; the next stop is **Spark**.
 | Bronze (ingest) | operational | Raw landing works. 4 sources scheduled (Eurostat, World Bank, GDELT, RSS); KSH, Statistik Austria, UIC, GDELT-history are live-proven but **not scheduled** (GAP-005). |
 | Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly inside fixture/local pipeline paths. Local Parquet persistence now exists for `StatFact` and successful `NewsFeature` rows; MinIO/s3fs persistence, extraction-failure accounting, and `silver/run.py` remain open. |
 | Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current real Gold feature is World Bank `rail_network_length_km`; Eurostat raw bytes landed but remained unmapped in this smoke. `gold/run.py` now loads persisted local Silver Parquet and records counts (GAP-007 closed); Spark and full live MinIO/Ollama E2E remain open. |
-| Spark (big-data jobs) | not built | No `spark_jobs/` package exists. The registered command `python -m railway_lakehouse.spark_jobs.coverage` cannot import (GAP-009). This is the graded deliverable. |
+| Spark (big-data jobs) | local evidence written | `railway_lakehouse.spark_jobs.coverage` reads the real Gold Parquet and writes `output/evidence/spark/manifest.json` plus a Spark Parquet output directory (GAP-009 closed). |
 | Report / presentation | not started | Blocked: every claim must cite generated evidence that does not exist yet (GAP-011). |
 
 ### At A Glance
@@ -55,7 +55,7 @@ storage reachability only, not a full MinIO/Ollama/news/Spark run.
   correctly rejected (`output/evidence/worldbank-live-check-2026-06-22/manifest.json`).
 - GDELT live: **failed** (HU HTTP 429, AT RemoteDisconnected) -> fixture-only.
 
-There is no full MinIO/Ollama/news Silver/Gold output and no Spark output.
+There is no full MinIO/Ollama/news Silver/Gold output. Local Spark evidence now exists under `output/evidence/spark/`.
 
 ## Data Inventory
 
@@ -105,7 +105,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | 9 | silver/stats-parsers | **2 / 5** (GAP-006) | Eurostat ✓, World Bank ✓; KSH XLSX ✗, Statistik Austria ODS ✗, UIC PDF ✗. |
 | 10 | silver/news-parsers | **3 / 3** (GAP-006, PR #9) | RSS ✓, GDELT ArtList ✓, ArticleRecord->NewsFeature ✓ (LLM step tested with mocked Ollama; live LLM unproven). |
 | 11 | gold/feature-matrix | **done on fixture + persisted Silver CLI** | Assemble `(geo, year)` ✓, write Parquet ✓, save row/col counts ✓ (4x3). `gold/run.py` now loads persisted local Silver Parquet and writes counts (GAP-007 closed). |
-| 12 | spark/evidence-job | **0 / 3 — not started** (GAP-009) | No `spark_jobs/` package; reads Gold Parquet ✗, writes evidence ✗, records counts ✗. |
+| 12 | spark/evidence-job | **3 / 3 — local evidence written** (GAP-009) | `spark_jobs.coverage` reads the real Gold Parquet, writes `output/evidence/spark/coverage_by_geo_year/`, and records Spark version, counts, files, duration, and timestamps in `manifest.json`. |
 
 ## Gap Register Summary
 
@@ -117,7 +117,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | GAP-006 | open | local Silver persistence done; remaining stats parsers/news failure accounting |
 | GAP-007 | closed | Gold loads persisted Silver through `gold.run` |
 | GAP-008 | closed | deterministic test suite |
-| GAP-009 | open | Spark/big-data job (the deliverable) |
+| GAP-009 | closed | Spark/big-data evidence job (the deliverable) |
 | GAP-010 | in_progress | live Bronze/Silver/Gold evidence (live MinIO smoke now proven 2026-06-24) |
 | GAP-011 | open | report + presentation |
 | GAP-012..030 | open | **19 new gaps** found by the 2026-06-24 `undocumented-gap-hunt` (see `GAP_REGISTER.md`). Highest-impact: GAP-012 (the documented Bronze→Gold regen recipe silently builds an empty Gold), GAP-013 (live MinIO stats path drops World Bank), GAP-015 (units never normalized despite the contract), GAP-016 (non-deterministic Gold news schema), GAP-017 (`pyspark>=3.5` resolves to Spark 4.x), GAP-019 (in-memory-only "automatic updates" scheduler). |
@@ -142,12 +142,11 @@ on a parallel track.
    matrix, and records row/column counts. Verification: `python -m pytest -q -m
    integration` -> 14 passed; local CLI smoke wrote a 4x4 persisted-Silver Gold
    matrix with AT/HU and `rail_passenger_km`.
-3. **Spark evidence job** — GAP-009, ~1-2d (THE TARGET). Create
-   `src/railway_lakehouse/spark_jobs/coverage.py` + a SparkSession that reads the
-   Gold Parquet and writes evidence to `output/evidence/spark/`, recording Spark
-   version, input/output row counts, files/partitions written, and duration. Add
-   an opt-in `spark` pytest marker + import/config test; document the command in
-   `README.md` and `docs/VERIFICATION.md`. **=> Spark evidence exists.**
+3. **Spark evidence job** — GAP-009 is closed. `src/railway_lakehouse/spark_jobs/coverage.py`
+   reads the real Gold Parquet and writes evidence to `output/evidence/spark/`,
+   recording Spark version, input/output row counts, files/partitions written,
+   and duration. The command is documented in `README.md` and
+   `docs/VERIFICATION.md`. **=> Spark evidence exists.**
 4. **Live end-to-end evidence** — GAP-010, parallel, 0.5-2d (service-dependent).
    Bounded live Bronze->Silver->Gold (needs MinIO + Ollama) producing
    `output/evidence/live/railway_ml.parquet`; re-run the Spark job against it.
@@ -339,5 +338,6 @@ Corrections to earlier wording in this doc:
 - `infra/ollama-model` is unstarted: Ollama is not installed, so the (fully coded) `NewsFeature`
   LLM extractor has never executed against a live model — it is exercised only via mocked
   `generate_json` in tests.
-- `[spark]` is now pinned to the Spark 4.1 stack, but only Java 8 is present locally and
-  `JAVA_HOME` is unset; GAP-009 still needs JDK 17 or 21 before any live Spark run.
+- `[spark]` is pinned to the Spark 4.1 stack. GAP-009 provisioned JDK 21 for the
+  local Spark evidence run; native Windows local writes also needed
+  `HADOOP_HOME` with Hadoop 3.4.x `winutils.exe` and `hadoop.dll`.

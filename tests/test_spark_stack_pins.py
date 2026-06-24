@@ -7,6 +7,7 @@ decisions aligned.
 """
 
 from pathlib import Path
+import importlib
 import re
 import runpy
 import tomllib
@@ -118,3 +119,16 @@ def test_gap017_spark_stack_pins_and_docs_stay_coherent():
     gap_tasks_lower = gap_tasks.lower()
     for pattern in stale_gap_task_patterns:
         assert re.search(pattern, gap_tasks_lower) is None
+
+
+def test_gap009_coverage_module_imports_without_pyspark():
+    coverage = importlib.import_module("railway_lakehouse.spark_jobs.coverage")
+
+    assert callable(coverage.build_session)
+    assert callable(coverage.run_coverage)
+    assert callable(coverage.main)
+    assert (
+        coverage.DEFAULT_INPUT
+        == "output/evidence/inventory-live-2026-06-23/railway_ml.parquet"
+    )
+    assert coverage.DEFAULT_OUT == "output/evidence/spark/"

@@ -1156,3 +1156,44 @@ Evidence:
 
 Next:
 - PR #18 is open and mergeable for `impl/gap-007`; after merge, continue with GAP-009 Spark evidence.
+## 2026-06-24 - GAP-009 Spark Evidence Job
+
+Status: done
+
+Research:
+- Required note written:
+  `.planning/coursework/research/bigdata/spark-evidence-job.md`.
+- Used `research-orchestrator` with local files first, Context7 for Spark 4.1.1 PySpark API docs, Ref attempted but unavailable due credits, and Firecrawl for the native Windows Hadoop helper source.
+
+Changed:
+- `src/railway_lakehouse/spark_jobs/__init__.py`
+- `src/railway_lakehouse/spark_jobs/coverage.py`
+- `tests/test_spark_coverage.py`
+- `tests/test_spark_stack_pins.py`
+- `output/evidence/spark/manifest.json`
+- `output/evidence/spark/coverage_by_geo_year/`
+- `README.md`
+- `docs/VERIFICATION.md`
+- `docs/TASKS.md`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/GAP_REGISTER.md`
+- `docs/index.html`
+- `.planning/coursework/plans/bigdata/gap-009-spark-evidence-job.md`
+- `.planning/coursework/research/bigdata/spark-evidence-job.md`
+
+Findings:
+- The Spark job imports without PySpark because Spark imports are deferred into runtime helpers.
+- Missing input and 0-row input fail loudly before any successful evidence is claimed.
+- The successful evidence run used the real inventory-live Gold Parquet, not the nonexistent `output/evidence/live/railway_ml.parquet`.
+- Manifest: Spark 4.1.2, JDK 21.0.11, input 2,968 x 4, output 2,968 x 5, one partition/part-file plus `_SUCCESS`, status `passed`.
+
+Evidence:
+- `python -m pytest -q -m "unit or integration"` -> 103 passed, 2 deselected.
+- `python -m pytest -q -m spark` -> 2 passed, 103 deselected.
+- `python -m railway_lakehouse.spark_jobs.coverage --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/spark/` -> passed.
+- `python -m pytest -q` -> 105 passed.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with line-ending warnings only.
+
+Next:
+- GAP-011 can draft the report from the committed Spark evidence plus existing Gold counts.

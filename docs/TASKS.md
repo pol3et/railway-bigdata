@@ -71,6 +71,7 @@ develop against it independently with no schema collisions.
 | `silver/news-parsers` | Silver: RSS + GDELT → ArticleRecord → NewsFeature | done (LLM mocked in tests) | GAP-006 · orig. task #10 |
 | `gold/feature-matrix` | Gold: (geo, year) матрица + Parquet + counts | done on a 4-row fixture | orig. task #11 |
 | `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
+| `spark/evidence-job` | Spark reads real Gold and writes evidence | done (`output/evidence/spark/manifest.json`; Spark 4.1.2; Gold 2,968×4 -> coverage 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
 
 ## Now — active path
 
@@ -84,7 +85,7 @@ develop against it independently with no schema collisions.
 | `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | done (`gold.run` reads persisted Silver, writes Gold + counts; integration + CLI smoke passed) | GAP-007 |
 | `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | todo | GAP-006 |
-| `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | todo | GAP-009 · orig. task #12 |
+| `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | done — local Spark evidence written to `output/evidence/spark/` (Spark 4.1.2; input 2,968×4; output 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
 | `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | todo | GAP-011 |
 
 ## Later — deferred (after the core is E2E)
@@ -132,17 +133,17 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 **Contract A (verify before Wave 2):**
 - [x] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (2,139×3; no empty Gold).
-- [~] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1 Maven coord) — **verified** (`--dry-run` → pyspark 4.1.2 + delta-spark 4.1.0); `JAVA_HOME` → JDK 17/21 **not yet provisioned** (machine has Java 8). JDK is the live-Spark prerequisite, handled in Wave 2 / GAP-009.
+- [x] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1 Maven coord) — **verified** (`--dry-run` → pyspark 4.1.2 + delta-spark 4.1.0); GAP-009 provisioned JDK 21 for the local Spark evidence run.
 - [x] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
 
 ### Wave 2 — Spark fast track (parallel)
-- `[!]` GAP-009 — `spark/evidence-job`: Spark reads real Gold → writes evidence
+- `[x]` GAP-009 — `spark/evidence-job`: Spark reads real Gold → writes evidence
 - `[x]` GAP-007 — Gold CLI reads persisted Silver and writes counts
 
 **Contract B (verify before Wave 3):**
-- [ ] Spark job writes `output/evidence/spark/` with Spark version, in/out row+col counts, files written.
-- [ ] Recorded counts match the Gold Parquet; job is re-runnable.
-- [x] Gold built from persisted Silver through `gold.run`; the older pipeline entrypoint remains in-memory.
+- [x] Spark job writes `output/evidence/spark/` with Spark version, in/out row+col counts, files written.
+- [x] Recorded counts match the Gold Parquet; job is re-runnable.
+- [x] Gold built from persisted Silver via `gold.run` (GAP-007), not in-memory.
 
 ### Wave 3 — Report kickoff (sequential) 🏁 END OF FAST TRACK
 - `[!]` GAP-011 — `report/draft` grounded in Spark + Gold evidence (state WB-only/＋Eurostat scope honestly)

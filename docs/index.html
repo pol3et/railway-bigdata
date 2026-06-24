@@ -174,13 +174,13 @@
 <main class="wrap">
 
   <section style="margin-top:26px;">
-    <div class="track" role="img" aria-label="Pipeline as a railway line: Bronze operational, Silver and Gold partial, Spark and Report not built.">
+    <div class="track" role="img" aria-label="Pipeline as a railway line: Bronze operational, Silver and Gold partial, Spark evidence written, Report not built.">
       <div class="rail">
         <div class="train" aria-hidden="true">▸▮</div>
         <div class="stn"><div class="node green">B</div><div class="stn-code">stop 01</div><div class="stn-name">Bronze</div><div class="stn-note">Raw landing works. 4 of 8 sources scheduled.</div></div>
         <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Normalize + Parquet persist; round-trip proven.</div></div>
         <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Real WB stats: 2,968×4 live this session.</div></div>
-        <div class="stn"><div class="node red">⚡</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Not built. The graded deliverable.</div></div>
+        <div class="stn"><div class="node green">S</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Evidence written: 2,968×4 Gold → 2,968×5 coverage.</div></div>
         <div class="stn"><div class="node red">R</div><div class="stn-code">stop 05</div><div class="stn-name">Report</div><div class="stn-note">Blocked on generated evidence.</div></div>
       </div>
     </div>
@@ -189,12 +189,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">103</div><div class="cap">tests passing · 89u + 14i</div></div>
+      <div class="card green"><div class="big">105</div><div class="cap">tests passing · incl. Spark</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
-      <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
+      <div class="card green"><div class="big">1</div><div class="cap">Spark job · evidence</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. GAP-007 now wires <span class="mono">gold.run</span> to local persisted Silver and counts; GAP-020 covers the s3 Bronze read-back branch. Still open: Eurostat→Gold mapping, news LLM, full MinIO/Ollama E2E, and Spark.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Still open: Gold reading <em>persisted</em> Silver (in-memory today), Eurostat→Gold mapping, and news LLM.</p>
   </section>
 
   <section>
@@ -348,8 +348,8 @@
 
       <div class="ucol gold">
         <h3>Gold</h3>
-        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>spark/evidence-job</b> (GAP-009) Spark reads Gold → writes evidence. <em>The graded target.</em></span></div>
-        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-007</b> <span class="mono">gold.run</span> reads persisted Silver and writes Gold + counts.</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>spark/evidence-job</b> (GAP-009) Spark reads real Gold → writes <span class="mono">output/evidence/spark/</span> evidence. <em>The graded target has its first artifact.</em></span></div>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-007</b> wire Gold to read <em>persisted</em> Silver (clean lakehouse handoff; in-memory today).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-015</b> normalize units in Gold (the contract promises it; nothing does).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-016</b> deterministic Gold news schema (reindex pivots to canonical vocab).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-026</b> <span class="mono">aggregate_news</span> KeyError on partial dict rows.</span></div>
@@ -357,8 +357,8 @@
 
       <div class="ucol cross">
         <h3>Spark · Report · Ops</h3>
-        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark 4.1.* + delta-spark 4.x + S3A Maven hadoop-aws 3.4.1 + JDK 17/21</span> — Python 3.14 uses the Spark 4.1 stack. Spark prerequisite.</span></div>
-        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — fast-track goal.</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark 4.1.* + delta-spark 4.x + S3A Maven hadoop-aws 3.4.1 + JDK 17/21</span> — Python 3.14 uses the Spark 4.1 stack.</span></div>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — now unblocked by GAP-009.</span></div>
         <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors, committed <span class="mono">constraints.txt</span>, and added the env guard.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-028</b> CI that runs the test suite on PRs.</span></div>
@@ -383,18 +383,18 @@
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-020 s3 read-back (#17)</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">✅ Contract A — passed (JDK pending)</div><div class="cbody">Clean-checkout regen writes the real Gold + <span class="mono">counts.json</span> (2,139×3); <span class="mono">.[spark]</span> resolves pyspark 4.1.2 + delta-spark 4.1.0; <span class="mono">pytest -q</span> green (103, incl. wrong-major guard and persisted-Silver Gold CLI). JDK 17/21 still to be provisioned for the live Spark run (Wave 2 / GAP-009).</div></div>
+      <div class="contract"><div class="ctitle">Contract A — passed</div><div class="cbody">Clean-checkout regen writes the real Gold + <span class="mono">counts.json</span> (2,139×3); <span class="mono">.[spark]</span> resolves pyspark 4.1.2 + delta-spark 4.1.0; GAP-009 provisioned JDK 21 for the local Spark evidence run.</div></div>
 
       <div class="flow">↓</div>
 
       <div class="wave fast">
         <div class="wave-head"><span class="wave-no">WAVE 2</span><span class="wave-title">Spark fast track</span><span class="wave-par">2 in parallel</span></div>
         <div class="wbatch">
-          <span class="wtask"><span class="u urgent">!</span> GAP-009 spark/evidence-job (reads Gold → evidence)</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-007 Gold ← persisted Silver</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-009 spark/evidence-job (2,968×4 → evidence)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u high">HIGH</span> GAP-007 Gold ← persisted Silver</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract B</div><div class="cbody">Gold built from persisted Silver is now covered by <span class="mono">gold.run</span>. Remaining: Spark reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (Spark version, in/out row+col counts, files written); counts match Gold.</div></div>
+      <div class="contract"><div class="ctitle">Contract B — Spark evidence passed</div><div class="cbody">Spark reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (Spark version, in/out row+col counts, files written); counts match Gold. Bonus still open: Gold built from persisted Silver.</div></div>
 
       <div class="flow">↓</div>
 
@@ -449,7 +449,7 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…030), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including this session's live World Bank Bronze→Silver→Gold run and the live MinIO smoke. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-24.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…030), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including this session's live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, and the live MinIO smoke. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-24.</p>
 
 </main>
 </body>
