@@ -36,6 +36,9 @@ CANONICAL_FEATURES = {
     "rail_investment":            "Investment in rail infrastructure (monetary)",
     "rail_rolling_stock":         "Rolling stock (locomotives/wagons, count)",
     "rail_employees":             "Persons employed by rail undertakings (count)",
+    "rail_track_length_km":        "Length of railway tracks (km)",
+    "rail_locomotives":           "Number of locomotives (count)",
+    "rail_wagons":                 "Number of goods wagons (count)",
 }
 
 # Canonical news event taxonomy (the enum the extractor must choose from).

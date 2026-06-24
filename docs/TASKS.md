@@ -73,13 +73,14 @@ develop against it independently with no schema collisions.
 | `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
 | `spark/evidence-job` | Spark reads real Gold and writes evidence | done (`output/evidence/spark/manifest.json`; Spark 4.1.2; Gold 2,968×4 -> coverage 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
 | `report/draft` | Report + presentation drafts from committed evidence | done (`output/report/REPORT.md`, `output/presentation/PRESENTATION.md`, `tests/test_report_evidence_links.py`) | GAP-011 |
+| `silver/eurostat-to-gold` | Eurostat: resilient Bronze + dataset-aware SDMX → canonical features → Gold | done (PR #21) — 6 national rail datasets → Silver 9,744 rows → Gold **1,554×10** (8 mapped features, 42 geos, 1962–2025); evidence `output/evidence/eurostat-silver-gold/` | GAP-023 · 2nd real source |
 
 ## Now — active path
 
 | Task (slug) | RU title | Stage | Depends on | Status | Maps to |
 |---|---|---|---|---|---|
 | `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | done | Phase A |
-| `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done — live WB Bronze→Silver→Gold **2,968×4** (freight + network-km, 151 geos, 1995–2021) reproduced 2026-06-24; Eurostat still unmapped (GAP-013, Eurostat SDMX header) | Phase A · **MILESTONE** |
+| `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done — live WB Bronze→Silver→Gold **2,968×4** (freight + network-km, 151 geos, 1995–2021) reproduced 2026-06-24; Eurostat now mapped → Gold too (GAP-023, PR #21) | Phase A · **MILESTONE** |
 | `silver/persist-contract` | Заморозить схему и пути Parquet для локального Parquet-персиста Silver stats/news | 1 | — | done (frozen in `docs/DATA_CONTRACTS.md`) | GAP-006 · **unblocker** |
 | `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | done + **live-proven 2026-06-24** (`docker compose up -d` + `scripts/minio_smoke.py` round-trip) | GAP-010 · Phase C |
 | `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | todo | LLM setup |
@@ -150,7 +151,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - `[x]` GAP-011 — `report/draft` grounded in Spark + Gold evidence (state WB-only/＋Eurostat scope honestly); drafts live under `output/report/` and `output/presentation/` with evidence-link test coverage.
 
 ### Wave 4 — Make the report full (parallel)
-- `H` eurostat→Gold mapping (GAP-023) — a 2nd real stats source
+- `[x]` eurostat→Gold mapping (GAP-023) — **done (PR #21)**: 2nd real stats source, 8 mapped features → Gold 1,554×10 (evidence `output/evidence/eurostat-silver-gold/`)
 - `H` `infra/ollama-model` + `silver/news-llm-extraction` — news_* features into Gold
 - `H` GAP-013 (live-MinIO World Bank) + GAP-019 (deployable automatic updates)
 
