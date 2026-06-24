@@ -43,8 +43,7 @@
   /* pipeline line */
   .track { overflow-x:auto; padding:10px 4px 16px; }
   .rail { display:grid; grid-template-columns:repeat(5,minmax(140px,1fr)); min-width:720px; position:relative; }
-  .rail::before { content:""; position:absolute; top:23px; left:10%; right:10%; height:3px; background:linear-gradient(90deg,var(--accent) 0 50%,transparent 50%); }
-  .rail::after { content:""; position:absolute; top:22px; right:10%; width:40%; height:5px; background-image:repeating-linear-gradient(90deg,var(--faint) 0 8px,transparent 8px 16px); opacity:0.8; }
+  .rail::before { content:""; position:absolute; top:23px; left:10%; right:10%; height:3px; background:var(--accent); }
   .stn { position:relative; text-align:center; padding:0 8px; }
   .node { width:46px; height:46px; border-radius:50%; margin:0 auto 10px; background:var(--surface); border:3px solid var(--faint); display:grid; place-items:center; position:relative; z-index:2; font-family:var(--mono); font-size:17px; font-weight:700; }
   .node.green { border-color:var(--green); color:var(--green); box-shadow:0 0 0 4px rgba(70,192,122,0.12); }
@@ -54,7 +53,7 @@
   .stn-name { font-weight:800; font-size:14px; text-transform:uppercase; margin:3px 0 4px; }
   .stn-note { font-size:11.5px; color:var(--muted); line-height:1.35; }
   .here { position:absolute; top:-6px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:0.12em; color:var(--ground); background:var(--amber); padding:2px 6px; border-radius:2px; white-space:nowrap; font-weight:700; }
-  .train { position:absolute; top:12px; left:46%; z-index:3; font-size:19px; color:var(--amber); animation:idle 2.4s ease-in-out infinite; }
+  .train { position:absolute; top:12px; left:87%; z-index:3; font-size:19px; color:var(--amber); animation:idle 2.4s ease-in-out infinite; }
   @keyframes idle { 0%,100%{transform:translateY(0);opacity:1;} 50%{transform:translateY(-2px);opacity:0.55;} }
 
   /* metrics */
@@ -166,7 +165,7 @@
         <p class="eyebrow">Railway Big-Data Course Project · src/railway_lakehouse</p>
         <h1>Lakehouse <span>Line Status</span></h1>
       </div>
-      <div class="status-pill">FAST TRACK ON · <b>REPORT DRAFT</b> · 2026-06-24</div>
+      <div class="status-pill">FAST TRACK DONE · <b>REPORT DRAFT</b> · 2026-06-24</div>
     </div>
   </div>
 </header>
@@ -189,7 +188,7 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">108</div><div class="cap">tests passing · 1 spark env skip</div></div>
+      <div class="card green"><div class="big">107</div><div class="cap">tests passing · +2 spark env</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card green"><div class="big">1</div><div class="cap">Spark job · evidence</div></div>
@@ -315,9 +314,9 @@
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-no">04</span><h2>Gaps &amp; tasks by level</h2></div>
+    <div class="sec-head"><span class="sec-no">04</span><h2>Open gaps &amp; tasks by level</h2></div>
+    <p class="small muted" style="margin:-6px 0 14px;">Remaining work only. Closed gaps (GAP-007/009/011/012/017/018/020) are recorded as <span class="mono">done</span> in the execution plan below and in <span class="mono">docs/WAVE_LOG.md</span>.</p>
     <div class="legend">
-      <span><span class="u urgent">URGENT !</span> blocks the fast track to Spark + report start</span>
       <span><span class="u high">HIGH</span> needed for a <em>full</em> report</span>
       <span><span class="u mid">MID</span> should-have; defer only if short on time</span>
       <span><span class="u low">LOW</span> nice-to-have</span>
@@ -326,7 +325,6 @@
 
       <div class="ucol bronze">
         <h3>Bronze</h3>
-        <div class="uitem"><span class="u low">DONE</span><span class="ug"><b>GAP-012</b> documented Bronze→Gold regen recipe now uses a fresh regen dir and missing local Bronze roots fail before empty Gold is written.</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-013</b> live MinIO stats path must also land + read World Bank (today drops it).</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-019</b> make "automatic updates" deployable (cron/systemd/compose) — assignment requirement.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-005</b> schedule KSH / Statistik Austria / UIC in <span class="mono">bronze/run.py</span>.</span></div>
@@ -348,8 +346,6 @@
 
       <div class="ucol gold">
         <h3>Gold</h3>
-        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>spark/evidence-job</b> (GAP-009) Spark reads real Gold → writes <span class="mono">output/evidence/spark/</span> evidence. <em>The graded target has its first artifact.</em></span></div>
-        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-007</b> <span class="mono">gold.run</span> reads <em>persisted</em> Silver → Gold + counts (clean lakehouse handoff; integration-tested).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-015</b> normalize units in Gold (the contract promises it; nothing does).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-016</b> deterministic Gold news schema (reindex pivots to canonical vocab).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-026</b> <span class="mono">aggregate_news</span> KeyError on partial dict rows.</span></div>
@@ -357,10 +353,6 @@
 
       <div class="ucol cross">
         <h3>Spark · Report · Ops</h3>
-        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark 4.1.* + delta-spark 4.x + S3A Maven hadoop-aws 3.4.1 + JDK 17/21</span> — Python 3.14 uses the Spark 4.1 stack.</span></div>
-        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>report/draft</b> (GAP-011) drafts under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span>, guarded by <span class="mono">tests/test_report_evidence_links.py</span>.</span></div>
-        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors, committed <span class="mono">constraints.txt</span>, and added the env guard.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-028</b> CI that runs the test suite on PRs.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-027</b> note MinIO default creds are local-only.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-030</b> fix pipeline docstring (compose ships MinIO, not Ollama).</span></div>
