@@ -47,9 +47,38 @@ CONFIRMED_RAIL_INDICATORS = [
 # Backwards-compatible alias: earlier code/tests refer to this name.
 KNOWN_RAIL_INDICATORS = CONFIRMED_RAIL_INDICATORS
 
+# Broad EU-stats indicator set for the big-data Bronze net: rail first (keeps the
+# focused tests valid), then economy, population/demography, quality of life,
+# health/education, safety and environment. Rules-only mapping downstream; dead
+# or archived ids are skipped by series_has_observations() at land time.
+EU_STATS_INDICATORS = [
+    # --- transport (rail first) ---
+    "IS.RRS.TOTL.KM", "IS.RRS.GOOD.MT.K6", "IS.RRS.PASG.KM",
+    "IS.AIR.PSGR", "IS.AIR.GOOD.MT.K1", "IS.ROD.PAVE.ZS",
+    # --- economy ---
+    "NY.GDP.MKTP.CD", "NY.GDP.PCAP.CD", "NY.GDP.MKTP.KD.ZG", "NY.GNP.PCAP.CD",
+    "FP.CPI.TOTL.ZG", "SL.UEM.TOTL.ZS", "GC.DOD.TOTL.GD.ZS",
+    "NE.EXP.GNFS.ZS", "NE.IMP.GNFS.ZS", "BX.KLT.DINV.WD.GD.ZS",
+    # --- population / demography ---
+    "SP.POP.TOTL", "SP.POP.GROW", "SP.URB.TOTL.IN.ZS", "EN.POP.DNST",
+    "SP.DYN.LE00.IN", "SP.DYN.TFRT.IN", "SP.DYN.IMRT.IN",
+    # --- quality of life / health / education / digital ---
+    "SE.XPD.TOTL.GD.ZS", "SH.XPD.CHEX.GD.ZS", "EG.ELC.ACCS.ZS",
+    "SI.POV.GINI", "IT.NET.USER.ZS", "SH.STA.SUIC.P5",
+    # --- safety ---
+    "VC.IHR.PSRC.P5",
+    # --- environment ---
+    "EN.GHG.CO2.PC.CE.AR5", "EN.ATM.CO2E.PC",
+]
+
 # Word-anchored match: "rail", "railway(s)", "railroad(s)" -- but NOT
 # "trail", "trailer", "curtail", "monorail", etc.
 _RAIL_RE = re.compile(r"\brail\w*", re.IGNORECASE)
+_INDICATOR_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _valid_indicator_id(indicator_id: str) -> bool:
+    return bool(_INDICATOR_ID_RE.fullmatch(indicator_id))
 
 
 def discover_rail_indicators(catalogue_json: list) -> list[str]:
@@ -64,8 +93,9 @@ def discover_rail_indicators(catalogue_json: list) -> list[str]:
     ids = []
     for ind in catalogue_json[1]:
         text = f"{ind.get('name', '')} {ind.get('sourceNote', '')}"
-        if _RAIL_RE.search(text):
-            ids.append(ind["id"])
+        indicator_id = str(ind.get("id", ""))
+        if _RAIL_RE.search(text) and _valid_indicator_id(indicator_id):
+            ids.append(indicator_id)
     # union with the confirmed family so we never regress
     return sorted(set(ids) | set(CONFIRMED_RAIL_INDICATORS))
 
@@ -109,6 +139,18 @@ def series_has_observations(series_json) -> bool:
     return isinstance(first, dict) and "date" in first
 
 
+def indicators_for_collection(catalogue_json: list) -> list[str]:
+    """Return the World Bank indicator ids collected by Bronze.
+
+    This keeps production ingestion aligned with bounded live checks: a curated
+    broad indicator set first, then any rail indicators discovered from the
+    catalogue.
+    """
+    discovered = discover_rail_indicators(catalogue_json)
+    indicators = list(dict.fromkeys(list(EU_STATS_INDICATORS) + discovered))
+    return [indicator for indicator in indicators if _valid_indicator_id(indicator)]
+
+
 def ingest(lander: RawLander, session: requests.Session | None = None) -> list[str]:
     session = session or requests.Session()
 
@@ -122,10 +164,10 @@ def ingest(lander: RawLander, session: requests.Session | None = None) -> list[s
         http_status=cat.status_code,
     ))
     try:
-        indicators = discover_rail_indicators(cat.json())
+        indicators = indicators_for_collection(cat.json())
     except Exception:                                   # noqa: BLE001
-        indicators = list(CONFIRMED_RAIL_INDICATORS)
-    logger.info("World Bank: %d rail indicators to pull.", len(indicators))
+        indicators = list(dict.fromkeys(list(EU_STATS_INDICATORS) + list(CONFIRMED_RAIL_INDICATORS)))
+    logger.info("World Bank: %d indicators to pull.", len(indicators))
 
     # 2) land each indicator's full series as raw JSON -- but only if it is a
     #    real time series. The API answers 200 with a {"message": ...} error

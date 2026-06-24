@@ -232,7 +232,8 @@ def test_load_worldbank_frame_parses_meta_records_and_tags_source():
     assert set(frame["geo"]) == {"HU"}
     hu21 = frame[frame["year"] == 2021].iloc[0]
     assert hu21["value"] == 5435.389                       # number preserved verbatim
-    assert hu21["source_column"].startswith("Railways, passengers")
+    # known indicator codes are mapped straight to a canonical feature key
+    assert hu21["source_column"] == "rail_passenger_km"
     assert frame[frame["year"] == 2022].iloc[0]["value"] is None or pd.isna(
         frame[frame["year"] == 2022].iloc[0]["value"])
 

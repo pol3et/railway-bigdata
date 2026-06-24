@@ -25,6 +25,7 @@ from railway_lakehouse.bronze.config import BRONZE_BUCKET
 from railway_lakehouse.bronze.lander import RawLander
 from railway_lakehouse.bronze.sources import eurostat
 from railway_lakehouse.bronze.sources import past_recordings
+from railway_lakehouse.bronze.sources import worldbank
 
 
 # Silver
@@ -97,15 +98,15 @@ def run_pipeline(
         log.info("BRONZE: reading existing local Bronze root %s", local_bronze_root.as_posix())
         lander = SimpleNamespace(bronze_root=local_bronze_root)
     else:
-        log.info("BRONZE: landing Eurostat rail datasets + %d news articles", news)
+        log.info("BRONZE: landing Eurostat/World Bank stats + %d news articles", news)
         lander = RawLander()
-        eurostat.ingest(lander)  # all rail TSVs, raw
+        eurostat.ingest(lander)
+        worldbank.ingest(lander)
         past_recordings.ingest(lander, target_articles=news)  # ~N articles, raw JSON
 
     # ---------------- SILVER (stats) ----------------
-    # Local Bronze mode uses the shared stats loader, so Eurostat and World Bank
-    # are both read from the canonical Bronze tree. Live MinIO mode keeps the
-    # existing Eurostat-only fallback for now.
+    # Local Bronze and live MinIO mode both read supported stats sources:
+    # Eurostat TSV and World Bank JSON.
     frames = _read_bronze_stats_frames(lander)
     log.info("SILVER stats: %d source frames", len(frames))
 
@@ -205,7 +206,6 @@ def _read_bronze_eurostat(lander) -> dict:
     return tables
 
 
-
 def _read_bronze_worldbank(lander) -> list[pd.DataFrame]:
     """Return non-empty Silver stats frames from live Bronze World Bank JSON."""
     frames = []
@@ -240,7 +240,8 @@ def _read_bronze_stats_frames(lander) -> list[pd.DataFrame]:
     for dataset_id, df in raw_eurostat_tables.items():
         long = stats_merge.read_eurostat_tsv(df, dataset_id)
         long["source_system"] = "eurostat"
-        eurostat_frames.append(long)
+        if not long.empty:
+            eurostat_frames.append(long)
     wb_frames = _read_bronze_worldbank(lander)
     if not wb_frames:
         log.warning(

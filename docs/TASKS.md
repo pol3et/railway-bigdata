@@ -74,13 +74,14 @@ develop against it independently with no schema collisions.
 | `spark/evidence-job` | Spark reads real Gold and writes evidence | done (`output/evidence/spark/manifest.json`; Spark 4.1.2; Gold 2,968×4 -> coverage 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
 | `report/draft` | Report + presentation drafts from committed evidence | done (`output/report/REPORT.md`, `output/presentation/PRESENTATION.md`, `tests/test_report_evidence_links.py`) | GAP-011 |
 | `silver/eurostat-to-gold` | Eurostat: resilient Bronze + dataset-aware SDMX → canonical features → Gold | done (PR #21) — 6 national rail datasets → Silver 9,744 rows → Gold **1,554×10** (8 mapped features, 42 geos, 1962–2025); evidence `output/evidence/eurostat-silver-gold/` | GAP-023 · 2nd real source |
+| `bronze/broad-stats-pipeline` | Broaden production Eurostat + World Bank stats collection without drifting from live checks | done (PR #25) — production and bounded live-check selectors are shared; Eurostat has curated+transport bounds and size caps; World Bank pulls curated EU-stats indicators plus discovered rail IDs; review evidence produced 14 Bronze stats artifacts, 152,054 counted observations, and a stats-only 3,550×11 Gold smoke under `output/evidence/pr25-bigdata-live-*` | GAP-010 · stats volume |
 | `silver/stats-ksh-xlsx-reader` | KSH XLSX → Silver `StatFact` | done — deterministic `openpyxl` reader registered as `ksh`; live KSH Bronze probe parsed all six current XLSX artifacts; `tests/test_silver_stats_ksh.py` passed 9 tests; full suite passed 136 tests, 1 skipped | GAP-006 · extra stats parser 1/3 |
 
 ## Now — active path
 
 | Task (slug) | RU title | Stage | Depends on | Status | Maps to |
 |---|---|---|---|---|---|
-| `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | done | Phase A |
+| `bronze/local-stats-landing` | Приземлить реальные Eurostat + World Bank stats в локальное Bronze-дерево | 1 | — | done; PR #25 broadens the automatic stats net while keeping bounded live checks aligned with production selectors | Phase A |
 | `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done — live WB Bronze→Silver→Gold **2,968×4** (freight + network-km, 151 geos, 1995–2021) reproduced 2026-06-24; Eurostat now mapped → Gold too (GAP-023, PR #21) | Phase A · **MILESTONE** |
 | `silver/persist-contract` | Заморозить схему и пути Parquet для локального Parquet-персиста Silver stats/news | 1 | — | done (frozen in `docs/DATA_CONTRACTS.md`) | GAP-006 · **unblocker** |
 | `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | done + **live-proven 2026-06-24** (`docker compose up -d` + `scripts/minio_smoke.py` round-trip) | GAP-010 · Phase C |
@@ -162,6 +163,9 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - [ ] Gold carries ≥2 stats sources **and** `news_*` columns.
 - [ ] A live MinIO Bronze→Silver→Gold run completes end-to-end (no `--bronze-root`).
 - [ ] A scheduled run lands fresh Bronze (automatic-updates demo).
+- [x] Bounded stats-only review smoke proves Eurostat + World Bank can land together
+  and build a wider Gold matrix locally (`output/evidence/pr25-bigdata-live-gold/`,
+  no MinIO/Ollama/news/Spark claim).
 
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
 - `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX reader done; StatAustria ODS and UIC PDF still pending
