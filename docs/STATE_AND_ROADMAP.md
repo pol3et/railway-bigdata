@@ -21,13 +21,13 @@ Today the train is at **Gold**; the next stop is **Spark**.
 |---|---|---|
 | Bronze (ingest) | operational | Raw landing works. 4 sources scheduled (Eurostat, World Bank, GDELT, RSS); KSH, Statistik Austria, UIC, GDELT-history are live-proven but **not scheduled** (GAP-005). |
 | Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly inside fixture/local pipeline paths. Local Parquet persistence now exists for `StatFact` and successful `NewsFeature` rows; MinIO/s3fs persistence, extraction-failure accounting, and `silver/run.py` remain open. |
-| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current real Gold feature is World Bank `rail_network_length_km`; Eurostat raw bytes landed but remained unmapped in this smoke. `gold/run.py` still cannot load persisted Silver from storage yet (GAP-007). |
+| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current real Gold feature is World Bank `rail_network_length_km`; Eurostat raw bytes landed but remained unmapped in this smoke. `gold/run.py` now loads persisted local Silver Parquet and records counts (GAP-007 closed); Spark and full live MinIO/Ollama E2E remain open. |
 | Spark (big-data jobs) | not built | No `spark_jobs/` package exists. The registered command `python -m railway_lakehouse.spark_jobs.coverage` cannot import (GAP-009). This is the graded deliverable. |
 | Report / presentation | not started | Blocked: every claim must cite generated evidence that does not exist yet (GAP-011). |
 
 ### At A Glance
 
-- `python -m pytest -q`: **87 passed**, 0 xfail.
+- `python -m pytest -q`: **103 passed**, 0 xfail.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
 - Stats parsers to `StatFact`: **2 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
@@ -104,7 +104,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 |---|---|---|---|
 | 9 | silver/stats-parsers | **2 / 5** (GAP-006) | Eurostat ✓, World Bank ✓; KSH XLSX ✗, Statistik Austria ODS ✗, UIC PDF ✗. |
 | 10 | silver/news-parsers | **3 / 3** (GAP-006, PR #9) | RSS ✓, GDELT ArtList ✓, ArticleRecord->NewsFeature ✓ (LLM step tested with mocked Ollama; live LLM unproven). |
-| 11 | gold/feature-matrix | **done on fixture** | Assemble `(geo, year)` ✓, write Parquet ✓, save row/col counts ✓ (4x3). Caveat: fed in-memory; `gold/run.py` storage-load is a stub (GAP-007). |
+| 11 | gold/feature-matrix | **done on fixture + persisted Silver CLI** | Assemble `(geo, year)` ✓, write Parquet ✓, save row/col counts ✓ (4x3). `gold/run.py` now loads persisted local Silver Parquet and writes counts (GAP-007 closed). |
 | 12 | spark/evidence-job | **0 / 3 — not started** (GAP-009) | No `spark_jobs/` package; reads Gold Parquet ✗, writes evidence ✗, records counts ✗. |
 
 ## Gap Register Summary
@@ -115,7 +115,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | GAP-004 | closed | fixture-backed Bronze reads (E2E) |
 | GAP-005 | open | scheduler wiring for KSH/StatAustria/UIC/history |
 | GAP-006 | open | local Silver persistence done; remaining stats parsers/news failure accounting |
-| GAP-007 | open | Gold loads persisted Silver |
+| GAP-007 | closed | Gold loads persisted Silver through `gold.run` |
 | GAP-008 | closed | deterministic test suite |
 | GAP-009 | open | Spark/big-data job (the deliverable) |
 | GAP-010 | in_progress | live Bronze/Silver/Gold evidence (live MinIO smoke now proven 2026-06-24) |
@@ -137,12 +137,11 @@ on a parallel track.
 1. **Persist Silver outputs** — GAP-006 (min) is done for local Parquet
    snapshots. MinIO/s3fs persistence and news extraction-failure accounting
    remain follow-up work.
-2. **Wire Gold <- persisted Silver** — GAP-007, ~1d (HARD). Wire
-   `build_from_silver()` into `gold/run.py main()` to read the Silver Parquet,
-   write the Gold matrix, and record row/column counts. Close with
-   `python -m pytest -q -m integration`. Produces the first persisted-Silver
-   Gold dataset; the bounded local stats-only non-fixture Gold smoke already
-   exists from the pipeline path.
+2. **Wire Gold <- persisted Silver** — GAP-007 is closed. `gold/run.py main()`
+   reads the Silver Parquet with `persist.load_stats/load_news`, writes the Gold
+   matrix, and records row/column counts. Verification: `python -m pytest -q -m
+   integration` -> 14 passed; local CLI smoke wrote a 4x4 persisted-Silver Gold
+   matrix with AT/HU and `rail_passenger_km`.
 3. **Spark evidence job** — GAP-009, ~1-2d (THE TARGET). Create
    `src/railway_lakehouse/spark_jobs/coverage.py` + a SparkSession that reads the
    Gold Parquet and writes evidence to `output/evidence/spark/`, recording Spark
@@ -334,9 +333,9 @@ Corrections to earlier wording in this doc:
   Gold. The only Eurostat fixture uses a hand-crafted human-readable header, so the green
   fixture/integration tests **overstate** Eurostat's real reach. (Tracked as a new gap — see
   GAP_REGISTER.)
-- World Bank reaches Gold via the **in-memory** Silver path; the pipeline still never calls
-  `persist.py` before Gold (GAP-007). The persist→reload→Gold contract is green only in an
-  isolated test, not in the production pipeline.
+- GAP-007 now closes the local persisted-Silver -> Gold CLI boundary: `gold.run`
+  reads `persist.py` outputs directly and writes counts. The older pipeline entrypoint still builds
+  Gold from in-memory Silver; full MinIO/Ollama/news E2E remains GAP-010/GAP-013 follow-up.
 - `infra/ollama-model` is unstarted: Ollama is not installed, so the (fully coded) `NewsFeature`
   LLM extractor has never executed against a live model — it is exercised only via mocked
   `generate_json` in tests.

@@ -1298,3 +1298,39 @@ Evidence:
 
 Next:
 - Keep PR #15 on `impl/gap-017` mergeable; GAP-009 can consume `SPARK_S3A_PACKAGES` when implementing the Spark evidence job.
+
+## 2026-06-24 - GAP-007 Gold Load From Persisted Silver
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/gold/run.py`
+- `src/railway_lakehouse/gold/build.py`
+- `src/railway_lakehouse/pipeline.py`
+- `tests/test_gold_load_from_silver.py`
+- `docs/GAP_REGISTER.md`
+- `docs/CODEMAP.md`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `pyproject.toml`
+- `.planning/coursework/plans/bigdata/gap-007-gold-load-from-silver.md`
+- `.planning/coursework/research/bigdata/gap-007-gold-load-from-silver.md`
+
+Findings:
+- `gold.run` now reads local persisted Silver Parquet through `persist.load_stats/load_news`, converts loaded news to dict rows, writes Gold Parquet, and records counts through the shared `gold.build.write_gold_counts`.
+- The counts writer was moved out of `pipeline.py` without changing the existing GAP-010 counts shape; the pipeline counts integration guard still passes.
+- Pytest now adds local `src/` during test collection, so `python -m pytest ...` verifies the checkout under test even when another editable worktree is installed globally.
+- The CLI path is deterministic and local: no network, MinIO, Ollama, Spark, or `coursework/` data was used.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_gold_load_from_silver.py` failed with the old `main()` signature before implementation.
+- `python -m pytest -q tests/test_gold_load_from_silver.py tests/test_pipeline_gaps.py::test_pipeline_fixture_e2e_reads_bronze_and_writes_gold` -> 2 passed.
+- `python -m pytest -q -m unit` -> 89 passed, 14 deselected.
+- `python -m pytest -q -m integration` -> 14 passed, 89 deselected.
+- `python -m pytest -q` -> 103 passed.
+- `python -m compileall -q src tests` -> passed.
+- `python -m railway_lakehouse.gold.run --silver-root output/runtime/gap-007-cli-smoke/silver --out output/runtime/gap-007-cli-smoke/gold/railway_ml.parquet --counts-out output/runtime/gap-007-cli-smoke/gold/counts.json --ingest-date 2026-06-23` -> Gold 4 rows x 4 columns; counts include AT/HU, years 2020-2021, and `rail_passenger_km`.
+
+Next:
+- Open the GAP-007 PR. GAP-009 Spark evidence can now consume the Gold CLI boundary, while full MinIO/Ollama/news E2E remains separate GAP-010/GAP-013 work.
