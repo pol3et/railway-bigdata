@@ -121,7 +121,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | GAP-010 | in_progress | live Bronze/Silver/Gold evidence (live MinIO smoke now proven 2026-06-24) |
 | GAP-011 | open | report + presentation |
 | GAP-012..030 | open | **19 new gaps** found by the 2026-06-24 `undocumented-gap-hunt` (see `GAP_REGISTER.md`). Highest-impact: GAP-012 (the documented Bronze→Gold regen recipe silently builds an empty Gold), GAP-013 (live MinIO stats path drops World Bank), GAP-015 (units never normalized despite the contract), GAP-016 (non-deterministic Gold news schema), GAP-017 (`pyspark>=3.5` resolves to Spark 4.x), GAP-019 (in-memory-only "automatic updates" scheduler). |
-| GAP-017 | done | Spark stack decision implemented: `[spark]` now pins PySpark 4.1.x, Delta 4.1.x, the Hadoop 3.4.1 `hadoop-aws` JVM coordinate, and documents JDK 17/21 + `JAVA_HOME`; static guard: `pytest -q tests/test_spark_stack_pins.py`. |
+| GAP-017 | done | Spark stack decision implemented: `[spark]` now pins PySpark 4.1.x and Delta 4.1.x only; S3A is recorded as Spark Maven packages `org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6`, with JDK 17/21 + `JAVA_HOME`; static guard: `pytest -q tests/test_spark_stack_pins.py`. |
 
 ## Roadmap To Completion
 
@@ -194,12 +194,15 @@ pyarrow 24** runtime without downgrading the already-green pipeline. Spark 4.1 a
 3.14 support and a coherent 4.1 stack exists, so the project deliberately adopts this path
 under GAP-017's Spark-4 branch:
 
-`Spark 4.1.x` · `Scala 2.13` · `delta-spark 4.1.x` (Delta 4.1.0+/4.3.0, built on Spark 4.1.0;
-Maven `io.delta:delta-spark_4.1_2.13`) · `hadoop-aws 3.4.1` (must equal Spark 4.x's bundled
-Hadoop; AWS SDK **v2** for s3a) · `JDK 17 or 21`. `pip install -e ".[spark]"` resolves
-PySpark 4.1.x and `delta-spark` 4.1.x; `hadoop-aws` is the JVM/Maven S3A connector pin.
+`Spark 4.1.x` · `Scala 2.13` · `delta-spark 4.1.x` (Python package; Delta 4.1.0+/4.3.0
+targets Spark 4.1; Maven `io.delta:delta-spark_4.1_2.13:4.1.0` when a SparkSession needs
+Delta JARs) · `JDK 17 or 21`. `pip install -e ".[spark]"` resolves PySpark 4.1.x and
+`delta-spark` 4.1.x only. For the `s3a://` MinIO path, set `spark.jars.packages` from
+`railway_lakehouse.spark_config.SPARK_S3A_PACKAGES`:
+`org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6`. The
+`hadoop-aws` Maven version must equal Spark 4.x's bundled Hadoop 3.4.1 generation.
 Spark 4 turns ANSI SQL on by default (net positive; use `try_cast`). Reading plain Parquet
-needs no extra JARs; `hadoop-aws` is only for the `s3a://` MinIO path.
+needs no extra JARs; the S3A Maven packages are only for the `s3a://` MinIO path.
 
 ### Integration pattern
 
@@ -210,7 +213,7 @@ produce (and raw Bronze in MinIO via the `s3a` connector, reusing the
 and **write** analysis outputs. For MinIO set
 `spark.hadoop.fs.s3a.path.style.access=true` and
 `spark.hadoop.fs.s3a.connection.ssl.enabled=false`. Reading plain Parquet needs no
-extra JARs; the `hadoop-aws` JAR is only for the `s3a://` path. Note PySpark writes
+extra JARs; the S3A Maven packages are only for the `s3a://` path. Note PySpark writes
 a **directory** of part-files + `_SUCCESS`, not a single `.parquet` file.
 
 ### Windows setup notes

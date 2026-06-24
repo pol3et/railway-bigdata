@@ -357,7 +357,7 @@
 
       <div class="ucol cross">
         <h3>Spark · Report · Ops</h3>
-        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark 4.1.* + delta-spark 4.x + hadoop-aws 3.4.1 + JDK 17/21</span> — Python 3.14 uses the Spark 4.1 stack. Spark prerequisite.</span></div>
+        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> pin <span class="mono">pyspark 4.1.* + delta-spark 4.x + S3A Maven hadoop-aws 3.4.1 + JDK 17/21</span> — Python 3.14 uses the Spark 4.1 stack. Spark prerequisite.</span></div>
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — fast-track goal.</span></div>
         <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors, committed <span class="mono">constraints.txt</span>, and added the env guard.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
@@ -441,7 +441,7 @@
       <div class="pillrow">
         <span class="lib"><b>pyspark</b> 4.1.* <span style="color:var(--amber);">(Py 3.14 — GAP-017)</span></span>
         <span class="lib"><b>delta-spark</b> 4.1.x</span>
-        <span class="lib"><b>hadoop-aws</b> 3.4.1</span>
+        <span class="lib"><b>s3a Maven</b> org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6</span>
         <span class="lib">JDK <b>17 / 21</b></span>
         <span class="lib">winutils <b>3.4.x</b></span>
         <span class="lib">news LLM: <b>Qwen3-4B</b> q4_K_M (6 GB fit)</span>

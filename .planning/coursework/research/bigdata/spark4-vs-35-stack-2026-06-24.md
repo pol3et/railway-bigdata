@@ -21,13 +21,14 @@ Pin this coherent set:
 
 - `pyspark==4.1.*` (resolves 4.1.2) — Java 17/21, Scala 2.13, Python 3.10+ (incl. 3.14).
 - `delta-spark==4.1.*` — Delta 4.1.0+ (latest 4.3.0) is built on Spark 4.1.0; Maven `io.delta:delta-spark_4.1_2.13`.
-- `hadoop-aws==3.4.1` — MUST equal Spark 4.x's bundled hadoop-client (Spark 4 bumped Hadoop 3.3.4→3.4.1); s3a uses **AWS SDK v2** now.
+- S3A Maven packages for `spark.jars.packages`: `org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6`.
+  The Hadoop connector must equal Spark 4.x's bundled hadoop-client generation; s3a uses **AWS SDK v2** now.
 - **JDK 17 or 21** (the box currently has Java 8 → required install). `winutils`/`hadoop.dll` must match Hadoop **3.4.x** on Windows, or use WSL2 / Dockerized Spark.
 
 Caveat: Spark 4 turns **ANSI SQL on by default** — invalid casts/overflows raise instead of
 returning NULL (a net data-integrity win; use `try_cast()`, or `spark.sql.ansi.enabled=false` as a
 last resort). Window-function + Parquet DataFrame APIs are unchanged 3.5→4.x, so migration risk is ~0.
-Reading plain Parquet needs no extra JARs; `hadoop-aws` is only for the `s3a://` MinIO path — so the
+Reading plain Parquet needs no extra JARs; the S3A packages are only for the `s3a://` MinIO path — so the
 first Spark job (read Gold Parquet → coverage evidence) needs neither Delta nor s3a.
 
 ## Findings (with sources)
@@ -110,3 +111,44 @@ Package-index checks:
 
 Decision held: Stack A remains non-viable for this repo's Python 3.14 runtime, so GAP-017 pins the
 Spark 4.1 line and records the JDK/JVM connector requirements without claiming any live Spark run.
+
+## PR review fix: S3A is Maven, not pip — 2026-06-24
+
+Review finding P1 was correct: `hadoop-aws` is a JVM/Maven artifact, not a PyPI package. The
+`[spark]` extra must contain only Python packages (`pyspark==4.1.*`, `delta-spark==4.1.*`).
+The S3A connector belongs in the future SparkSession's `spark.jars.packages` value.
+
+MCP/provider evidence:
+
+- Context7 `/apache/hadoop` returned the Hadoop `hadoop-aws` docs and stated S3A needs the
+  `hadoop-aws` JAR plus the shaded AWS SDK V2 `bundle` JAR, with `hadoop-common` and
+  `hadoop-aws` versions identical:
+  https://github.com/apache/hadoop/blob/trunk/hadoop-tools/hadoop-aws/src/site/markdown/tools/hadoop-aws/index.md
+- Context7 `/websites/hadoop_apache_stable` returned the stable Hadoop S3A docs with the same
+  guidance and Spark classloader caveat:
+  https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html
+- Ref search for "Apache Hadoop 3.4.1 hadoop-aws S3A AWS SDK v2 bundle Maven coordinate
+  software.amazon.awssdk bundle" failed with: "Not enough credits. Visit https://ref.tools/account
+  to upgrade." I therefore used Context7 plus official Apache/Maven URLs for the exact coordinate.
+
+Exact coordinate evidence:
+
+- Hadoop 3.4.1 S3A docs: S3A uses the AWS Java V2 SDK and requires the `hadoop-aws` JAR with the
+  AWS V2 shaded `bundle` JAR; `hadoop-aws` and `hadoop-common` versions must be identical:
+  https://hadoop.apache.org/docs/r3.4.1/hadoop-aws/tools/hadoop-aws/index.html
+- Hadoop 3.4.1 `hadoop-aws` POM depends on `software.amazon.awssdk:bundle`:
+  https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.1/hadoop-aws-3.4.1.pom
+- Hadoop 3.4.1 project POM sets `<aws-java-sdk-v2.version>2.24.6</aws-java-sdk-v2.version>`:
+  https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-project/3.4.1/hadoop-project-3.4.1.pom
+- Delta 4.1.0 release notes document full Spark 4.1.0 support and the Spark-version-suffixed
+  Maven coordinate form `io.delta:delta-spark_4.1_2.13:{DELTA_VERSION}`:
+  https://delta.io/blog/2026-03-01-delta-lake-4-1-0-released/
+
+Applied review decision:
+
+- Remove `hadoop-aws` from `[project.optional-dependencies].spark` entirely.
+- Add `src/railway_lakehouse/spark_config.py` with
+  `SPARK_S3A_PACKAGES="org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6"`
+  and `DELTA_SPARK_MAVEN_PACKAGE="io.delta:delta-spark_4.1_2.13:4.1.0"`.
+- Update README, `.env.example`, `docs/STATE_AND_ROADMAP.md`, `docs/index.html`, `docs/TASKS.md`,
+  `docs/GAP_REGISTER.md`, and `docs/GAP_TASKS.md` so pip and Maven responsibilities are separated.

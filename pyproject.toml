@@ -24,12 +24,10 @@ test = [
   "pytest>=8.2",
 ]
 # GAP-017: Spark 4.1 requires JDK 17 or 21 with JAVA_HOME set.
-# hadoop-aws must equal Spark 4.x's bundled hadoop-client 3.4.1 for s3a.
-# It is a JVM/Maven connector pin; pip cannot install hadoop-aws as a wheel.
+# S3A uses JVM/Maven packages, not pip deps; see railway_lakehouse.spark_config.
 spark = [
   "pyspark==4.1.*",
   "delta-spark==4.1.*",
-  "hadoop-aws==3.4.1; python_version < '0'",
 ]
 ollama = []
 dev = [

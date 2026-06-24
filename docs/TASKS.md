@@ -113,10 +113,11 @@ folded into the tasks above:
   decode UTF-8 from bytes and covering it in `tests/test_pipeline_s3_readback.py`.
 - **GAP-020** (medium) — closed 2026-06-24 by deterministic fsspec memory:// unit tests
   for the s3 Bronze read-back branch; no Docker/MinIO required.
-- Also relevant to `spark/evidence-job`: **GAP-017** pins the chosen Spark 4.1 stack
-  (`pyspark==4.1.*`, `delta-spark==4.1.*`, `hadoop-aws==3.4.1`) and records the
-  JDK 17/21 + `JAVA_HOME` requirement; **GAP-015/016** cover Gold unit normalization
-  + deterministic news schema.
+- Also relevant to `spark/evidence-job`: **GAP-017** pins the chosen Spark 4.1 Python
+  packages (`pyspark==4.1.*`, `delta-spark==4.1.*`) and records the JDK 17/21 +
+  `JAVA_HOME` requirement plus S3A Maven packages
+  `org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6`;
+  **GAP-015/016** cover Gold unit normalization + deterministic news schema.
 
 ## Execution waves & contracts (2026-06-24)
 
