@@ -380,18 +380,31 @@ def _map_label_via_llm(label: str) -> Optional[str]:
 
 
 _ENGLISH_LABEL_RULES = [
+    ("electrified railway", "rail_electrified_km"),
+    ("electrified rail", "rail_electrified_km"),
     ("rail lines", "rail_network_length_km"),
+    ("railway lines", "rail_network_length_km"),
+    ("railway operated", "rail_network_length_km"),
+    ("standard gauge railways", "rail_network_length_km"),
     ("route-km", "rail_network_length_km"),
     ("network", "rail_network_length_km"),
-    ("electrified", "rail_electrified_km"),
 
+    ("passenger carriages", "rail_rolling_stock"),
+    ("freight wagons", "rail_rolling_stock"),
+    ("locomotive", "rail_rolling_stock"),
+    ("wagon", "rail_rolling_stock"),
+
+    ("tonne-kilometres", "rail_freight_tonne_km"),
+    ("ton-kilometres", "rail_freight_tonne_km"),
     ("tonne-km", "rail_freight_tonne_km"),
     ("ton-km", "rail_freight_tonne_km"),
     ("freight", "rail_freight_tonnes"),
     ("goods", "rail_freight_tonnes"),
 
+    ("passenger kilometres", "rail_passenger_km"),
     ("passenger-km", "rail_passenger_km"),
-    ("passengers carried", "rail_passenger_km"),
+    ("passengers carried", "rail_passengers"),
+    ("number of passengers", "rail_passengers"),
     ("passenger", "rail_passengers"),
 
     ("accident", "rail_accidents"),
@@ -406,9 +419,13 @@ def _map_label_by_rule(label: str) -> Optional[str]:
     if label in CANON_KEYS:          # reader may emit a canonical key directly
         return label
     low = label.lower()
-    for needle, key in _ENGLISH_LABEL_RULES:
-        if needle in low:
-            return key
+    candidates = [low.rsplit(" - ", 1)[-1], low] if " - " in low else [low]
+    for candidate in candidates:
+        if "road network" in candidate and "rail" not in candidate:
+            return None
+        for needle, key in _ENGLISH_LABEL_RULES:
+            if needle in candidate:
+                return key
     return None
 
 

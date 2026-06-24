@@ -33,7 +33,7 @@ evidence.
   guard because `HADOOP_HOME`/`winutils.exe` is absent in this worktree.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
-- Stats parsers to `StatFact`: **2 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
+- Stats parsers to `StatFact`: **3 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
 - Gaps closed: **5 / 11** (GAP-001..004, 008).
 - End-to-end Bronze->Silver->Gold artifacts:
   - fixture: `output/evidence/fixture-e2e/railway_ml.parquet` = **4 rows x 3 cols**, news skipped.
@@ -70,7 +70,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | `worldbank` | JSON | global (HU/AT picked in Silver) · route-km, tonne-km, passenger-km, since 1960 | scheduled · live-proven | StatFact · tested |
 | `rss_media` | XML | HU/AT media + MAV/OEBB press · all-topic, rail-filtered in Silver | scheduled · live-proven | ArticleRecord · tested |
 | `gdelt` | JSON (DOC 2.0) | HU + AT · rail news | scheduled · **live FAILS (429)** | ArticleRecord · tested (fixture) |
-| `ksh` | XLSX | HU only · freight, passengers, rolling stock, network, regional + narrow-gauge lines | live-proven · **not scheduled** | **MISSING — no XLSX reader** |
+| `ksh` | XLSX | HU only · freight, passengers, rolling stock, network, regional + narrow-gauge lines | live-proven · **not scheduled** | StatFact reader · tested |
 | `statistik_austria` | ODS | AT only · freight, rolling-stock fleet (passengers/network are login-only -> use Eurostat) | live-proven · **not scheduled** | **MISSING — no ODS reader** |
 | `uic` | PDF | global UIC members · passenger-km, tonne-km, network, rolling stock, employees | live-proven · **not scheduled** | **MISSING — no PDF extractor** |
 | `past_recordings` | JSON · GKG csv.zip | HU + AT · deep news backfill (DOC ~10y; GKG v1 1979-2016) — the real volume play | CLI one-off · not scheduled | DOC pages OK · **GKG csv MISSING** |
@@ -85,8 +85,6 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 ### Extractable next (bytes already land; only parsers missing)
 
-- KSH XLSX -> `StatFact` (openpyxl/`read_excel` -> the dormant
-  `merge.read_tabular_long` helper + HU crosswalk).
 - Statistik Austria ODS -> `StatFact` (`read_excel engine=odf` -> `read_tabular_long`).
 - UIC PDF -> `StatFact` (pdfplumber/camelot table extraction; larger effort).
 - GDELT history backfill via `past_recordings` to 100k+ articles, plus a GKG
@@ -105,7 +103,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| 9 | silver/stats-parsers | **2 / 5** (GAP-006) | Eurostat ✓, World Bank ✓; KSH XLSX ✗, Statistik Austria ODS ✗, UIC PDF ✗. |
+| 9 | silver/stats-parsers | **3 / 5** (GAP-006) | Eurostat ✓, World Bank ✓, KSH XLSX ✓; Statistik Austria ODS ✗, UIC PDF ✗. |
 | 10 | silver/news-parsers | **3 / 3** (GAP-006, PR #9) | RSS ✓, GDELT ArtList ✓, ArticleRecord->NewsFeature ✓ (LLM step tested with mocked Ollama; live LLM unproven). |
 | 11 | gold/feature-matrix | **done on fixture + persisted Silver CLI** | Assemble `(geo, year)` ✓, write Parquet ✓, save row/col counts ✓ (4x3). `gold/run.py` now loads persisted local Silver Parquet and writes counts (GAP-007 closed). |
 | 12 | spark/evidence-job | **3 / 3 — local evidence written** (GAP-009) | `spark_jobs.coverage` reads the real Gold Parquet, writes `output/evidence/spark/coverage_by_geo_year/`, and records Spark version, counts, files, duration, and timestamps in `manifest.json`. |
@@ -344,3 +342,25 @@ Corrections to earlier wording in this doc:
 - `[spark]` is pinned to the Spark 4.1 stack. GAP-009 provisioned JDK 21 for the
   local Spark evidence run; native Windows local writes also needed
   `HADOOP_HOME` with Hadoop 3.4.x `winutils.exe` and `hadoop.dll`.
+
+
+## Update 2026-06-24 — KSH XLSX stats reader
+
+`silver/stats-ksh-xlsx-reader` adds deterministic parsing for Hungarian KSH XLSX files, including the live STADAT year-first, regional-total, and sectioned single-year workbook shapes.
+
+Implemented:
+- `openpyxl` dependency for XLSX support.
+- KSH XLSX reader in `silver/stats/load.py`.
+- `ksh` source registration for Bronze `stats/ksh/.../*.xlsx` partitions.
+- Unit coverage in `tests/test_silver_stats_ksh.py`.
+- Live KSH Bronze parsing evidence from six current XLSX artifacts in `output/evidence/pr24-ksh-live-check-after-fix/manifest.json`.
+
+Verified:
+- KSH reader tests: 9 passed.
+- KSH plus dependency guard tests: 14 passed.
+- Integration marker suite: 16 passed.
+- Full test suite: 136 passed, 1 skipped.
+
+Boundary:
+- KSH XLSX can now flow from Bronze raw files into the Silver StatFact contract.
+- Statistik Austria ODS and UIC PDF readers are still pending.

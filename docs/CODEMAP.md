@@ -1,6 +1,6 @@
 # Code Map
 
-Last mapped: 2026-06-23
+Last mapped: 2026-06-24
 
 Scope: current filesystem under `bigdata/course_proj`.
 
@@ -13,10 +13,12 @@ Scope: current filesystem under `bigdata/course_proj`.
 | `README.md` | Project overview, quickstart, and current status. | Includes install and pytest commands. |
 | `TASK.md` | Course requirements mapped to local deliverables. | Use for acceptance checks. |
 | `pyproject.toml` | Packaging, dependencies, extras, and pytest markers. | Editable install target. |
+| `Dockerfile` | Minimal package image for the Bronze scheduler service. | Used by `docker-compose.yml` `scheduler`. |
+| `docker-compose.yml` | Local MinIO lakehouse stack plus restartable Bronze scheduler service. | `scheduler` writes run evidence under `output/evidence/scheduler/`. |
 | `CONTRIBUTING.md` | Contributor workflow, gap IDs, evidence rules. | Root-level GitHub contributor guidance. |
 | `.gitignore` | Repo-local ignore rules. | Keeps runtime/cache artifacts out of commits. |
 | `WIRING.md` | Remaining source-scheduling note. | Now focused on GAP-005, not file copying. |
-| `docs/` | Durable documentation set. | Code map, architecture, contracts, verification, progress, gaps. |
+| `docs/` | Durable documentation set. | Code map, architecture, contracts, verification, operations, progress, gaps. |
 | `tests/` | Pytest characterization and integration suite. | Deterministic tests include the GAP-004 fixture E2E path. |
 | `output/` | Student-facing evidence and notes. | Runtime scratch belongs under `output/runtime/`. |
 
@@ -37,7 +39,7 @@ Path: `src/railway_lakehouse/bronze/`
 |---|---|
 | `config.py` | Environment-driven MinIO settings, country scope, multilingual rail terms, RSS feed registries. |
 | `lander.py` | `RawLander` and `RawArtifact`; writes raw bytes plus metadata sidecars to Bronze MinIO paths. |
-| `run.py` | Bronze orchestrator with `stats`, `news`, `all`, and `schedule` modes. |
+| `run.py` | Bronze orchestrator with `stats`, `news`, `all`, and `schedule` modes, S3 preflight, fail-soft batch manifests, and resilient scheduler ticks. |
 | `sources/eurostat.py` | Discovers rail datasets from Eurostat TOC and lands raw compressed TSV data. |
 | `sources/worldbank.py` | Discovers rail indicators and lands raw World Bank JSON time series. |
 | `sources/gdelt.py` | Pulls recent GDELT DOC API article lists for scoped railway queries. |
@@ -47,7 +49,7 @@ Path: `src/railway_lakehouse/bronze/`
 | `sources/uic.py` | UIC RAILISA public statistical publication fetcher; validates and lands raw PDF files, with subscribed CSV/Excel/API access documented as a boundary. |
 | `sources/past_recordings.py` | One-off historical GDELT backfill with DOC API and GKG v1 modes. |
 
-Current status: Bronze code is consolidated under one package. `parser/ksh-stadat` Bronze source work is complete and live-validated, and `parser/uic-refresh` now lands current public UIC publication PDFs with bounded live evidence. GAP-005 remains because KSH, UIC, and the other new national/historical source adapters are present but not scheduled by `bronze/run.py`.
+Current status: Bronze code is consolidated under one package. The automatic-update scheduler is deployable through Docker Compose and degrades to local run-evidence manifests when MinIO is unavailable or a batch fails. `parser/ksh-stadat` Bronze source work is complete and live-validated, and `parser/uic-refresh` now lands current public UIC publication PDFs with bounded live evidence. GAP-005 remains because KSH, UIC, and the other new national/historical source adapters are present but not scheduled by `bronze/run.py`.
 
 ## Silver
 
@@ -90,6 +92,7 @@ Current status: deterministic Gold logic is characterized by unit tests, and per
 | `tests/test_bronze_characterization.py` | Bronze metadata, discovery, and GDELT query behavior. |
 | `tests/test_bronze_live_check.py` | Local Bronze live-check manifest, source-result, RSS, and KSH collector behavior with mocked HTTP. |
 | `tests/test_bronze_live_check_integration.py` | Deterministic integration fixture for KSH live-check manifest, raw Bronze file, and metadata writing. |
+| `tests/test_bronze_scheduler.py` | Deterministic GAP-019 scheduler degradation, storage-preflight, tick, and manifest behavior. |
 | `tests/test_silver_characterization.py` | Silver stats melt/crosswalk/merge and news validation/extraction behavior. |
 | `tests/test_silver_stats_integration.py` | GAP-006 Silver stats integration from Bronze World Bank/Eurostat fixtures through Parquet output. |
 | `tests/test_silver_news_parsers.py` | RSS XML and GDELT ArtList parsers, stable article IDs, and ArticleRecord extraction bridge coverage. |

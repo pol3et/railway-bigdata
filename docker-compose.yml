@@ -48,5 +48,20 @@ services:
       echo \"buckets ready: $${BRONZE_BUCKET} $${SILVER_BUCKET} $${GOLD_BUCKET}\";
       "
 
+  scheduler:
+    build: .
+    depends_on:
+      - minio
+    command: python -m railway_lakehouse.bronze.run schedule
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_KEY: ${S3_KEY:-admin}
+      S3_SECRET: ${S3_SECRET:-password123}
+      BRONZE_BUCKET: ${BRONZE_BUCKET:-bronze}
+      SCHEDULER_EVIDENCE_DIR: /app/output/evidence/scheduler
+    volumes:
+      - ./output:/app/output
+    restart: unless-stopped
+
 volumes:
   minio-data:

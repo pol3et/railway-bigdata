@@ -21,18 +21,19 @@ The `-c constraints.txt` flag reproduces the graded Python 3.14 runtime/test sta
 
 Current verification result for this scaffold:
 
-- `python -m pip install --dry-run -e ".[test]" -c constraints.txt` confirmed pandas 3.0.3 and pyarrow 24.0.0 under the committed constraints.
-- `python -m pytest -q` passed with 105 tests after adding the Spark evidence job and opt-in Spark coverage tests.
+- `python -m pip install --dry-run -e ".[test]" -c constraints.txt` confirmed pandas 3.0.3, pyarrow 24.0.0, and openpyxl 3.1.5 under the committed constraints.
+- `python -m pytest -q` passed with 136 tests after adding the KSH XLSX reader and live-layout coverage; one local Spark guard skipped because `HADOOP_HOME`/`winutils.exe` is absent.
 - `python -m compileall -q src tests` passed.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
 - GAP-009 Spark evidence was written to `output/evidence/spark/manifest.json` and `output/evidence/spark/coverage_by_geo_year/`.
+- KSH live Bronze evidence was written to `output/evidence/pr24-ksh-live-check-after-fix/manifest.json` and parsed into Silver `StatFact` rows.
 
 ## Current Status
 
 The project now has one installable source tree:
 
 - `src/railway_lakehouse/bronze/` contains raw ingestion, landing, scheduler, and source adapters.
-- `src/railway_lakehouse/silver/` contains stats/news normalization, validation logic, and local Parquet persistence. Eurostat TSV + World Bank JSON fixtures now become `StatFact` rows; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
+- `src/railway_lakehouse/silver/` contains stats/news normalization, validation logic, and local Parquet persistence. Eurostat TSV, World Bank JSON, and KSH XLSX fixtures now become `StatFact` rows; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
 - `src/railway_lakehouse/gold/` contains deterministic feature matrix builders and Parquet writing.
 - `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze stats/news fixtures via `--bronze-root`, including RSS XML, and can reproduce a bounded local stats-only Gold result from rerun Eurostat/World Bank raw Bronze artifacts. Local Spark evidence over real Gold is proven; full live MinIO/Ollama/news/Spark E2E remains unproven.
 - `tests/` contains deterministic characterization and integration tests, including the GAP-004 fixture E2E path.
@@ -93,6 +94,14 @@ docker compose down
 ```
 
 Use `docker compose down -v` only when you intentionally want to delete the local MinIO volume.
+
+## Bronze scheduler runbook
+
+One-line runbook: start automatic Bronze updates with `docker compose up -d minio createbuckets scheduler`, then inspect `docker compose logs -f scheduler` and `output/evidence/scheduler/*.json` for `status: "ok"` or `status: "degraded"`.
+
+The `scheduler` service runs `python -m railway_lakehouse.bronze.run schedule` with `restart: unless-stopped` and writes local run-evidence manifests under `output/evidence/scheduler/`. If MinIO is down at boot or a batch raises a storage connection error, the batch degrades by logging a warning and writing a `status: "degraded"` manifest instead of killing the loop.
+
+Native hosts can use a systemd timer or cron instead of the long-running Compose scheduler. The restart-safe native pattern is to run the one-off command `python -m railway_lakehouse.bronze.run all` from a host timer; systemd timers with `Persistent=true` can catch up one missed calendar activation after downtime. See `docs/OPERATIONS.md` for unit examples.
 
 ## Spark / Big Data engine setup
 

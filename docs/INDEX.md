@@ -17,6 +17,7 @@ This documentation set is the project-local starting point for agents and contri
 | `PARSER_WORK_LOG.md` | Rolling parser inventory, bounded live evidence, source-to-feature matrix, and owner-ready parser waves. |
 | `AGENTIC_WORKFLOW.md` | How agents should work, log, and hand off. |
 | `VERIFICATION.md` | Verification strategy and evidence requirements. |
+| `OPERATIONS.md` | Scheduler deployment, degradation behavior, run-evidence manifests, and native timer runbook. |
 | `GAP_REGISTER.md` | Owner-ready gap register and test failure mapping. |
 | `GAP_TASKS.md` | Per-gap implementation specs — one pick-up-cold task each (context, steps, Definition-of-Done contract, verification), grouped by urgency. |
 | `STATE_AND_ROADMAP.md` | Authoritative state snapshot, data inventory, task 9-12 status, completion roadmap, and big-data engine decision. |

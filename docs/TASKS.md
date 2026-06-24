@@ -67,13 +67,14 @@ develop against it independently with no schema collisions.
 
 | Task (slug) | RU title | Status | Maps to |
 |---|---|---|---|
-| `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (2 of 5) | GAP-006 · orig. task #9 |
+| `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (3 of 5 including KSH extra parser) | GAP-006 · orig. task #9 |
 | `silver/news-parsers` | Silver: RSS + GDELT → ArticleRecord → NewsFeature | done (LLM mocked in tests) | GAP-006 · orig. task #10 |
 | `gold/feature-matrix` | Gold: (geo, year) матрица + Parquet + counts | done on a 4-row fixture | orig. task #11 |
 | `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
 | `spark/evidence-job` | Spark reads real Gold and writes evidence | done (`output/evidence/spark/manifest.json`; Spark 4.1.2; Gold 2,968×4 -> coverage 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
 | `report/draft` | Report + presentation drafts from committed evidence | done (`output/report/REPORT.md`, `output/presentation/PRESENTATION.md`, `tests/test_report_evidence_links.py`) | GAP-011 |
 | `silver/eurostat-to-gold` | Eurostat: resilient Bronze + dataset-aware SDMX → canonical features → Gold | done (PR #21) — 6 national rail datasets → Silver 9,744 rows → Gold **1,554×10** (8 mapped features, 42 geos, 1962–2025); evidence `output/evidence/eurostat-silver-gold/` | GAP-023 · 2nd real source |
+| `silver/stats-ksh-xlsx-reader` | KSH XLSX → Silver `StatFact` | done — deterministic `openpyxl` reader registered as `ksh`; live KSH Bronze probe parsed all six current XLSX artifacts; `tests/test_silver_stats_ksh.py` passed 9 tests; full suite passed 136 tests, 1 skipped | GAP-006 · extra stats parser 1/3 |
 
 ## Now — active path
 
@@ -96,22 +97,23 @@ develop against it independently with no schema collisions.
 |---|---|---|---|---|---|
 | `bronze/gdelt-history-backfill` | Бэкафилл истории GDELT до 100k+ статей (объём) | 4 | `infra/minio-storage` | later | volume track |
 | `silver/gdelt-gkg-parser` | Парсер GKG csv.zip → ArticleRecord (подключить `gdelt_passthrough`) | 4 | `bronze/gdelt-history-backfill` | later | volume track |
-| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | later | GAP-006 (extra) |
+| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | in_progress — KSH XLSX done; Statistik Austria ODS + UIC PDF pending | GAP-006 (extra) |
 | `bronze/scheduler-wiring` | Завести KSH/StatAustria/UIC в `bronze/run.py` (автообновления) | 4 | — | later | GAP-005 |
 
 ## Newly found gaps (re-audit 2026-06-24)
 
 The `undocumented-gap-hunt` workflow surfaced **19 verified undocumented gaps**
-(`GAP-012…030`, full list in `GAP_REGISTER.md`). GAP-012 is closed by the
-2026-06-24 regen-recipe fix; GAP-013 still touches the active path and should be
-folded into the tasks above:
+(`GAP-012…030`, full list in `GAP_REGISTER.md`). GAP-012 and GAP-013 are closed:
 
 - **GAP-012** (closed 2026-06-24) — the documented Bronze→Gold reproduction
   recipe now uses `output/evidence/local-stats-bronze-regen`, and the pipeline
   raises on a missing/empty local `--bronze-root` instead of writing empty Gold.
-- **GAP-013** (medium) — the live MinIO stats path reads Eurostat only and drops World
-  Bank, so a genuinely-live Gold is feature-less. Fold into `gold/load-from-silver` /
-  the live-MinIO wiring.
+- **GAP-013** (closed 2026-06-24) — the live MinIO stats path now reads World Bank
+  JSON in addition to Eurostat (`_read_bronze_worldbank` reusing
+  `silver.stats.load.load_worldbank_frame`) and WARNs on zero WB frames, so a
+  genuinely-live Gold is no longer silently feature-less. Verified by a
+  deterministic fsspec `memory://` integration test (`pytest -q -m integration
+  tests/test_pipeline_live_stats_worldbank.py`).
 - **GAP-014** (medium) — closed 2026-06-24 by forcing the s3/MinIO text read branch to
   decode UTF-8 from bytes and covering it in `tests/test_pipeline_s3_readback.py`.
 - **GAP-020** (medium) — closed 2026-06-24 by deterministic fsspec memory:// unit tests
@@ -153,7 +155,8 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 ### Wave 4 — Make the report full (parallel)
 - `[x]` eurostat→Gold mapping (GAP-023) — **done (PR #21)**: 2nd real stats source, 8 mapped features → Gold 1,554×10 (evidence `output/evidence/eurostat-silver-gold/`)
 - `H` `infra/ollama-model` + `silver/news-llm-extraction` — news_* features into Gold
-- `H` GAP-013 (live-MinIO World Bank) + GAP-019 (deployable automatic updates)
+- `[x]` GAP-013 (live-MinIO World Bank) — **closed 2026-06-24** (live stats path now reads WB + Eurostat)
+- `[x]` GAP-019 (deployable automatic updates) — **closed 2026-06-24** (preflight-degrade scheduler + Compose `scheduler` service + systemd/cron runbook)
 
 **Contract C (verify before Wave 5 / final report):**
 - [ ] Gold carries ≥2 stats sources **and** `news_*` columns.
@@ -161,7 +164,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - [ ] A scheduled run lands fresh Bronze (automatic-updates demo).
 
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
-- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring
+- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX reader done; StatAustria ODS and UIC PDF still pending
 - `M` GDELT history backfill + GKG parser (volume)
 - `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops

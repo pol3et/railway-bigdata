@@ -276,6 +276,46 @@ def test_collect_eurostat_pulls_curated_allowlist(monkeypatch, tmp_path):
     ).exists()
 
 
+def test_collect_eurostat_records_oversized_dataset_failure(monkeypatch, tmp_path):
+    class Response:
+        def __init__(self, status_code, content, content_type="text/plain"):
+            self.status_code = status_code
+            self.content = content
+            self.headers = {
+                "Content-Type": content_type,
+                "Content-Length": str(len(content)),
+            }
+
+        @property
+        def text(self):
+            return self.content.decode("utf-8")
+
+    class Session:
+        def get(self, url, timeout, headers):
+            if "catalogue/toc" in url:
+                return Response(200, b'Transport\t"rail_pa_total"\t"dataset"\n')
+            return Response(200, b"too-large", "application/gzip")
+
+    monkeypatch.setattr(live_check.requests, "Session", Session)
+    monkeypatch.setattr(eurostat, "MAX_DATASET_BYTES", 5)
+    lander = LocalBronzeLander(tmp_path, run_id="run-001", clock=lambda: FIXED_NOW)
+
+    result = collect_eurostat(lander=lander, max_artifacts=1, timeout_seconds=3)
+
+    assert result.status == "partial"
+    assert result.artifact_count == 1
+    assert {artifact["dataset_id"] for artifact in lander.artifacts} == {"_catalogue_toc"}
+    assert result.failures == [
+        {
+            "dataset_id": "rail_pa_total",
+            "url": eurostat.DATA_URL.format(code="rail_pa_total"),
+            "http_status": 200,
+            "bytes": len(b"too-large"),
+            "error": "dataset exceeds 5 bytes",
+        }
+    ]
+
+
 def test_collect_worldbank_lands_valid_series(monkeypatch, tmp_path):
     class Response:
         def __init__(self, payload, status_code=200):

@@ -2,6 +2,37 @@
 
 This is the single persistent log for `bigdata/course_proj`. Future agents should append here before stopping.
 
+## 2026-06-24 - GAP-019 Deployable Bronze Scheduler
+
+Status: closed — implemented by the Codex agent (its exec sandbox could not spawn `python`/`git`/`gh`, recorded honestly below); verified + shipped by the orchestrator: `python -m pytest -q -m unit tests/test_bronze_scheduler.py` → 4 passed; full `python -m pytest -q` (JAVA_HOME=jdk-21) → 127 passed, 1 skipped; `python -m compileall -q src tests` clean. Rebased on GAP-013 and merged via PR.
+
+Changed:
+- `src/railway_lakehouse/bronze/run.py`
+- `tests/test_bronze_scheduler.py`
+- `docker-compose.yml`
+- `Dockerfile`
+- `README.md`
+- `docs/OPERATIONS.md`
+- `docs/INDEX.md`
+- `docs/CODEMAP.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gap019-deployable-scheduler-spec-2026-06-24.md`
+- `.planning/coursework/plans/bigdata/gap-019-deployable-scheduler.md`
+
+Findings:
+- `RawLander` write semantics were not changed; GAP-019 edits are limited to scheduler orchestration, deploy host, docs, and deterministic tests.
+- The scheduler now preflights MinIO with `s3fs.S3FileSystem.exists(BRONZE_BUCKET)`, writes `ok`/`degraded` JSON manifests under `output/evidence/scheduler/`, and wraps `schedule.run_pending()` in `_tick()` so one failing batch does not kill cadence.
+- Compose now includes a `scheduler` service with `restart: unless-stopped`, `depends_on: minio`, internal `S3_ENDPOINT=http://minio:9000`, and host-mounted scheduler evidence.
+
+Evidence:
+- RED attempt: `python -m pytest -q -m unit tests/test_bronze_scheduler.py` could not start because the default shell runner failed spawning `python` with `windows sandbox: runner error: CreateProcessAsUserW failed: 5`.
+- Retry through Serena shell execution was rejected before running, so no pytest, compileall, `git diff --check`, commit, push, or PR result is claimed.
+
+Next:
+- Run `python -m pytest -q -m unit tests/test_bronze_scheduler.py`, `python -m pytest -q`, `python -m compileall -q src tests`, and `git diff --check`; fix any failures, then commit, push `impl/gap-019`, and open the PR against `main`.
+
 ## 2026-06-24 - GAP-018 Dependency Bounds And Lockfile
 
 Status: done for implementation and local verification; PR opened from `impl/gap-018`.
@@ -1425,3 +1456,75 @@ Evidence:
 
 Next:
 - Commit, push `impl/gap-011`, and confirm PR #20 remains mergeable.
+## 2026-06-24 - GAP-013 live World Bank wiring
+
+Status: closed (Codex implemented; orchestrator verified + shipped)
+
+Changed:
+- `src/railway_lakehouse/pipeline.py` — `_read_bronze_worldbank`, `_read_bytes`, live Eurostat+World Bank frame combination + zero-WB WARN (local `bronze_root` branch unchanged)
+- `tests/test_pipeline_live_stats_worldbank.py` — deterministic fsspec `memory://` integration test
+- `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html` — GAP-013 closed + Test Failure Mapping rows
+- research: `.planning/coursework/research/bigdata/gap013-live-minio-worldbank-stats-2026-06-24.md`; orch evidence: `output/evidence/orch/gap-013/`
+
+Findings:
+- The live `_read_bronze_stats_frames` branch only read Eurostat TSV; World Bank (the only source mapping to a live Gold feature) was dropped, so a genuinely-live Gold stats matrix was silently feature-less.
+- `silver.stats.load.load_worldbank_frame` already parses deterministic World Bank `[meta, records]` JSON and tags rows `source_system='worldbank'`; the fix reuses it (no LLM, no numeric rewriting).
+- The Codex agent's exec sandbox could not spawn processes (`CreateProcessAsUserW failed: 5`); orchestrator ran verification + closure.
+
+Evidence:
+- `python -m pytest -q -m integration tests/test_pipeline_live_stats_worldbank.py` → 2 passed (WB frame returned alongside Eurostat; WB values byte-exact HU=789.12/AT=456.78; `_catalogue` skipped; zero-WB WARN fires).
+- `python -m pytest -q` (JAVA_HOME=jdk-21) → 123 passed, 1 skipped (known Windows Spark/winutils skip).
+- `python -m compileall -q src tests` → clean.
+
+Next:
+- Merge PR; rebase GAP-019's PR over the shared GAP_REGISTER/dashboard rows.
+
+
+## 2026-06-24 - KSH XLSX Silver Stats Reader
+
+Status: done for `silver/stats-ksh-xlsx-reader`.
+
+Changed:
+- Added `openpyxl` dependency for deterministic XLSX parsing.
+- Added KSH XLSX parsing in `src/railway_lakehouse/silver/stats/load.py`.
+- Registered `ksh` in the Silver stats source registry.
+- Added `tests/test_silver_stats_ksh.py`.
+
+Verified:
+- `python -m pytest -q tests/test_silver_stats_ksh.py`: 4 passed.
+- `python -m pytest -q`: 130 passed, 1 skipped.
+- The skipped test is Spark-related and is skipped locally because `pyspark` is not installed.
+
+Scope:
+- This implements KSH XLSX -> Silver StatFact.
+- Statistik Austria ODS and UIC PDF readers remain separate pending tasks.
+
+
+## 2026-06-24 - PR 24 KSH XLSX Reader Review Fixes
+
+Status: done for review fixes.
+
+Changed:
+- Hardened `src/railway_lakehouse/silver/stats/load.py` for live KSH year-first, regional-total, and sectioned single-year workbook layouts.
+- Tightened KSH label mapping in `src/railway_lakehouse/silver/stats/merge.py` so road-network rows stay unmapped and passenger/freight/rolling-stock rows map to the intended canonical features.
+- Added `openpyxl`/`et-xmlfile` constraint pins and dependency guard coverage.
+- Updated `README.md`, `docs/TASKS.md`, `docs/index.html`, `docs/STATE_AND_ROADMAP.md`, and `docs/GAP_REGISTER.md` for the current KSH parser state.
+- Added live KSH evidence manifest `output/evidence/pr24-ksh-live-check-after-fix/manifest.json`.
+
+Findings:
+- The original PR parsed only simple label-before-year workbooks; current KSH STADAT XLSX files also use year-first feature columns, regional country-total tables, and sectioned one-year tables.
+- The original dashboard still reported KSH as having no XLSX reader while the task row said done.
+- The first live parser probe skipped current `ksh_rail_network`, `ksh_rail_passenger`, and `ksh_rail_rolling_stock` shapes or flattened units too aggressively.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_ksh.py`: 9 passed.
+- `python -m pytest -q tests/test_silver_stats_ksh.py tests/test_env_versions.py`: 14 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/evidence/pr24-ksh-live-check-after-fix --max-artifacts 6 --timeout-seconds 60`: 6 artifacts, 92,509 bytes, 0 failures.
+- Live parse over `output/evidence/pr24-ksh-live-check-after-fix/bronze`: 6 KSH frames parsed, unified Silver output 382 rows x 8 columns, and 0 road-network rows mapped into Silver features.
+- `python -m pytest -q -m integration`: 16 passed, 121 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q`: 136 passed, 1 skipped.
+- `python -m compileall -q src tests`: passed.
+
+Next:
+- Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
+- Add KSH-to-Gold real-data evidence when persisted Silver/Gold runs include KSH rows.
