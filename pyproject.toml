@@ -23,8 +23,11 @@ dependencies = [
 test = [
   "pytest>=8.2",
 ]
+# GAP-017: Spark 4.1 requires JDK 17 or 21 with JAVA_HOME set.
+# S3A uses JVM/Maven packages, not pip deps; see railway_lakehouse.spark_config.
 spark = [
-  "pyspark>=3.5",
+  "pyspark==4.1.*",
+  "delta-spark==4.1.*",
 ]
 ollama = []
 dev = [

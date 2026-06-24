@@ -957,7 +957,7 @@ Boundary:
 
 Next:
 - GAP-012 (regen recipe) + GAP-013 (live MinIO WB) before relying on the live path; then
-  GAP-007 Gold<-persisted Silver, GAP-009 Spark (pin pyspark 3.5.* + JDK 17), report.
+  GAP-007 Gold<-persisted Silver, GAP-009 Spark (Spark 4.1 stack + JDK 17/21), report.
 
 ## 2026-06-24 - GAP-012 Regen Recipe Guard
 
@@ -1037,3 +1037,90 @@ Evidence:
 
 Next:
 - Open the GAP-020 PR; remaining active-path gaps include GAP-012, GAP-013, GAP-017/018, Spark evidence, persisted-Silver Gold loading, and report work.
+
+## 2026-06-24 - GAP-017 Spark Stack Pin
+
+Status: done for static pin/guard/docs; no live Spark run was executed.
+
+Research:
+- Required note updated:
+  `.planning/coursework/research/bigdata/spark4-vs-35-stack-2026-06-24.md`.
+- `research-orchestrator` was used with local files first, then Context7 / official web docs for
+  Spark, Delta, and Hadoop S3A compatibility.
+
+Changed:
+- `pyproject.toml`
+- `tests/test_spark_stack_pins.py`
+- `README.md`
+- `.env.example`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/index.html`
+- `docs/TASKS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/coursework/research/bigdata/spark4-vs-35-stack-2026-06-24.md`
+
+Findings:
+- Live env remains Python 3.14.0 / pandas 3.0.3 / pyarrow 24.0.0 / numpy 2.4.4, with Java
+  1.8.0_491 and no `JAVA_HOME`.
+- GAP-017 adopted Stack B: PySpark 4.1.x + Delta 4.1.x + S3A Maven packages
+  `org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6` + JDK
+  17/21. Stack A would require a runtime downgrade.
+- `hadoop-aws` is a Maven/JVM S3A connector, so the pip dry-run resolves PySpark and
+  Delta while docs record the matching S3A/AWS SDK v2 coordinate for the future Spark session.
+
+Evidence:
+- `python -m pip install --dry-run ".[spark]"` resolved `pyspark-4.1.2` and `delta-spark-4.1.0`.
+- `python -m pytest -q tests/test_spark_stack_pins.py` -> 1 passed.
+- `python -m pytest -q -m unit tests/test_spark_stack_pins.py` -> 1 passed.
+- `python -m pytest -q` -> 88 passed.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- GAP-009 Spark evidence job after JDK 17/21 + `JAVA_HOME` are available.
+
+## 2026-06-24 - GAP-017 PR Review Fix
+
+Status: done for PR #15 request_changes follow-up.
+
+Research:
+- Required note updated:
+  `.planning/coursework/research/bigdata/spark4-vs-35-stack-2026-06-24.md`.
+- Used `research-orchestrator` with Context7 Hadoop docs; Ref search was attempted but unavailable due
+  credits, so exact coordinates were verified from Apache Hadoop 3.4.1 docs and Maven Central POMs.
+
+Changed:
+- `pyproject.toml`
+- `src/railway_lakehouse/spark_config.py`
+- `tests/test_spark_stack_pins.py`
+- `README.md`
+- `.env.example`
+- `docs/GAP_TASKS.md`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/index.html`
+- `docs/TASKS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/coursework/research/bigdata/spark4-vs-35-stack-2026-06-24.md`
+
+Findings:
+- Removed the fake `hadoop-aws` pip dependency from `[spark]`; the extra now contains only
+  `pyspark==4.1.*` and `delta-spark==4.1.*`.
+- Added `railway_lakehouse.spark_config.SPARK_S3A_PACKAGES` with
+  `org.apache.hadoop:hadoop-aws:3.4.1,software.amazon.awssdk:bundle:2.24.6` for future
+  `spark.jars.packages` use.
+- Updated GAP-009/GAP-017 task contracts in `docs/GAP_TASKS.md` to Spark 4.1 / Delta 4.1 /
+  JDK 17 or 21 / Maven S3A packages.
+
+Evidence:
+- `python -m pytest -q tests/test_spark_stack_pins.py` -> 1 passed.
+- `python -m pytest -q -m unit tests/test_spark_stack_pins.py` -> 1 passed.
+- `python -m pip install --dry-run ".[spark]"` -> would install `pyspark-4.1.2`,
+  `delta-spark-4.1.0`, `py4j-0.10.9.9`; no `hadoop-aws` pip package.
+- `python -m pytest -q` -> 88 passed.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- Push the PR #15 update and keep it mergeable; GAP-009 can use the new Spark config constants.
