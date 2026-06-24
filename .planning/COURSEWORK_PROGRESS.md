@@ -1,5 +1,27 @@
 # Coursework Progress
 
+## 2026-06-24 - GAP-019 Deployable Bronze Scheduler
+
+Status: closed — implemented by the Codex agent (exec sandbox could not spawn processes; recorded honestly below); orchestrator verified (`pytest -q -m unit tests/test_bronze_scheduler.py` → 4 passed; full `pytest -q` → 127 passed, 1 skipped; `compileall` clean), rebased on GAP-013, and shipped via PR.
+
+Research:
+- Updated `.planning/coursework/research/bigdata/gap019-deployable-scheduler-spec-2026-06-24.md` with local file findings plus primary-source checks for `schedule`, Docker Compose service dependencies, and systemd timers.
+- Approved implementation plan: `.planning/coursework/plans/bigdata/gap-019-deployable-scheduler.md`.
+
+Changed:
+- Added deterministic scheduler tests in `tests/test_bronze_scheduler.py`.
+- Updated `src/railway_lakehouse/bronze/run.py` with S3 preflight, fail-soft `_run_batch`, scheduler manifests, and `_tick()`.
+- Added `Dockerfile` and a Compose `scheduler` service.
+- Added scheduler operations/runbook docs in `README.md` and `docs/OPERATIONS.md`.
+- Synced `docs/INDEX.md`, `docs/CODEMAP.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `docs/PROGRESS_LOG.md`.
+
+Evidence:
+- `python -m pytest -q -m unit tests/test_bronze_scheduler.py` could not start in this session: spawning `python` fails with `windows sandbox: runner error: CreateProcessAsUserW failed: 5`.
+- Serena shell execution was also rejected before running; no test, compileall, git, gh, or PR result is claimed.
+
+Next:
+- Resume from verification: run the GAP-019 unit test, full pytest, compileall, `git diff --check`, then commit/push/open the PR.
+
 ## 2026-06-24 - GAP-011 Report And Presentation Drafts
 
 Status: done for implementation and local verification; PR handoff pending.

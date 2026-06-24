@@ -81,5 +81,26 @@ MinIO-unreachable startup with no error handling.
   a tmp_path; a second test asserts the schedule loop body swallows a batch
   exception.
 
+## External primary-source check (implementation pass)
+- `schedule` docs: `schedule.run_pending()` loops are the library's normal
+  execution model, missed jobs are intentionally not replayed by the background
+  runner, and exceptions from jobs are not caught by `schedule` itself. Sources:
+  https://schedule.readthedocs.io/en/stable/examples.html,
+  https://schedule.readthedocs.io/en/stable/background-execution.html,
+  https://schedule.readthedocs.io/en/stable/exception-handling.html.
+- Docker Compose docs: `depends_on` controls service start order; readiness only
+  waits for dependencies marked `service_healthy`, so a scheduler still needs a
+  fail-soft MinIO preflight. Source:
+  https://docs.docker.com/reference/compose-file/services/.
+- systemd timer docs: `.timer` units activate matching services, `OnCalendar=`
+  provides wall-clock cadence, and `Persistent=true` stores last trigger time on
+  disk so a timer can catch up a missed run after the host was down. Source:
+  https://man7.org/linux/man-pages/man5/systemd.timer.5.html.
+
+## Implementation plan
+Approved plan: `.planning/coursework/plans/bigdata/gap-019-deployable-scheduler.md`.
+
 ## Evidence
-Planning/spec pass only; no code, scheduler, MinIO, Spark, or live collectors run.
+Implementation started after the spec/research pass. Verification commands are
+recorded in `docs/GAP_REGISTER.md` and the progress logs; no live MinIO,
+collector, Spark, Silver, Gold, or LLM runs are claimed for GAP-019.
