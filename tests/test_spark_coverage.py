@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +15,13 @@ pyspark = pytest.importorskip("pyspark")
 from railway_lakehouse.spark_jobs import coverage
 
 pytestmark = pytest.mark.spark
+
+_HADOOP_NATIVE_ERROR_MARKERS = (
+    "HADOOP_HOME and hadoop.home.dir are unset",
+    "winutils.exe",
+    "getWinUtilsPath",
+    "WindowsProblems",
+)
 
 
 def _write_gold(path: Path) -> None:
@@ -45,10 +54,46 @@ def _part_files(path: Path) -> list[Path]:
     return sorted(path.rglob("part-*.parquet"))
 
 
+def _skip_if_missing_windows_hadoop_native() -> None:
+    if sys.platform != "win32":
+        return
+
+    hadoop_home = os.environ.get("HADOOP_HOME")
+    if not hadoop_home:
+        pytest.skip(
+            "Spark Parquet writes on Windows require HADOOP_HOME with "
+            "bin/winutils.exe"
+        )
+
+    winutils = Path(hadoop_home) / "bin" / "winutils.exe"
+    if not winutils.is_file():
+        pytest.skip(
+            "Spark Parquet writes on Windows require a usable Hadoop native "
+            f"helper at {winutils}"
+        )
+
+
+def _skip_if_hadoop_native_write_error(manifest_path: Path) -> None:
+    if not manifest_path.exists():
+        return
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    error_text = "\n".join(
+        str(manifest.get(field, "")) for field in ("error", "hint")
+    )
+    if any(marker in error_text for marker in _HADOOP_NATIVE_ERROR_MARKERS):
+        pytest.skip(
+            "Spark Parquet write skipped because Hadoop native helpers are "
+            "unavailable"
+        )
+
+
 def test_main_reads_gold_and_writes_manifest_and_spark_parquet(tmp_path: Path):
     input_path = tmp_path / "gold.parquet"
     out_dir = tmp_path / "evidence" / "spark"
+    manifest_path = out_dir / "manifest.json"
     _write_gold(input_path)
+    _skip_if_missing_windows_hadoop_native()
 
     rc = coverage.main(
         [
@@ -61,10 +106,11 @@ def test_main_reads_gold_and_writes_manifest_and_spark_parquet(tmp_path: Path):
         ]
     )
 
+    if rc != 0:
+        _skip_if_hadoop_native_write_error(manifest_path)
     assert rc == 0
 
     output_path = out_dir / "coverage_by_geo_year"
-    manifest_path = out_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert output_path.is_dir()
