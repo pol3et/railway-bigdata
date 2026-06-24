@@ -22,9 +22,10 @@ The `-c constraints.txt` flag reproduces the graded Python 3.14 runtime/test sta
 Current verification result for this scaffold:
 
 - `python -m pip install --dry-run -e ".[test]" -c constraints.txt` confirmed pandas 3.0.3 and pyarrow 24.0.0 under the committed constraints.
-- `python -m pytest -q` passed with 92 tests after adding Silver persistence, the local stats Bronze -> Gold evidence path, the MinIO infra guard, and the environment-version guard.
+- `python -m pytest -q` passed with 105 tests after adding the Spark evidence job and opt-in Spark coverage tests.
 - `python -m compileall -q src tests` passed.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
+- GAP-009 Spark evidence was written to `output/evidence/spark/manifest.json` and `output/evidence/spark/coverage_by_geo_year/`.
 
 ## Current Status
 
@@ -33,7 +34,7 @@ The project now has one installable source tree:
 - `src/railway_lakehouse/bronze/` contains raw ingestion, landing, scheduler, and source adapters.
 - `src/railway_lakehouse/silver/` contains stats/news normalization, validation logic, and local Parquet persistence. Eurostat TSV + World Bank JSON fixtures now become `StatFact` rows; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
 - `src/railway_lakehouse/gold/` contains deterministic feature matrix builders and Parquet writing.
-- `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze stats/news fixtures via `--bronze-root`, including RSS XML, and can reproduce a bounded local stats-only Gold result from rerun Eurostat/World Bank raw Bronze artifacts. Live MinIO/Ollama/Spark runs are still unproven.
+- `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze stats/news fixtures via `--bronze-root`, including RSS XML, and can reproduce a bounded local stats-only Gold result from rerun Eurostat/World Bank raw Bronze artifacts. Local Spark evidence over real Gold is proven; full live MinIO/Ollama/news/Spark E2E remains unproven.
 - `tests/` contains deterministic characterization and integration tests, including the GAP-004 fixture E2E path.
 
 ## Start Here
@@ -61,7 +62,7 @@ Current implementation uses Python, MinIO/S3-style paths, pandas transformations
 
 ## Development Rule
 
-Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven paths are deterministic fixture Bronze -> Silver -> Gold, local Silver Parquet persistence, and a bounded local stats-only Bronze -> Gold reproduction from Eurostat/World Bank raw artifacts; the committed Gold feature in that real run is World Bank `rail_network_length_km`.
+Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven paths are deterministic fixture Bronze -> Silver -> Gold, local Silver Parquet persistence, a bounded local stats-only Bronze -> Gold reproduction from Eurostat/World Bank raw artifacts, and a Spark coverage job over the real Gold Parquet at `output/evidence/inventory-live-2026-06-23/railway_ml.parquet`.
 
 ## Local lakehouse (MinIO)
 
@@ -106,3 +107,16 @@ That resolves only Python packages: PySpark 4.1.x and `delta-spark` 4.1.x. Spark
 Spark 4.x runs with ANSI SQL behavior enabled by default. Prefer `try_cast()` for dirty source fields; use `spark.sql.ansi.enabled=false` only as a last resort and record that choice in evidence. PySpark writes Parquet as a directory containing part files and `_SUCCESS`, not as a single `.parquet` file.
 
 On native Windows, `winutils.exe` and `hadoop.dll` must match Hadoop 3.4.x. WSL2 or Dockerized Spark avoids the native Hadoop DLL path.
+
+Run the local Spark evidence job after installing the optional extra and setting
+`JAVA_HOME` to JDK 17 or 21. On native Windows also set `HADOOP_HOME` to a Hadoop
+3.4.x helper directory containing `bin/winutils.exe` and `bin/hadoop.dll`.
+
+```bash
+python -m railway_lakehouse.spark_jobs.coverage --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/spark/
+```
+
+Committed evidence: `output/evidence/spark/manifest.json` records Spark 4.1.2,
+JDK 21.0.11, input Gold shape 2,968 rows x 4 columns, output coverage shape
+2,968 rows x 5 columns, one Spark part-file, `_SUCCESS`, and the Spark-written
+directory `output/evidence/spark/coverage_by_geo_year/`.

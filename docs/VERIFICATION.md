@@ -4,23 +4,29 @@
 
 Deterministic characterization tests now exist under `tests/`.
 
-Fresh results from 2026-06-24 after GAP-012:
+Fresh results from 2026-06-24 after GAP-009:
 
 ```bash
 python -m pytest -q
+python -m pytest -q -m "unit or integration"
+python -m pytest -q -m spark
+python -c "import railway_lakehouse.spark_jobs.coverage"
 python -m compileall -q src tests
 git diff --check
 ```
 
 Observed results:
 
-- Full suite passed: 90 passed.
-- Unit marker suite passed: 77 passed, 13 deselected.
-- Integration marker suite passed: 13 passed, 77 deselected.
+- Full suite passed: 105 passed.
+- Unit/integration marker suite passed: 103 passed, 2 deselected.
+- Spark marker suite passed: 2 passed, 103 deselected.
+- Spark coverage import command passed.
 - GAP-012 guard tests pass: missing/empty local `--bronze-root` fails before
   Gold writing, and live-check run-id nesting remains pinned.
+- GAP-009 guard tests pass: missing Gold input raises `FileNotFoundError` and a
+  0-row Gold Parquet raises `ValueError`.
 - Compileall passed.
-- `git diff --check` passed.
+- `git diff --check` passed with line-ending warnings only.
 
 Additional local stats Bronze -> Gold validation (GAP-012 corrected recipe,
 2026-06-24):
@@ -189,15 +195,41 @@ python -m pytest -q -m integration
 
 ### Spark Evidence
 
-Future Spark evidence should capture:
+GAP-009 now has a local Spark evidence command over the richest real Gold
+Parquet. Install the pinned optional stack first (`pyspark==4.1.*` and
+`delta-spark==4.1.*` only). Runtime execution requires JDK 17 or 21 with
+`JAVA_HOME`; native Windows also needs `HADOOP_HOME` pointing at a Hadoop 3.4.x
+helper directory containing `bin/winutils.exe` and `bin/hadoop.dll`.
 
-- command used,
-- Spark version,
-- input rows,
-- output rows,
-- partitions/files written,
-- job duration if available,
-- output path.
+```bash
+python -m pip install -e ".[spark]"
+python -m railway_lakehouse.spark_jobs.coverage --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/spark/
+python -m json.tool output/evidence/spark/manifest.json
+```
+
+Observed 2026-06-24:
+
+- Evidence command exited 0.
+- Evidence manifest: `output/evidence/spark/manifest.json`.
+- Spark output directory: `output/evidence/spark/coverage_by_geo_year/`.
+- Spark version: 4.1.2.
+- Java version: 21.0.11.
+- Input Gold: 2,968 rows x 4 columns
+  `[geo, year, rail_freight_tonne_km, rail_network_length_km]`.
+- Output coverage: 2,968 rows x 5 columns
+  `[geo, year, row_count, rail_freight_tonne_km_non_null, rail_network_length_km_non_null]`.
+- Files written include `_SUCCESS` and one
+  `part-*.snappy.parquet` data file; Windows local mode also writes Hadoop CRC
+  sidecars.
+- `partitions_written`: 1.
+- `status`: `passed`.
+
+Guard behavior:
+
+- Missing input raises `FileNotFoundError` with a hint to run the Gold pipeline
+  or pass an existing Gold Parquet.
+- A 0-row input raises `ValueError`; the job does not silently write empty Spark
+  evidence.
 
 ## Evidence Directory
 
