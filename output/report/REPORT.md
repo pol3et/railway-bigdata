@@ -6,7 +6,7 @@ This report is evidence-grounded: each quantitative claim points to a committed 
 
 ## Problem And Dataset
 
-The course project builds a railway lakehouse for Hungary and Austria, with international context where the source data is broader. The current reportable dataset combines rail statistics and rail-news inputs, then turns verified statistical series into an analysis-ready Gold table.
+The course project builds a railway lakehouse for Hungary and Austria, with international context where the source data is broader. The project tracks rail statistics plus candidate rail-news sources, but the current reportable Gold is stats-only: it contains World Bank `rail_freight_tonne_km` and `rail_network_length_km` features. News features are pending GAP-006 and are not present in the current Gold output.
 
 | Source | Format | Current project role | Evidence |
 |---|---|---|---|
@@ -115,11 +115,11 @@ The Spark job reads the real Gold Parquet and writes coverage output under `outp
 | Silver stats reloaded rows | `output/evidence/inventory-live-2026-06-23/inventory_samples.json` | `silver_stats.reloaded_rows=35112` |
 | Silver stats feature counts | `output/evidence/inventory-live-2026-06-23/inventory_samples.json` | `rail_freight_tonne_km=17556`; `rail_network_length_km=17556` |
 | Gold sample metadata | `output/evidence/inventory-live-2026-06-23/inventory_samples.json` | `gold.rows=2968`; `gold.geos=151` |
-| World Bank live inventory status | `output/evidence/inventory-live-2026-06-23/manifest.json` | `source=worldbank`; `status=passed`; `artifact_count=3`; `byte_count=17065815` |
-| Eurostat live inventory status | `output/evidence/inventory-live-2026-06-23/manifest.json` | `source=eurostat`; `status=failed` |
+| World Bank live inventory status | `output/evidence/inventory-live-2026-06-23/manifest.json` | `worldbank.status=passed`; `worldbank.artifact_count=3`; `worldbank.byte_count=17065815` |
+| Eurostat live inventory status | `output/evidence/inventory-live-2026-06-23/manifest.json` | `eurostat.status=failed` |
 | Crosswalk mappings | `output/evidence/inventory-live-2026-06-23/crosswalk_cache.json` | `Rail lines (total route-km)=rail_network_length_km`; `Railways, goods transported (million ton-km)=rail_freight_tonne_km` |
-| Earlier Gold smoke | `output/evidence/first-real-gold-local-stats-v2/counts.json` | `rows=2139`; `columns=3`; `geos_count=116` |
-| MinIO smoke status | `output/evidence/minio-smoke/manifest.json` | `status=passed`; `roundtrip_ok=true`; `bytes_written=32`; `bytes_read=32` |
+| Earlier Gold smoke | `output/evidence/first-real-gold-local-stats-v2/counts.json` | `first_gold.rows=2139`; `first_gold.columns=3`; `first_gold.geos_count=116` |
+| MinIO smoke status | `output/evidence/minio-smoke/manifest.json` | `minio.status=passed`; `roundtrip_ok=true`; `bytes_written=32`; `bytes_read=32` |
 | MinIO buckets | `output/evidence/minio-smoke/manifest.json` | `buckets=["bronze","silver","gold"]` |
 | KSH Bronze coverage | `output/evidence/ksh-live-check-2026-06-22-current/manifest.json` | `artifact_count=6`; `byte_count=92509` |
 | UIC Bronze coverage | `output/evidence/uic-live-check-2026-06-22/manifest.json` | `artifact_count=2`; `byte_count=2109240` |
@@ -127,6 +127,6 @@ The Spark job reads the real Gold Parquet and writes coverage output under `outp
 | RSS Bronze coverage | `output/evidence/rss-feed-health-2026-06-22/manifest.json` | `artifact_count=9`; `byte_count=496138`; `status=partial` |
 | Statistik Austria probe | `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json` | `landed_artifacts=5`; `rolling_stock_total_2024=20863` |
 | GDELT live probe | `output/evidence/gdelt-live-check-2026-06-22/manifest.json` | `status=failed`; `artifact_count=0`; `http_status=429` |
-| Spark job status | `output/evidence/spark/manifest.json` | `status=passed`; `spark_version=4.1.2`; `java_version=21.0.11` |
+| Spark job status | `output/evidence/spark/manifest.json` | `spark.status=passed`; `spark_version=4.1.2`; `java_version=21.0.11` |
 | Spark input shape | `output/evidence/spark/manifest.json` | `input_rows=2968`; `input_columns=4` |
 | Spark output shape | `output/evidence/spark/manifest.json` | `output_rows=2968`; `output_columns=5`; `partitions_written=1` |

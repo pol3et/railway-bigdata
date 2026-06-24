@@ -70,3 +70,25 @@ Workflow: `research-orchestrator` was invoked before planning or edits. Local fi
 - The task text says the Spark section should stay pending until GAP-009 lands. Local repository evidence shows GAP-009 has landed and is committed, so the honest report should cite `output/evidence/spark/manifest.json` and should not claim Spark is unbuilt.
 - Keep known gaps explicit: GAP-013 live-MinIO stats path, GAP-006 remaining parsers/news extraction failure accounting, GAP-023 Eurostat-to-Gold mapping, and GAP-019 deployable automatic updates.
 - Add a deterministic unit test that reads report/presentation text and evidence JSON directly from committed repo deliverables, not from `coursework/` data or services.
+
+## PR #20 Review Fix Research
+
+Date: 2026-06-24
+
+Review findings checked against local files:
+
+- P2a was valid: `output/report/REPORT.md` described the current reportable
+  dataset as combining rail statistics and news inputs. That overstated the
+  current Gold output, which is stats-only (`rail_freight_tonne_km` and
+  `rail_network_length_km`) and has no live news/Ollama-derived features.
+- P2b was valid: `tests/test_report_evidence_links.py` checked headline values
+  only in `REPORT.md` and only as raw values, so a stray matching number could
+  pass without proving the exact JSON key/value claim.
+
+Implementation conclusion:
+
+- Reword the report and presentation problem framing to say the project tracks
+  statistics plus candidate news sources, while current reportable Gold is
+  stats-only and news features remain pending GAP-006.
+- Extend the checker so exact `key=value` tokens are built from committed JSON
+  values and required in both `REPORT.md` and `PRESENTATION.md`.

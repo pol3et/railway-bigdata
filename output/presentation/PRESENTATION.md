@@ -8,7 +8,7 @@ Railway Lakehouse: Evidence-Grounded Hungary and Austria Rail Data Pipeline
 
 ## Slide 2 - Problem
 
-Build a railway data collection and analysis path that can support automatic updates, Big Data processing, and an auditable course report.
+Build a railway data collection and analysis path that can support automatic updates, Big Data processing, and an auditable course report. Current reportable Gold is stats-only; news sources are candidates for GAP-006 and are not current Gold features.
 
 > Speaker notes: The report scope is honest: the current proven statistics output is World Bank-backed; source expansion and live MinIO end-to-end wiring remain tracked gaps.
 
@@ -27,7 +27,7 @@ Current source evidence:
 - UIC: `artifact_count=2`, `byte_count=2109240` from `output/evidence/uic-live-check-2026-06-22/manifest.json`.
 - RSS: `artifact_count=9`, `byte_count=496138`, `status=partial` from `output/evidence/rss-feed-health-2026-06-22/manifest.json`.
 
-> Speaker notes: The sources table in the report adds Statistik Austria and GDELT. The key point is that raw-source evidence is distinct from Silver/Gold contribution.
+> Speaker notes: The sources table in the report adds Statistik Austria and GDELT. The key point is that raw-source evidence is distinct from Silver/Gold contribution. Exact inventory tokens: `worldbank.status=passed`; `worldbank.artifact_count=3`; `worldbank.byte_count=17065815`; `eurostat.status=failed`.
 
 ## Slide 5 - Proven Gold Result
 
@@ -40,17 +40,17 @@ Samples from `output/evidence/inventory-live-2026-06-23/inventory_samples.json`:
 - AT `year=1995`, `rail_freight_tonne_km=13715.0`, `rail_network_length_km=5672.0`.
 - HU `year=1995`, `rail_freight_tonne_km=8337.0`, `rail_network_length_km=7988.0`.
 
-> Speaker notes: The earlier smoke was `rows=2139`, `columns=3`, `geos_count=116` in `output/evidence/first-real-gold-local-stats-v2/counts.json`; it is useful history but not the headline result.
+> Speaker notes: `silver_stats.reloaded_rows=35112` comes from `output/evidence/inventory-live-2026-06-23/inventory_samples.json`. The earlier smoke was `first_gold.rows=2139`, `first_gold.columns=3`, `first_gold.geos_count=116` in `output/evidence/first-real-gold-local-stats-v2/counts.json`; it is useful history but not the headline result.
 
 ## Slide 6 - MinIO Storage
 
-Local object storage smoke passed with `status=passed`, `roundtrip_ok=true`, `bytes_written=32`, `bytes_read=32`, and buckets `bronze`, `silver`, `gold` in `output/evidence/minio-smoke/manifest.json`.
+Local object storage smoke passed with `minio.status=passed`, `roundtrip_ok=true`, `bytes_written=32`, `bytes_read=32`, and buckets `bronze`, `silver`, `gold` in `output/evidence/minio-smoke/manifest.json`.
 
 > Speaker notes: This proves the local S3-style storage surface, not the complete live MinIO stats path. GAP-013 still tracks the missing live-MinIO World Bank read path.
 
 ## Slide 7 - Spark Result
 
-GAP-009 is landed in this checkout. Spark evidence in `output/evidence/spark/manifest.json` records `status=passed`, `spark_version=4.1.2`, `java_version=21.0.11`, input `2968` rows x `4` columns, output `2968` rows x `5` columns, and `partitions_written=1`.
+GAP-009 is landed in this checkout. Spark evidence in `output/evidence/spark/manifest.json` records `spark.status=passed`, `spark_version=4.1.2`, `java_version=21.0.11`, `input_rows=2968`, `input_columns=4`, `output_rows=2968`, `output_columns=5`, and `partitions_written=1`.
 
 > Speaker notes: The future placeholder is the larger rerun after more sources and live MinIO/news are proven. This draft does not invent those future numbers.
 

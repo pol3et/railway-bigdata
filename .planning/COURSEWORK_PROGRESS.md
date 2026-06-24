@@ -49,6 +49,33 @@ Boundary:
 Next:
 - Commit, push `impl/gap-011`, open the PR against `main`, and verify mergeability.
 
+## 2026-06-24 - GAP-011 PR #20 Review Fixes
+
+Status: done.
+
+Research:
+- Updated `.planning/coursework/research/bigdata/gap-011-report-presentation.md`
+  after verifying both review findings against local files.
+
+Changed:
+- Reworded `output/report/REPORT.md` so the problem/dataset section states
+  that current reportable Gold is stats-only and news features remain pending
+  GAP-006.
+- Added exact source-derived `key=value` headline tokens to
+  `output/presentation/PRESENTATION.md`.
+- Extended `tests/test_report_evidence_links.py` to build exact `key=value`
+  tokens from committed evidence JSON and require them in both the report and
+  presentation.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_report_evidence_links.py` failed after
+  the stricter checker was added.
+- GREEN: `python -m pytest -q tests/test_report_evidence_links.py` -> 3 passed.
+- `python -m pytest -q -m unit` -> 93 passed, 16 deselected.
+
+Next:
+- Commit, push, and confirm PR #20 mergeability.
+
 ## 2026-06-24 - GAP-018 Dependency Bounds And Lockfile
 
 Status: done for implementation and local verification.

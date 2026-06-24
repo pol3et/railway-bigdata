@@ -1398,3 +1398,30 @@ Evidence:
 
 Next:
 - Commit, push `impl/gap-011`, open the PR against `main`, and confirm GitHub mergeability.
+
+## 2026-06-24 - GAP-011 PR #20 review fixes
+
+Status: done.
+
+Changed:
+- `output/report/REPORT.md`
+- `output/presentation/PRESENTATION.md`
+- `tests/test_report_evidence_links.py`
+- `.planning/coursework/research/bigdata/gap-011-report-presentation.md`
+
+Findings:
+- Review P2a was valid: the report opening overstated news as part of the
+  current reportable dataset. The current Gold is stats-only; news remains
+  candidate input pending GAP-006.
+- Review P2b was valid: the checker verified headline values only in
+  `REPORT.md`, and did not require exact JSON `key=value` tokens in the
+  presentation.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_report_evidence_links.py` failed after
+  extending the checker because both docs lacked the stricter exact tokens.
+- GREEN: `python -m pytest -q tests/test_report_evidence_links.py` -> 3 passed.
+- `python -m pytest -q -m unit` -> 93 passed, 16 deselected.
+
+Next:
+- Commit, push `impl/gap-011`, and confirm PR #20 remains mergeable.

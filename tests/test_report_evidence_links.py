@@ -43,9 +43,69 @@ def _json_value_token(value: Any) -> str:
     return str(value)
 
 
-def _assert_values_in_report(report_text: str, values: list[Any]) -> None:
-    missing = [_json_value_token(value) for value in values if _json_value_token(value) not in report_text]
-    assert missing == []
+def _claim_token(key: str, value: Any) -> str:
+    return f"{key}={_json_value_token(value)}"
+
+
+def _headline_claim_tokens() -> list[str]:
+    counts = _load_json("output/evidence/inventory-live-2026-06-23/counts.json")
+    samples = _load_json("output/evidence/inventory-live-2026-06-23/inventory_samples.json")
+    inventory_manifest = _load_json("output/evidence/inventory-live-2026-06-23/manifest.json")
+    minio_manifest = _load_json("output/evidence/minio-smoke/manifest.json")
+    first_gold_counts = _load_json("output/evidence/first-real-gold-local-stats-v2/counts.json")
+    spark_manifest = _load_json("output/evidence/spark/manifest.json")
+
+    worldbank_summary = next(
+        source for source in inventory_manifest["sources"] if source["source"] == "worldbank"
+    )
+    eurostat_summary = next(
+        source for source in inventory_manifest["sources"] if source["source"] == "eurostat"
+    )
+    at_1995 = samples["gold"]["sample_AT"][0]
+    hu_1995 = samples["gold"]["sample_HU"][0]
+
+    return [
+        _claim_token("rows", counts["rows"]),
+        _claim_token("columns", counts["columns"]),
+        _claim_token("geos_count", counts["geos_count"]),
+        _claim_token("year_min", counts["year_min"]),
+        _claim_token("year_max", counts["year_max"]),
+        _claim_token("at_rows", counts["at_rows"]),
+        _claim_token("hu_rows", counts["hu_rows"]),
+        _claim_token("rail_freight_tonne_km", at_1995["rail_freight_tonne_km"]),
+        _claim_token("rail_network_length_km", at_1995["rail_network_length_km"]),
+        _claim_token("rail_freight_tonne_km", hu_1995["rail_freight_tonne_km"]),
+        _claim_token("rail_network_length_km", hu_1995["rail_network_length_km"]),
+        _claim_token("silver_stats.reloaded_rows", samples["silver_stats"]["reloaded_rows"]),
+        _claim_token("worldbank.status", worldbank_summary["status"]),
+        _claim_token("worldbank.artifact_count", worldbank_summary["artifact_count"]),
+        _claim_token("worldbank.byte_count", worldbank_summary["byte_count"]),
+        _claim_token("eurostat.status", eurostat_summary["status"]),
+        _claim_token("minio.status", minio_manifest["status"]),
+        _claim_token("roundtrip_ok", minio_manifest["roundtrip_ok"]),
+        _claim_token("bytes_written", minio_manifest["bytes_written"]),
+        _claim_token("bytes_read", minio_manifest["bytes_read"]),
+        _claim_token("first_gold.rows", first_gold_counts["rows"]),
+        _claim_token("first_gold.columns", first_gold_counts["columns"]),
+        _claim_token("first_gold.geos_count", first_gold_counts["geos_count"]),
+        _claim_token("spark.status", spark_manifest["status"]),
+        _claim_token("spark_version", spark_manifest["spark_version"]),
+        _claim_token("java_version", spark_manifest["java_version"]),
+        _claim_token("input_rows", spark_manifest["input_rows"]),
+        _claim_token("input_columns", spark_manifest["input_columns"]),
+        _claim_token("output_rows", spark_manifest["output_rows"]),
+        _claim_token("output_columns", spark_manifest["output_columns"]),
+        _claim_token("partitions_written", spark_manifest["partitions_written"]),
+    ]
+
+
+def _assert_claim_tokens_in_texts(text_by_name: dict[str, str]) -> None:
+    claim_tokens = _headline_claim_tokens()
+    missing = {
+        name: [token for token in claim_tokens if token not in text]
+        for name, text in text_by_name.items()
+    }
+    assert missing == {name: [] for name in text_by_name}
 
 
 def test_report_and_presentation_exist() -> None:
@@ -66,64 +126,13 @@ def test_all_cited_evidence_paths_exist() -> None:
     assert missing == []
 
 
-def test_report_headline_numbers_match_evidence_json() -> None:
+def test_report_and_presentation_headline_claims_match_evidence_json() -> None:
     report_text = _read_text(REPORT)
-    counts = _load_json("output/evidence/inventory-live-2026-06-23/counts.json")
-    samples = _load_json("output/evidence/inventory-live-2026-06-23/inventory_samples.json")
-    inventory_manifest = _load_json("output/evidence/inventory-live-2026-06-23/manifest.json")
-    minio_manifest = _load_json("output/evidence/minio-smoke/manifest.json")
-    first_gold_counts = _load_json("output/evidence/first-real-gold-local-stats-v2/counts.json")
-    spark_manifest = _load_json("output/evidence/spark/manifest.json")
+    presentation_text = _read_text(PRESENTATION)
 
-    worldbank_summary = next(
-        source for source in inventory_manifest["sources"] if source["source"] == "worldbank"
+    _assert_claim_tokens_in_texts(
+        {
+            "REPORT.md": report_text,
+            "PRESENTATION.md": presentation_text,
+        }
     )
-    eurostat_summary = next(
-        source for source in inventory_manifest["sources"] if source["source"] == "eurostat"
-    )
-    at_1995 = samples["gold"]["sample_AT"][0]
-    hu_1995 = samples["gold"]["sample_HU"][0]
-
-    headline_values = [
-        counts["rows"],
-        counts["columns"],
-        counts["geos_count"],
-        counts["year_min"],
-        counts["year_max"],
-        counts["at_rows"],
-        counts["hu_rows"],
-        *counts["column_names"],
-        samples["gold"]["rows"],
-        samples["gold"]["geos"],
-        samples["silver_stats"]["reloaded_rows"],
-        at_1995["geo"],
-        at_1995["year"],
-        at_1995["rail_freight_tonne_km"],
-        at_1995["rail_network_length_km"],
-        hu_1995["geo"],
-        hu_1995["year"],
-        hu_1995["rail_freight_tonne_km"],
-        hu_1995["rail_network_length_km"],
-        worldbank_summary["status"],
-        worldbank_summary["artifact_count"],
-        worldbank_summary["byte_count"],
-        eurostat_summary["status"],
-        minio_manifest["status"],
-        minio_manifest["roundtrip_ok"],
-        *minio_manifest["buckets"],
-        minio_manifest["bytes_written"],
-        minio_manifest["bytes_read"],
-        first_gold_counts["rows"],
-        first_gold_counts["columns"],
-        first_gold_counts["geos_count"],
-        spark_manifest["status"],
-        spark_manifest["spark_version"],
-        spark_manifest["java_version"],
-        spark_manifest["input_rows"],
-        spark_manifest["input_columns"],
-        spark_manifest["output_rows"],
-        spark_manifest["output_columns"],
-        spark_manifest["partitions_written"],
-    ]
-
-    _assert_values_in_report(report_text, headline_values)
