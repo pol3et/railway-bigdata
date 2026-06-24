@@ -28,6 +28,43 @@ Observed results:
 - Compileall passed.
 - `git diff --check` passed with line-ending warnings only.
 
+## GAP-011 report and presentation evidence links (2026-06-24)
+
+GAP-011 added the course report and presentation drafts under `output/`, plus a
+deterministic evidence-link checker.
+
+Deliverables:
+
+- Report draft: `output/report/REPORT.md`.
+- Presentation draft: `output/presentation/PRESENTATION.md`.
+- Checker: `tests/test_report_evidence_links.py`.
+
+Commands:
+
+```powershell
+python -m pytest -q tests/test_report_evidence_links.py
+python -c 'import re,os; missing=[p for f in ["output/report/REPORT.md","output/presentation/PRESENTATION.md"] for p in re.findall("output/evidence/[^\\s\\)\\]\\\"`]+", open(f,encoding="utf-8").read()) if not os.path.exists(p)]; print("MISSING EVIDENCE PATHS:", missing); assert not missing'
+$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q
+python -m compileall -q src tests
+git diff --check
+```
+
+Observed results:
+
+- Evidence-link checker passed: 3 passed.
+- Evidence path scan printed `MISSING EVIDENCE PATHS: []`.
+- Full suite passed with the existing JDK 21 runtime env: 108 passed, 1 skipped.
+- The skipped test was the pre-existing Windows Spark write-path check because
+  `HADOOP_HOME`/`winutils.exe` is not present in this worktree; Spark guard
+  coverage still ran.
+- Compileall passed.
+- `git diff --check` passed with CRLF warnings only.
+
+PowerShell note: the Bash-style chained one-liner from the GAP-011 task failed
+before running tests in this shell because the regex contains a backtick, which
+PowerShell treats as an escape character. The same three checks were run as the
+PowerShell-safe commands above.
+
 Additional local stats Bronze -> Gold validation (GAP-012 corrected recipe,
 2026-06-24):
 

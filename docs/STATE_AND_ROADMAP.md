@@ -13,21 +13,24 @@ Nothing here is claimed as run that lacks a committed evidence artifact.
 
 ## Current State
 
-Phase: end of the storage-boundary phase / start of the Spark phase. The
-pipeline reads `web sources -> Bronze -> Silver -> Gold -> (Spark) -> report`.
-Today the train is at **Gold**; the next stop is **Spark**.
+Phase: end of the fast-track report kickoff. The pipeline reads
+`web sources -> Bronze -> Silver -> Gold -> Spark -> report`. Today the train
+has a drafted report/presentation grounded in committed Gold, MinIO, and Spark
+evidence.
 
 | Stage | Signal | State |
 |---|---|---|
 | Bronze (ingest) | operational | Raw landing works. 4 sources scheduled (Eurostat, World Bank, GDELT, RSS); KSH, Statistik Austria, UIC, GDELT-history are live-proven but **not scheduled** (GAP-005). |
 | Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly inside fixture/local pipeline paths. Local Parquet persistence now exists for `StatFact` and successful `NewsFeature` rows; MinIO/s3fs persistence, extraction-failure accounting, and `silver/run.py` remain open. |
-| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current real Gold feature is World Bank `rail_network_length_km`; Eurostat raw bytes landed but remained unmapped in this smoke. `gold/run.py` now loads persisted local Silver Parquet and records counts (GAP-007 closed); Spark and full live MinIO/Ollama E2E remain open. |
+| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current richer real Gold is World Bank-backed at `output/evidence/inventory-live-2026-06-23/railway_ml.parquet` with 2,968 rows x 4 columns. `gold/run.py` now loads persisted local Silver Parquet and records counts (GAP-007 closed); full live MinIO/Ollama E2E remains open. |
 | Spark (big-data jobs) | local evidence written | `railway_lakehouse.spark_jobs.coverage` reads the real Gold Parquet and writes `output/evidence/spark/manifest.json` plus a Spark Parquet output directory (GAP-009 closed). |
-| Report / presentation | not started | Blocked: every claim must cite generated evidence that does not exist yet (GAP-011). |
+| Report / presentation | draft evidence-linked | `output/report/REPORT.md` and `output/presentation/PRESENTATION.md` exist and cite committed evidence artifacts; `tests/test_report_evidence_links.py` guards cited paths and headline JSON values (GAP-011 closed). |
 
 ### At A Glance
 
-- `python -m pytest -q`: **103 passed**, 0 xfail.
+- `python -m pytest -q`: **108 passed**, 1 skipped when run with the
+  existing JDK 21 Spark runtime env; the skip is the Windows Spark write-path
+  guard because `HADOOP_HOME`/`winutils.exe` is absent in this worktree.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
 - Stats parsers to `StatFact`: **2 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
@@ -151,10 +154,10 @@ on a parallel track.
    Bounded live Bronze->Silver->Gold (needs MinIO + Ollama) producing
    `output/evidence/live/railway_ml.parquet`; re-run the Spark job against it.
    Not required to first demonstrate Spark.
-5. **Report + presentation** — GAP-011. Create `output/report/` and
-   `output/presentation/`; ground every claim in Step 3 Spark evidence + Step 2
-   Gold counts (+ Step 4 live counts). Report-start unblocks once Step 3 + Step 2
-   land.
+5. **Report + presentation** — GAP-011 is closed for the fast-track draft.
+   `output/report/REPORT.md` and `output/presentation/PRESENTATION.md` ground
+   claims in Step 3 Spark evidence + Step 2 Gold counts, with a deterministic
+   evidence-link checker.
 
 ### Parallel track — volume and coverage (lay anytime after Step 2)
 

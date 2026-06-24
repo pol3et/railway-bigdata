@@ -1359,3 +1359,69 @@ Evidence:
 
 Next:
 - PR #18 is open and mergeable. GAP-009 Spark evidence can now consume the Gold CLI boundary after merge, while full MinIO/Ollama/news E2E remains separate GAP-010/GAP-013 work.
+
+## 2026-06-24 - GAP-011 report and presentation drafts
+
+Status: done for implementation and local verification; PR handoff pending.
+
+Changed:
+- `output/report/REPORT.md`
+- `output/presentation/PRESENTATION.md`
+- `tests/test_report_evidence_links.py`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/VERIFICATION.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gap-011-report-presentation.md`
+- `.planning/coursework/plans/bigdata/gap-011-report-presentation.md`
+
+Findings:
+- GAP-009 is already closed in this checkout, so the report's Spark section is
+  filled from `output/evidence/spark/manifest.json` instead of leaving the older
+  pending placeholder.
+- The report and presentation cite committed manifests/counts/samples only, not
+  ignored raw Bronze subtrees.
+- Known gaps remain explicit: GAP-013 live-MinIO World Bank stats path,
+  GAP-023 Eurostat-to-Gold mapping, GAP-006 live Ollama/news and extra parsers,
+  and GAP-019 deployable automatic updates.
+
+Evidence:
+- RED checker run before deliverables existed: 3 expected failures.
+- `python -m pytest -q tests/test_report_evidence_links.py` -> 3 passed.
+- Evidence path scan -> `MISSING EVIDENCE PATHS: []`.
+- `python -m pytest -q -m "not spark"` -> 107 passed, 2 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q -m spark` -> 1 passed, 1 skipped, 107 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 108 passed, 1 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF warnings only.
+
+Next:
+- Commit, push `impl/gap-011`, open the PR against `main`, and confirm GitHub mergeability.
+
+## 2026-06-24 - GAP-011 PR #20 review fixes
+
+Status: done.
+
+Changed:
+- `output/report/REPORT.md`
+- `output/presentation/PRESENTATION.md`
+- `tests/test_report_evidence_links.py`
+- `.planning/coursework/research/bigdata/gap-011-report-presentation.md`
+
+Findings:
+- Review P2a was valid: the report opening overstated news as part of the
+  current reportable dataset. The current Gold is stats-only; news remains
+  candidate input pending GAP-006.
+- Review P2b was valid: the checker verified headline values only in
+  `REPORT.md`, and did not require exact JSON `key=value` tokens in the
+  presentation.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_report_evidence_links.py` failed after
+  extending the checker because both docs lacked the stricter exact tokens.
+- GREEN: `python -m pytest -q tests/test_report_evidence_links.py` -> 3 passed.
+- `python -m pytest -q -m unit` -> 93 passed, 16 deselected.
+
+Next:
+- Commit, push `impl/gap-011`, and confirm PR #20 remains mergeable.

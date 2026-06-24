@@ -72,6 +72,7 @@ develop against it independently with no schema collisions.
 | `gold/feature-matrix` | Gold: (geo, year) матрица + Parquet + counts | done on a 4-row fixture | orig. task #11 |
 | `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
 | `spark/evidence-job` | Spark reads real Gold and writes evidence | done (`output/evidence/spark/manifest.json`; Spark 4.1.2; Gold 2,968×4 -> coverage 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
+| `report/draft` | Report + presentation drafts from committed evidence | done (`output/report/REPORT.md`, `output/presentation/PRESENTATION.md`, `tests/test_report_evidence_links.py`) | GAP-011 |
 
 ## Now — active path
 
@@ -86,7 +87,7 @@ develop against it independently with no schema collisions.
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | done (`gold.run` reads persisted Silver, writes Gold + counts; integration + CLI smoke passed) | GAP-007 |
 | `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | todo | GAP-006 |
 | `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | done — local Spark evidence written to `output/evidence/spark/` (Spark 4.1.2; input 2,968×4; output 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
-| `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | todo | GAP-011 |
+| `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | done — `output/report/REPORT.md` + `output/presentation/PRESENTATION.md`, guarded by `tests/test_report_evidence_links.py` | GAP-011 |
 
 ## Later — deferred (after the core is E2E)
 
@@ -146,7 +147,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - [x] Gold built from persisted Silver via `gold.run` (GAP-007), not in-memory.
 
 ### Wave 3 — Report kickoff (sequential) 🏁 END OF FAST TRACK
-- `[!]` GAP-011 — `report/draft` grounded in Spark + Gold evidence (state WB-only/＋Eurostat scope honestly)
+- `[x]` GAP-011 — `report/draft` grounded in Spark + Gold evidence (state WB-only/＋Eurostat scope honestly); drafts live under `output/report/` and `output/presentation/` with evidence-link test coverage.
 
 ### Wave 4 — Make the report full (parallel)
 - `H` eurostat→Gold mapping (GAP-023) — a 2nd real stats source
