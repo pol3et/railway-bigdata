@@ -88,11 +88,13 @@ def run_pipeline(
     counts_out: str | None = None,
 ) -> str:
     ollama_reachable = False if skip_news_extraction else health_check()
+    local_bronze_root = None
 
     # ---------------- BRONZE ----------------
     if bronze_root:
-        log.info("BRONZE: reading existing local Bronze root %s", bronze_root)
-        lander = SimpleNamespace(bronze_root=Path(bronze_root))
+        local_bronze_root = _validate_local_bronze_root(Path(bronze_root))
+        log.info("BRONZE: reading existing local Bronze root %s", local_bronze_root.as_posix())
+        lander = SimpleNamespace(bronze_root=local_bronze_root)
     else:
         log.info("BRONZE: landing Eurostat rail datasets + %d news articles", news)
         lander = RawLander()
@@ -105,6 +107,12 @@ def run_pipeline(
     # existing Eurostat-only fallback for now.
     frames = _read_bronze_stats_frames(lander)
     log.info("SILVER stats: %d source frames", len(frames))
+
+    # Read the raw article records you landed or supplied as fixtures before
+    # crosswalk/Gold work so a bad local Bronze root fails before output writes.
+    articles = _read_bronze_news(lander, limit=news)          # -> list[dict]
+    if local_bronze_root is not None:
+        _validate_non_empty_local_inputs(local_bronze_root, frames, articles)
 
     # crosswalk (Eurostat/World Bank maps by rule; LLM only if reachable)
     if crosswalk_path:
@@ -123,8 +131,6 @@ def run_pipeline(
     stats_long = stats_merge.merge_sources(frames, crosswalk)
 
     # ---------------- SILVER (news) ----------------
-    # Read the raw article records you landed or supplied as fixtures.
-    articles = _read_bronze_news(lander, limit=news)          # -> list[dict]
     if skip_news_extraction:
         log.info("Skipping news extraction by request.")
         news_rows = []
@@ -141,6 +147,47 @@ def run_pipeline(
         log.info("GOLD counts -> %s", counts_path)
     log.info("DONE -> %s", out_path)
     return out_path
+
+
+def _validate_local_bronze_root(bronze_root: Path) -> Path:
+    """Validate a user-supplied local Bronze root before any Gold output writes."""
+    root = Path(bronze_root)
+    hint = (
+        "Run python -m railway_lakehouse.bronze.live_check "
+        "--sources eurostat,worldbank --out output/evidence/local-stats-bronze-regen "
+        "--max-artifacts 1 --timeout-seconds 60 first, then rerun the pipeline with "
+        "--bronze-root output/evidence/local-stats-bronze-regen/bronze. "
+        "If the live_check output root already has manifest.json, it nests under "
+        "<out>/<run_id>/bronze; use a fresh --out directory for the documented regen."
+    )
+    if not root.exists():
+        raise FileNotFoundError(
+            f"--bronze-root {root.as_posix()} does not exist. {hint}"
+        )
+    if not root.is_dir():
+        raise NotADirectoryError(
+            f"--bronze-root {root.as_posix()} is not a directory. {hint}"
+        )
+    return root
+
+
+def _validate_non_empty_local_inputs(
+    bronze_root: Path,
+    frames: list[pd.DataFrame],
+    articles: list,
+) -> None:
+    if frames or articles:
+        return
+    raise ValueError(
+        "No local Bronze stats frames or news articles were read from "
+        f"--bronze-root {bronze_root.as_posix()}. "
+        "Check that the path points at the live_check output's bronze directory, "
+        "not an evidence parent with only manifest.json. Run "
+        "python -m railway_lakehouse.bronze.live_check --sources eurostat,worldbank "
+        "--out output/evidence/local-stats-bronze-regen --max-artifacts 1 "
+        "--timeout-seconds 60, then use "
+        "--bronze-root output/evidence/local-stats-bronze-regen/bronze."
+    )
 
 
 def write_gold_counts(parquet_path: str, counts_out: str) -> str:

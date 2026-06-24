@@ -4,7 +4,7 @@
 
 Deterministic characterization tests now exist under `tests/`.
 
-Fresh results from 2026-06-23 after syncing PR #9 and PR #10 into `main`:
+Fresh results from 2026-06-24 after GAP-012:
 
 ```bash
 python -m pytest -q
@@ -14,44 +14,54 @@ git diff --check
 
 Observed results:
 
-- Full suite passed: 74 passed.
-- GAP-004 fixture pipeline tests passed; there is no current expected xfail.
-- GAP-006 merged slice tests now cover World Bank/Eurostat Silver stats
-  fixtures and RSS/GDELT Silver news parser fixtures.
+- Full suite passed: 90 passed.
+- Unit marker suite passed: 77 passed, 13 deselected.
+- Integration marker suite passed: 13 passed, 77 deselected.
+- GAP-012 guard tests pass: missing/empty local `--bronze-root` fails before
+  Gold writing, and live-check run-id nesting remains pinned.
 - Compileall passed.
 - `git diff --check` passed.
 
-Additional local stats Bronze -> Gold validation from 2026-06-23:
+Additional local stats Bronze -> Gold validation (GAP-012 corrected recipe,
+2026-06-24):
 
 Raw Bronze bytes under `output/evidence/**/bronze/` are intentionally ignored by
-Git. Re-run the live-check command first on a clean checkout; the committed
-manifest is the audit snapshot. `--max-artifacts 1` means one bounded dataset or
-series per stats source, plus the required source catalogue artifact.
+Git. The committed `output/evidence/local-stats-bronze/manifest.json` is the
+audit snapshot, not a complete raw Bronze tree, so raw Bronze must be
+regenerated on a clean checkout. Use the fresh regen directory below; reusing
+`output/evidence/local-stats-bronze` would collide with the committed
+`manifest.json` and make `live_check` write under a run-id subdirectory.
+`--max-artifacts 1` means one bounded dataset or series per stats source, plus
+the required source catalogue artifact.
 
 ```powershell
 $env:PYTHONPATH='src'
 python -c "import pathlib, railway_lakehouse; print(pathlib.Path(railway_lakehouse.__file__).as_posix())"
 python -m pytest -q
-python -m railway_lakehouse.bronze.live_check --sources eurostat,worldbank --out output/evidence/local-stats-bronze --max-artifacts 1 --timeout-seconds 60
-python -m railway_lakehouse.pipeline --bronze-root output/evidence/local-stats-bronze/bronze --skip-news-extraction --news 0 --out output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet --crosswalk-path output/evidence/first-real-gold-local-stats-v2/crosswalk_cache.json --counts-out output/evidence/first-real-gold-local-stats-v2/counts.json
-python -m json.tool output/evidence/first-real-gold-local-stats-v2/counts.json
+python -m railway_lakehouse.bronze.live_check --sources eurostat,worldbank --out output/evidence/local-stats-bronze-regen --max-artifacts 1 --timeout-seconds 60
+python -m railway_lakehouse.pipeline --bronze-root output/evidence/local-stats-bronze-regen/bronze --skip-news-extraction --news 0 --out output/evidence/local-stats-bronze-regen/railway_ml.parquet --crosswalk-path output/evidence/local-stats-bronze-regen/crosswalk_cache.json --counts-out output/evidence/local-stats-bronze-regen/counts.json
+python -m json.tool output/evidence/local-stats-bronze-regen/counts.json
 ```
 Observed results:
 
-* Full suite passed: 83 passed after rebasing on the merged Silver persistence branch.
-* Local stats Bronze landing passed for Eurostat and World Bank.
-* Bronze evidence snapshot: output/evidence/local-stats-bronze/manifest.json.
-* Live bounded Bronze artifacts: 4 artifacts, 14,996,995 bytes.
-* First real stats-only Gold written to output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet.
-* Gold counts recorded by the pipeline in output/evidence/first-real-gold-local-stats-v2/counts.json.
+* Local stats Bronze landing passed for Eurostat and World Bank:
+  4 artifacts, 14,996,995 bytes.
+* Committed Bronze audit snapshot: output/evidence/local-stats-bronze/manifest.json.
+* Regenerated raw Bronze tree:
+  output/evidence/local-stats-bronze-regen/bronze.
+* First real stats-only Gold written by the regen recipe:
+  output/evidence/local-stats-bronze-regen/railway_ml.parquet.
+* Gold counts recorded by the pipeline:
+  output/evidence/local-stats-bronze-regen/counts.json.
 * Gold shape: 2,139 rows x 3 columns.
-* Gold columns: geo, year, rail_network_length_km.
+* Gold columns: [geo, year, rail_network_length_km].
 * The Gold feature is the World Bank route-km series. Eurostat raw bytes were
   landed in Bronze, but the bounded Eurostat dataset did not contribute a Gold
   feature in this smoke because its label remained unmapped.
 * Gold includes both target countries: AT and HU.
 * Gold year range: 1995-2021.
 * News extraction was intentionally skipped with --skip-news-extraction; this does not prove live LLM/news extraction.
+* Negative guard check: `python -m railway_lakehouse.pipeline --bronze-root output/evidence/does-not-exist/bronze --skip-news-extraction --news 0 --out output/runtime/gap-012-negative/empty.parquet` exited non-zero with a `FileNotFoundError` mentioning `--bronze-root` and `live_check`; `output/runtime/gap-012-negative/empty.parquet` was not created.
 
 
 Additional GAP-004 fixture E2E validation from 2026-06-22:

@@ -98,12 +98,13 @@ develop against it independently with no schema collisions.
 ## Newly found gaps (re-audit 2026-06-24)
 
 The `undocumented-gap-hunt` workflow surfaced **19 verified undocumented gaps**
-(`GAP-012…030`, full list in `GAP_REGISTER.md`). Two touch the active path and should
-be folded into the tasks above:
+(`GAP-012…030`, full list in `GAP_REGISTER.md`). GAP-012 is closed by the
+2026-06-24 regen-recipe fix; GAP-013 still touches the active path and should be
+folded into the tasks above:
 
-- **GAP-012** (high) — the documented Bronze→Gold reproduction recipe silently builds an
-  empty Gold on a clean checkout (a committed `manifest.json` forces `live_check` run-id
-  nesting). Fold into `gold/first-real-result` follow-up + `docs/VERIFICATION.md`.
+- **GAP-012** (closed 2026-06-24) — the documented Bronze→Gold reproduction
+  recipe now uses `output/evidence/local-stats-bronze-regen`, and the pipeline
+  raises on a missing/empty local `--bronze-root` instead of writing empty Gold.
 - **GAP-013** (medium) — the live MinIO stats path reads Eurostat only and drops World
   Bank, so a genuinely-live Gold is feature-less. Fold into `gold/load-from-silver` /
   the live-MinIO wiring.
@@ -117,12 +118,12 @@ merge them all, then verify the wave **contract** (the audit checklist) before t
 Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` high · `M` mid · `L` low.
 
 ### Wave 1 — Unblock & pin (parallel)
-- `[!]` GAP-012 — fix the documented Bronze→Gold regen recipe
+- `[x]` GAP-012 — documented Bronze→Gold regen recipe fixed
 - `[!]` GAP-017 / GAP-018 — pin the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`), install **JDK 17/21**, bound pandas/pyarrow majors. (Spark 4.1 is the only line that supports the repo's Python 3.14.)
 - `M` GAP-020 — test the s3/MinIO Bronze read-back path
 
 **Contract A (verify before Wave 2):**
-- [ ] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (no empty Gold).
+- [x] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (2,139×3; no empty Gold).
 - [ ] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1); `JAVA_HOME` points to JDK 17 or 21.
 - [ ] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
 

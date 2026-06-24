@@ -188,7 +188,7 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">87</div><div class="cap">tests passing · 77u + 10i</div></div>
+      <div class="card green"><div class="big">90</div><div class="cap">tests passing · 77u + 13i</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
@@ -325,7 +325,7 @@
 
       <div class="ucol bronze">
         <h3>Bronze</h3>
-        <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-012</b> fix the documented Bronze→Gold regen recipe (it builds empty Gold on a clean checkout) so report evidence is reproducible.</span></div>
+        <div class="uitem"><span class="u low">DONE</span><span class="ug"><b>GAP-012</b> documented Bronze→Gold regen recipe now uses a fresh regen dir and missing local Bronze roots fail before empty Gold is written.</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-013</b> live MinIO stats path must also land + read World Bank (today drops it).</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-019</b> make "automatic updates" deployable (cron/systemd/compose) — assignment requirement.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-005</b> schedule KSH / Statistik Austria / UIC in <span class="mono">bronze/run.py</span>.</span></div>
@@ -378,12 +378,12 @@
       <div class="wave fast">
         <div class="wave-head"><span class="wave-no">WAVE 1</span><span class="wave-title">Unblock &amp; pin</span><span class="wave-par">3 in parallel</span></div>
         <div class="wbatch">
-          <span class="wtask"><span class="u urgent">!</span> GAP-012 fix regen recipe</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u low">DONE</span> GAP-012 regen recipe fixed</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u urgent">!</span> GAP-017/018 pin Spark 4.1 stack (pyspark 4.1.* / delta 4.1.x / hadoop-aws 3.4.1 / JDK 17–21) + bound pandas/pyarrow</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GAP-020 test s3 read-back</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract A</div><div class="cbody">On a clean checkout the documented command regenerates the real Gold + <span class="mono">counts.json</span>; <span class="mono">pip install .[spark]</span> resolves Spark 4.1.x on JDK 17/21; <span class="mono">pytest -q</span> green.</div></div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract A</div><div class="cbody">GAP-012 clean-checkout regen now writes the real Gold + <span class="mono">counts.json</span> (2,139×3); remaining: <span class="mono">pip install .[spark]</span> resolves Spark 4.1.x on JDK 17/21; <span class="mono">pytest -q</span> green.</div></div>
 
       <div class="flow">↓</div>
 
