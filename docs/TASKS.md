@@ -1,6 +1,6 @@
 # Task Board
 
-Snapshot: 2026-06-23. Canonical named task list for `bigdata/course_proj`.
+Snapshot: 2026-06-24. Canonical named task list for `bigdata/course_proj`.
 
 Each task has a stable slug name (e.g. `gold/first-real-result`). **The slug is the
 cross-link key**: the same slugs are used in the team chat list, so a task named in
@@ -70,6 +70,7 @@ develop against it independently with no schema collisions.
 | `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (2 of 5) | GAP-006 · orig. task #9 |
 | `silver/news-parsers` | Silver: RSS + GDELT → ArticleRecord → NewsFeature | done (LLM mocked in tests) | GAP-006 · orig. task #10 |
 | `gold/feature-matrix` | Gold: (geo, year) матрица + Parquet + counts | done on a 4-row fixture | orig. task #11 |
+| `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
 
 ## Now — active path
 
@@ -108,6 +109,10 @@ folded into the tasks above:
 - **GAP-013** (medium) — the live MinIO stats path reads Eurostat only and drops World
   Bank, so a genuinely-live Gold is feature-less. Fold into `gold/load-from-silver` /
   the live-MinIO wiring.
+- **GAP-014** (medium) — closed 2026-06-24 by forcing the s3/MinIO text read branch to
+  decode UTF-8 from bytes and covering it in `tests/test_pipeline_s3_readback.py`.
+- **GAP-020** (medium) — closed 2026-06-24 by deterministic fsspec memory:// unit tests
+  for the s3 Bronze read-back branch; no Docker/MinIO required.
 - Also relevant to `spark/evidence-job`: **GAP-017** (`pyspark>=3.5` resolves to Spark 4.x;
   pin 3.5.* + JDK 17) and **GAP-015/016** (Gold unit normalization + deterministic news schema).
 
@@ -120,7 +125,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 ### Wave 1 — Unblock & pin (parallel)
 - `[x]` GAP-012 — documented Bronze→Gold regen recipe fixed
 - `[!]` GAP-017 / GAP-018 — pin the **Spark 4.1 stack** (`pyspark==4.1.*` + `delta-spark==4.1.*` + `hadoop-aws==3.4.1`), install **JDK 17/21**, bound pandas/pyarrow majors. (Spark 4.1 is the only line that supports the repo's Python 3.14.)
-- `M` GAP-020 — test the s3/MinIO Bronze read-back path
+- `[x]` GAP-020 — s3/MinIO Bronze read-back path covered by fsspec memory:// tests (closed 2026-06-24; also closes GAP-014 UTF-8 read parity)
 
 **Contract A (verify before Wave 2):**
 - [x] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (2,139×3; no empty Gold).
@@ -152,7 +157,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
 - `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring
 - `M` GDELT history backfill + GKG parser (volume)
-- `M` robustness: GAP-014/015/016/021/022/025/026
+- `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops
 - → re-run Spark on the larger dataset → finalize report.
 

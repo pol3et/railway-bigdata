@@ -188,12 +188,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">90</div><div class="cap">tests passing · 77u + 13i</div></div>
+      <div class="card green"><div class="big">93</div><div class="cap">tests passing · 83u + 10i</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Still open: Gold reading <em>persisted</em> Silver (in-memory today), Eurostat→Gold mapping, news LLM, and Spark.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. GAP-020 now covers the s3 Bronze read-back branch with fsspec memory:// unit tests, including the GAP-014 UTF-8 text fix. Still open: Gold reading <em>persisted</em> Silver (in-memory today), Eurostat→Gold mapping, news LLM, and Spark.</p>
   </section>
 
   <section>
@@ -329,7 +329,6 @@
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-013</b> live MinIO stats path must also land + read World Bank (today drops it).</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-019</b> make "automatic updates" deployable (cron/systemd/compose) — assignment requirement.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-005</b> schedule KSH / Statistik Austria / UIC in <span class="mono">bronze/run.py</span>.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-014</b> force UTF-8 on the s3/MinIO text read path.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>backfill</b> GDELT history → 100k+ articles (real volume).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-024</b> Bronze same-day overwrite vs "auditable" docstring.</span></div>
       </div>
@@ -360,7 +359,6 @@
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>GAP-017</b> adopt the <b>Spark 4.1 stack</b> (<span class="mono">pyspark 4.1.* · delta-spark 4.1.x · hadoop-aws 3.4.1 · JDK 17/21</span>) — Python 3.14 needs Spark 4.1; Spark 4 doesn't clash. Spark prerequisite.</span></div>
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>report/draft</b> (GAP-011) start the report on Spark + Gold evidence — fast-track goal.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-018</b> bound pandas/pyarrow majors + commit a lockfile.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-020</b> test the s3/MinIO Bronze read-back path (fsspec memory://).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-028</b> CI that runs the test suite on PRs.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-027</b> note MinIO default creds are local-only.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-030</b> fix pipeline docstring (compose ships MinIO, not Ollama).</span></div>
@@ -376,11 +374,11 @@
     <div class="exec">
 
       <div class="wave fast">
-        <div class="wave-head"><span class="wave-no">WAVE 1</span><span class="wave-title">Unblock &amp; pin</span><span class="wave-par">3 in parallel</span></div>
+        <div class="wave-head"><span class="wave-no">WAVE 1</span><span class="wave-title">Unblock &amp; pin</span><span class="wave-par">2 open · 1 closed</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="u low">DONE</span> GAP-012 regen recipe fixed</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u urgent">!</span> GAP-017/018 pin Spark 4.1 stack (pyspark 4.1.* / delta 4.1.x / hadoop-aws 3.4.1 / JDK 17–21) + bound pandas/pyarrow</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u mid">MID</span> GAP-020 test s3 read-back</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-020 s3 read-back</span>
         </div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract A</div><div class="cbody">GAP-012 clean-checkout regen now writes the real Gold + <span class="mono">counts.json</span> (2,139×3); remaining: <span class="mono">pip install .[spark]</span> resolves Spark 4.1.x on JDK 17/21; <span class="mono">pytest -q</span> green.</div></div>
@@ -425,7 +423,7 @@
         <div class="wbatch">
           <span class="wtask"><span class="u mid">MID</span> KSH/AT/UIC readers + GAP-005 scheduler</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u mid">MID</span> robustness GAP-014/015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
         </div>
         <div style="margin-top:9px;" class="small muted">→ re-run Spark on the larger dataset → finalize the report.</div>

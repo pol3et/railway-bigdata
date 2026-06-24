@@ -324,8 +324,8 @@ def _read_tsv(lander, path) -> pd.DataFrame:
 def _read_text(lander, path) -> str:
     if isinstance(path, Path):
         return path.read_text(encoding="utf-8")
-    with lander.s3.open(path, "r") as f:
-        return f.read()
+    with lander.s3.open(path, "rb") as f:
+        return f.read().decode("utf-8")
 
 
 def _dataset_id_from_path(path, source: str) -> str:
