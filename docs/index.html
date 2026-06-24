@@ -206,7 +206,7 @@
           <tr><td><span class="src">worldbank</span></td><td>rail indicators (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓</span></td></tr>
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live FAILS (429)</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord (fixture)</span></td></tr>
-          <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no XLSX reader</span></td></tr>
+          <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
           <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no PDF extractor</span></td></tr>
           <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG missing</span></td></tr>
@@ -267,12 +267,13 @@
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">ksh</span>
-          <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl red" title="Silver: no reader">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
-        <div class="lvlnote">Hungary STADAT. Bronze lands raw XLSX (live-validated); no XLSX→StatFact reader exists yet.</div>
+          <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl green" title="Silver: XLSX reader">S</span><span class="lvl red" title="Gold: not rerun with KSH">G</span></div></div>
+        <div class="lvlnote">Hungary STADAT. Bronze lands raw XLSX (live-validated); XLSX→StatFact reader is implemented, but KSH-to-Gold evidence is still pending.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw XLSX · bronze/stats/ksh/&lt;table&gt;/ingest_date=…/&lt;table&gt;.xlsx</div>
           <div class="sl"><span class="c">     6 STADAT rail tables · 92,509 B · HTTP 200</span></div>
-          <div class="sl"><span class="x">S</span> — no XLSX→StatFact reader</div>
+          <div class="sl"><span class="k">S</span> StatFact · deterministic XLSX layouts parsed</div>
+          <div class="sl"><span class="x">G</span> — Gold rerun with KSH pending</div>
         </div>
       </div>
 
@@ -375,7 +376,7 @@
       <div class="ucol silver">
         <h3>Silver</h3>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>ollama-model + news LLM</b> install Qwen3-4B; run two-pass news extraction → NewsFeature.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> KSH XLSX / StatAustria ODS / UIC PDF → StatFact.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS / UIC PDF → StatFact; KSH XLSX reader done.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-021</b> crosswalk "unmapped" is terminal — add retry/rebuild.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-025</b> RSS <span class="mono">ParseError</span> aborts the whole batch — isolate per feed.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-022</b> robust mixed-format <span class="mono">published_date</span> parsing.</span></div>
@@ -455,7 +456,7 @@
       <div class="wave defer">
         <div class="wave-head"><span class="wave-no">WAVE 5</span><span class="wave-title">Coverage · volume · polish</span><span class="wave-par">parallel · deferrable</span></div>
         <div class="wbatch">
-          <span class="wtask"><span class="u mid">MID</span> KSH/AT/UIC readers + GAP-005 scheduler</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> AT/UIC readers + GAP-005 scheduler; KSH reader done</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
