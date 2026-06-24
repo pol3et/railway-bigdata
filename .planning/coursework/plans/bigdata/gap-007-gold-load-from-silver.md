@@ -45,7 +45,7 @@
   - `python -m pytest -q`
   - `python -m compileall -q src tests`
   - live CLI smoke against a tmp Silver tree, bounded and local only.
-- [ ] Commit, push `impl/gap-007`, open PR against `main`, and confirm mergeability.
+- [x] Commit, push `impl/gap-007`, open PR against `main`, and confirm mergeability.
 
 ## Self-Review
 

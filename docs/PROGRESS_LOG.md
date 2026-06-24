@@ -1333,4 +1333,4 @@ Evidence:
 - `python -m railway_lakehouse.gold.run --silver-root output/runtime/gap-007-cli-smoke/silver --out output/runtime/gap-007-cli-smoke/gold/railway_ml.parquet --counts-out output/runtime/gap-007-cli-smoke/gold/counts.json --ingest-date 2026-06-23` -> Gold 4 rows x 4 columns; counts include AT/HU, years 2020-2021, and `rail_passenger_km`.
 
 Next:
-- Open the GAP-007 PR. GAP-009 Spark evidence can now consume the Gold CLI boundary, while full MinIO/Ollama/news E2E remains separate GAP-010/GAP-013 work.
+- PR #18 is open and mergeable. GAP-009 Spark evidence can now consume the Gold CLI boundary after merge, while full MinIO/Ollama/news E2E remains separate GAP-010/GAP-013 work.

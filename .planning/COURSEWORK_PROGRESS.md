@@ -1155,4 +1155,4 @@ Evidence:
   AT/HU present and `rail_passenger_km`.
 
 Next:
-- Open PR for `impl/gap-007`; then continue with GAP-009 Spark evidence.
+- PR #18 is open and mergeable for `impl/gap-007`; after merge, continue with GAP-009 Spark evidence.
