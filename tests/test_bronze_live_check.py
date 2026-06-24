@@ -242,12 +242,12 @@ def test_collect_eurostat_lands_catalogue_and_dataset(monkeypatch, tmp_path):
             if "catalogue/toc" in url:
                 return Response(
                     200,
-                    b"Railway freight transport\tenpe_rail_go\nRoad transport\troad_demo\n",
+                    b"Railway goods transport\ttran_r_rago\nRoad transport\troad_demo\n",
                 )
-            if "enpe_rail_go" in url:
+            if "tran_r_rago" in url:
                 return Response(
                     200,
-                    b"Rail passengers total\t2020\nA,NR,HU\t100\n",
+                    b"Rail goods total\t2020\nA,NR,HU\t100\n",
                     "text/tab-separated-values",
                 )
             return Response(404, b"")
@@ -260,16 +260,16 @@ def test_collect_eurostat_lands_catalogue_and_dataset(monkeypatch, tmp_path):
     assert result.status == "passed"
     assert {artifact["dataset_id"] for artifact in lander.artifacts} == {
         "_catalogue_toc",
-        "enpe_rail_go",
+        "tran_r_rago",
     }
     assert (
         tmp_path
         / "bronze"
         / "stats"
         / "eurostat"
-        / "enpe_rail_go"
+        / "tran_r_rago"
         / "ingest_date=2026-06-21"
-        / "enpe_rail_go.tsv.gz"
+        / "tran_r_rago.tsv.gz"
     ).exists()
 
 def test_collect_worldbank_lands_valid_series(monkeypatch, tmp_path):

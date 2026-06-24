@@ -230,7 +230,11 @@ def collect_rss(
     return _source_result("rss", lander.artifacts[start_count:], statuses, failures)
 
 
-EUROSTAT_CONFIRMED_DATASETS = ("enpe_rail_go",)
+# Fallback seeds used when TOC discovery is partial. Verified present and of
+# type "dataset" in the live Eurostat TOC (regional rail goods/passengers by
+# NUTS2). The previous seed "enpe_rail_go" was retired: it 404s on the SDMX
+# data endpoint (see output/evidence/parser-live-check-2026-06-21).
+EUROSTAT_CONFIRMED_DATASETS = ("tran_r_rago", "tran_r_rapa")
 
 
 def collect_eurostat(
@@ -239,7 +243,11 @@ def collect_eurostat(
     max_artifacts: int,
     timeout_seconds: int,
 ) -> SourceResult:
-    session = requests.Session()
+    # Harden the live-check session the same way as the Bronze ingester:
+    # descriptive UA + connection/read/status retries with backoff, so a single
+    # transient `RemoteDisconnected` from Eurostat's CDN no longer zeroes out the
+    # whole source. `requests.Session` stays module-level so tests can patch it.
+    session = eurostat.build_session(requests.Session())
     failures: list[dict] = []
     statuses: list[int] = []
     start_count = len(lander.artifacts)
