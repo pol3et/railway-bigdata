@@ -1124,3 +1124,35 @@ Evidence:
 
 Next:
 - Push the PR #15 update and keep it mergeable; GAP-009 can use the new Spark config constants.
+
+## 2026-06-24 - GAP-007 Gold Load From Persisted Silver
+
+Status: done.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/gap-007-gold-load-from-silver.md`.
+- Local files were researched first: `gold/run.py`, `silver/persist.py`, `pipeline.py`,
+  `tests/test_silver_persist_integration.py`, `docs/DATA_CONTRACTS.md`, and the
+  dashboard/status docs. No external research was needed.
+
+Changed:
+- `gold.run` is no longer a placeholder: it accepts `--silver-root`, `--out`,
+  `--counts-out`, `--ingest-date`, `--year-min`, and `--year-max`.
+- `gold.build.write_gold_counts` now owns the shared counts JSON writer; `pipeline.py`
+  imports it, preserving GAP-010 counts behavior.
+- Added `tests/test_gold_load_from_silver.py`, an integration test that persists fixture-derived
+  Silver to `tmp_path`, runs the Gold CLI entrypoint, and verifies Gold + counts.
+- Added `pythonpath = ["src"]` to pytest config so exact pytest commands verify this checkout
+  rather than whichever editable worktree is globally installed.
+
+Evidence:
+- RED test observed before implementation: old `main()` rejected `argv`.
+- `python -m pytest -q -m unit` -> 89 passed, 14 deselected.
+- `python -m pytest -q -m integration` -> 14 passed, 89 deselected.
+- `python -m pytest -q` -> 103 passed.
+- `python -m compileall -q src tests` -> passed.
+- Local CLI smoke under `output/runtime/gap-007-cli-smoke/` wrote Gold 4x4 counts with
+  AT/HU present and `rail_passenger_km`.
+
+Next:
+- PR #18 is open and mergeable for `impl/gap-007`; after merge, continue with GAP-009 Spark evidence.

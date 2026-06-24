@@ -35,6 +35,7 @@ from railway_lakehouse.silver.news.rss import parse_rss_xml
 from railway_lakehouse.silver.ollama_client import health_check
 
 # Gold
+from railway_lakehouse.gold.build import write_gold_counts
 from railway_lakehouse.gold.run import build_from_silver
 
 logging.basicConfig(level=logging.INFO,
@@ -188,38 +189,6 @@ def _validate_non_empty_local_inputs(
         "--timeout-seconds 60, then use "
         "--bronze-root output/evidence/local-stats-bronze-regen/bronze."
     )
-
-
-def write_gold_counts(parquet_path: str, counts_out: str) -> str:
-    """Write a small reproducibility summary for a generated Gold Parquet file."""
-    path = Path(parquet_path)
-    df = pd.read_parquet(path)
-    counts: dict[str, object] = {
-        "path": path.as_posix(),
-        "rows": int(len(df)),
-        "columns": int(len(df.columns)),
-        "column_names": [str(column) for column in df.columns],
-    }
-
-    if "geo" in df.columns:
-        geos = df["geo"].dropna().astype(str)
-        counts["geos_count"] = int(geos.nunique())
-        counts["contains_AT"] = bool((geos == "AT").any())
-        counts["contains_HU"] = bool((geos == "HU").any())
-
-    if "year" in df.columns:
-        years = pd.to_numeric(df["year"], errors="coerce").dropna()
-        counts["year_min"] = int(years.min()) if not years.empty else None
-        counts["year_max"] = int(years.max()) if not years.empty else None
-
-    if {"geo", "year"}.issubset(df.columns):
-        counts["at_rows"] = int((df["geo"].astype(str) == "AT").sum())
-        counts["hu_rows"] = int((df["geo"].astype(str) == "HU").sum())
-
-    counts_path = Path(counts_out)
-    counts_path.parent.mkdir(parents=True, exist_ok=True)
-    counts_path.write_text(json.dumps(counts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return counts_path.as_posix()
 
 
 def _read_bronze_eurostat(lander) -> dict:

@@ -78,10 +78,10 @@ Path: `src/railway_lakehouse/gold/`
 
 | File | Responsibility |
 |---|---|
-| `build.py` | Resolves stats conflicts, pivots stats wide, aggregates news, joins Gold table, writes Parquet. |
-| `run.py` | Importable `build_from_silver` and CLI placeholder for future Silver reads. |
+| `build.py` | Resolves stats conflicts, pivots stats wide, aggregates news, joins Gold table, writes Parquet, and records Gold row/column counts. |
+| `run.py` | Importable `build_from_silver` plus CLI that loads persisted Silver Parquet, writes Gold Parquet, and emits counts JSON. |
 
-Current status: deterministic Gold logic is characterized by unit tests. Silver-to-Gold storage loading remains GAP-007.
+Current status: deterministic Gold logic is characterized by unit tests, and persisted Silver-to-Gold CLI loading is covered by GAP-007 integration evidence.
 
 ## Tests
 

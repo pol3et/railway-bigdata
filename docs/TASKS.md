@@ -82,7 +82,7 @@ develop against it independently with no schema collisions.
 | `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | done + **live-proven 2026-06-24** (`docker compose up -d` + `scripts/minio_smoke.py` round-trip) | GAP-010 · Phase C |
 | `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | todo | LLM setup |
 | `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
-| `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | todo | GAP-007 |
+| `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | done (`gold.run` reads persisted Silver, writes Gold + counts; integration + CLI smoke passed) | GAP-007 |
 | `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | todo | GAP-006 |
 | `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | todo | GAP-009 · orig. task #12 |
 | `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | todo | GAP-011 |
@@ -137,12 +137,12 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 ### Wave 2 — Spark fast track (parallel)
 - `[!]` GAP-009 — `spark/evidence-job`: Spark reads real Gold → writes evidence
-- `H` GAP-007 — wire Gold to read persisted Silver
+- `[x]` GAP-007 — Gold CLI reads persisted Silver and writes counts
 
 **Contract B (verify before Wave 3):**
 - [ ] Spark job writes `output/evidence/spark/` with Spark version, in/out row+col counts, files written.
 - [ ] Recorded counts match the Gold Parquet; job is re-runnable.
-- [ ] (bonus) Gold built from persisted Silver via the pipeline, not in-memory.
+- [x] Gold built from persisted Silver through `gold.run`; the older pipeline entrypoint remains in-memory.
 
 ### Wave 3 — Report kickoff (sequential) 🏁 END OF FAST TRACK
 - `[!]` GAP-011 — `report/draft` grounded in Spark + Gold evidence (state WB-only/＋Eurostat scope honestly)

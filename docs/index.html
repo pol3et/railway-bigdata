@@ -189,12 +189,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">102</div><div class="cap">tests passing · 89u + 13i</div></div>
+      <div class="card green"><div class="big">103</div><div class="cap">tests passing · 89u + 14i</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card red"><div class="big">0</div><div class="cap">Spark jobs · reports</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. GAP-020 now covers the s3 Bronze read-back branch with fsspec memory:// unit tests, including the GAP-014 UTF-8 text fix. Still open: Gold reading <em>persisted</em> Silver (in-memory today), Eurostat→Gold mapping, news LLM, and Spark.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run this session wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. GAP-007 now wires <span class="mono">gold.run</span> to local persisted Silver and counts; GAP-020 covers the s3 Bronze read-back branch. Still open: Eurostat→Gold mapping, news LLM, full MinIO/Ollama E2E, and Spark.</p>
   </section>
 
   <section>
@@ -349,7 +349,7 @@
       <div class="ucol gold">
         <h3>Gold</h3>
         <div class="uitem"><span class="u urgent">!</span><span class="ug"><b>spark/evidence-job</b> (GAP-009) Spark reads Gold → writes evidence. <em>The graded target.</em></span></div>
-        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-007</b> wire Gold to read <em>persisted</em> Silver (clean lakehouse handoff; in-memory today).</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-007</b> <span class="mono">gold.run</span> reads persisted Silver and writes Gold + counts.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-015</b> normalize units in Gold (the contract promises it; nothing does).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-016</b> deterministic Gold news schema (reindex pivots to canonical vocab).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-026</b> <span class="mono">aggregate_news</span> KeyError on partial dict rows.</span></div>
@@ -383,7 +383,7 @@
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-020 s3 read-back (#17)</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">✅ Contract A — passed (JDK pending)</div><div class="cbody">Clean-checkout regen writes the real Gold + <span class="mono">counts.json</span> (2,139×3); <span class="mono">.[spark]</span> resolves pyspark 4.1.2 + delta-spark 4.1.0; <span class="mono">pytest -q</span> green (102, incl. wrong-major guard). JDK 17/21 still to be provisioned for the live Spark run (Wave 2 / GAP-009).</div></div>
+      <div class="contract"><div class="ctitle">✅ Contract A — passed (JDK pending)</div><div class="cbody">Clean-checkout regen writes the real Gold + <span class="mono">counts.json</span> (2,139×3); <span class="mono">.[spark]</span> resolves pyspark 4.1.2 + delta-spark 4.1.0; <span class="mono">pytest -q</span> green (103, incl. wrong-major guard and persisted-Silver Gold CLI). JDK 17/21 still to be provisioned for the live Spark run (Wave 2 / GAP-009).</div></div>
 
       <div class="flow">↓</div>
 
@@ -391,10 +391,10 @@
         <div class="wave-head"><span class="wave-no">WAVE 2</span><span class="wave-title">Spark fast track</span><span class="wave-par">2 in parallel</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="u urgent">!</span> GAP-009 spark/evidence-job (reads Gold → evidence)</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u high">HIGH</span> GAP-007 Gold ← persisted Silver</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-007 Gold ← persisted Silver</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract B</div><div class="cbody">Spark reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (Spark version, in/out row+col counts, files written); counts match Gold; (bonus) Gold built from persisted Silver.</div></div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract B</div><div class="cbody">Gold built from persisted Silver is now covered by <span class="mono">gold.run</span>. Remaining: Spark reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (Spark version, in/out row+col counts, files written); counts match Gold.</div></div>
 
       <div class="flow">↓</div>
 
