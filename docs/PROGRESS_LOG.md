@@ -1498,3 +1498,33 @@ Verified:
 Scope:
 - This implements KSH XLSX -> Silver StatFact.
 - Statistik Austria ODS and UIC PDF readers remain separate pending tasks.
+
+
+## 2026-06-24 - PR 24 KSH XLSX Reader Review Fixes
+
+Status: done for review fixes.
+
+Changed:
+- Hardened `src/railway_lakehouse/silver/stats/load.py` for live KSH year-first, regional-total, and sectioned single-year workbook layouts.
+- Tightened KSH label mapping in `src/railway_lakehouse/silver/stats/merge.py` so road-network rows stay unmapped and passenger/freight/rolling-stock rows map to the intended canonical features.
+- Added `openpyxl`/`et-xmlfile` constraint pins and dependency guard coverage.
+- Updated `README.md`, `docs/TASKS.md`, `docs/index.html`, `docs/STATE_AND_ROADMAP.md`, and `docs/GAP_REGISTER.md` for the current KSH parser state.
+- Added live KSH evidence manifest `output/evidence/pr24-ksh-live-check-after-fix/manifest.json`.
+
+Findings:
+- The original PR parsed only simple label-before-year workbooks; current KSH STADAT XLSX files also use year-first feature columns, regional country-total tables, and sectioned one-year tables.
+- The original dashboard still reported KSH as having no XLSX reader while the task row said done.
+- The first live parser probe skipped current `ksh_rail_network`, `ksh_rail_passenger`, and `ksh_rail_rolling_stock` shapes or flattened units too aggressively.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_ksh.py`: 9 passed.
+- `python -m pytest -q tests/test_silver_stats_ksh.py tests/test_env_versions.py`: 14 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/evidence/pr24-ksh-live-check-after-fix --max-artifacts 6 --timeout-seconds 60`: 6 artifacts, 92,509 bytes, 0 failures.
+- Live parse over `output/evidence/pr24-ksh-live-check-after-fix/bronze`: 6 KSH frames parsed, unified Silver output 382 rows x 8 columns, and 0 road-network rows mapped into Silver features.
+- `python -m pytest -q -m integration`: 16 passed, 121 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q`: 136 passed, 1 skipped.
+- `python -m compileall -q src tests`: passed.
+
+Next:
+- Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
+- Add KSH-to-Gold real-data evidence when persisted Silver/Gold runs include KSH rows.

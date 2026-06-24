@@ -1302,3 +1302,40 @@ Status: closed (Codex implemented; orchestrator verified + shipped)
 - Orchestration: `/research-orchestrator` research (`gap013-live-minio-worldbank-stats-2026-06-24.md`) → spec/prompt (`output/evidence/orch/gap-013/`) → Codex agent on worktree `impl/gap-013` (thread `019efa7b-4d50-…`).
 - The Codex agent added `_read_bronze_worldbank` + `_read_bytes` and the live Eurostat+World Bank combination in `src/railway_lakehouse/pipeline.py` (local `bronze_root` branch unchanged), plus the deterministic `memory://` integration test. Its exec sandbox could not spawn processes (`CreateProcessAsUserW failed: 5`), so it could not verify/commit/push/PR and correctly reported `blocked` without fabricating evidence.
 - Orchestrator verification + closure: `pytest -q -m integration tests/test_pipeline_live_stats_worldbank.py` → 2 passed; full `pytest -q` (JAVA_HOME=jdk-21) → 123 passed, 1 skipped (known Windows Spark/winutils skip); `compileall` clean. Updated `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`; PR opened against `main`.
+
+## 2026-06-24 - PR 24 KSH XLSX reader review fixes
+
+Status: done for review fixes.
+
+Changed:
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `tests/test_silver_stats_ksh.py`
+- `tests/test_env_versions.py`
+- `constraints.txt`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `docs/STATE_AND_ROADMAP.md`
+- `docs/GAP_REGISTER.md`
+- `docs/PROGRESS_LOG.md`
+- `README.md`
+- `.planning/coursework/research/bigdata/pr24-ksh-xlsx-reader-review-fix-2026-06-24.md`
+- `output/evidence/pr24-ksh-live-check-after-fix/manifest.json`
+
+Findings:
+- PR #24's original reader fit only the simple label-before-year fixture and missed live KSH year-first, regional-total, and sectioned single-year workbook shapes.
+- Broad label rules could map road-network rows into rail features and confuse passenger/freight km metrics with count/tonnage metrics.
+- Dashboard/task docs were inconsistent about whether KSH XLSX parsing existed.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_ksh.py` -> 9 passed.
+- `python -m pytest -q tests/test_silver_stats_ksh.py tests/test_env_versions.py` -> 14 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources ksh --out output/evidence/pr24-ksh-live-check-after-fix --max-artifacts 6 --timeout-seconds 60` -> 6 artifacts, 92,509 bytes, 0 failures.
+- Live parse over `output/evidence/pr24-ksh-live-check-after-fix/bronze` -> 6 KSH frames parsed, unified Silver output 382 rows x 8 columns, and 0 road-network rows mapped into Silver features.
+- `python -m pytest -q -m integration` -> 16 passed, 121 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 136 passed, 1 skipped.
+- `python -m compileall -q src tests` -> passed.
+
+Next:
+- Keep GAP-005 open until KSH is scheduled through `src/railway_lakehouse/bronze/run.py`.
+- Add KSH-to-Gold real-data evidence when persisted Silver/Gold runs include KSH rows.

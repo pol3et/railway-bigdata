@@ -15,6 +15,8 @@ PYARROW_MIN_MAJOR = 15
 PYARROW_MAX_MAJOR = 25
 PINNED_PANDAS = "3.0.3"
 PINNED_PYARROW = "24.0.0"
+PINNED_OPENPYXL = "3.1.5"
+PINNED_ET_XMLFILE = "2.0.0"
 
 
 def _leading_int(value: str) -> int:
@@ -100,6 +102,8 @@ def test_constraints_lock_pins_validated_stack():
 
     assert f"pandas=={PINNED_PANDAS}" in pins
     assert f"pyarrow=={PINNED_PYARROW}" in pins
+    assert f"openpyxl=={PINNED_OPENPYXL}" in pins
+    assert f"et-xmlfile=={PINNED_ET_XMLFILE}" in pins
 
 
 def test_version_window_helpers_reject_out_of_window_values():

@@ -1,0 +1,86 @@
+{
+  "run_id": "live-check-20260624-192826",
+  "timestamp_utc": "2026-06-24T19:28:26.851446+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "ksh",
+      "status": "passed",
+      "artifact_count": 6,
+      "byte_count": 92509,
+      "http_statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "failures": []
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_freight",
+      "path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_freight/ingest_date=2026-06-24/sza0009.xlsx",
+      "meta_path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_freight/ingest_date=2026-06-24/sza0009.xlsx.meta.json",
+      "bytes": 13670,
+      "sha256": "9f8a7de732a017b8f9287b78883b552607bb273289d4dea1a435531a15516f6c",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_passenger",
+      "path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_passenger/ingest_date=2026-06-24/sza0016.xlsx",
+      "meta_path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_passenger/ingest_date=2026-06-24/sza0016.xlsx.meta.json",
+      "bytes": 15506,
+      "sha256": "f4f00be3c242e2bcfa2102b2dda5755b34da7624b1e2614b381075260ab48883",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_rolling_stock",
+      "path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_rolling_stock/ingest_date=2026-06-24/sza0028.xlsx",
+      "meta_path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_rolling_stock/ingest_date=2026-06-24/sza0028.xlsx.meta.json",
+      "bytes": 12900,
+      "sha256": "d1de621bf6c601bb2f314dc0515222045ed6b9a965a7b2e8646a8f1ee0e43e9c",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_network",
+      "path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_network/ingest_date=2026-06-24/sza0030.xlsx",
+      "meta_path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_network/ingest_date=2026-06-24/sza0030.xlsx.meta.json",
+      "bytes": 17478,
+      "sha256": "f7554fe0d9e7f6a818af0489772c74c4361c707a1b10e0c8f1eb50adf189172f",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_lines_regional",
+      "path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_lines_regional/ingest_date=2026-06-24/sza0041.xlsx",
+      "meta_path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_lines_regional/ingest_date=2026-06-24/sza0041.xlsx.meta.json",
+      "bytes": 20065,
+      "sha256": "bf69eff96d7cd2e7a3782743927ff9ec6296d90ab94ba579115708d23874a96f",
+      "http_status": 200
+    },
+    {
+      "source": "ksh",
+      "domain": "stats",
+      "dataset_id": "ksh_rail_narrow_gauge",
+      "path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_narrow_gauge/ingest_date=2026-06-24/sza0071.xlsx",
+      "meta_path": "output/evidence/pr24-ksh-live-check-after-fix/bronze/stats/ksh/ksh_rail_narrow_gauge/ingest_date=2026-06-24/sza0071.xlsx.meta.json",
+      "bytes": 12890,
+      "sha256": "8f62e0684a71aaea480deac7292f38be41bc5525c9c5e091aab553027ad1feba",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 6,
+  "byte_count": 92509
+}
