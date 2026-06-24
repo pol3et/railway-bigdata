@@ -1,0 +1,6 @@
+java version "1.8.0_491"
+Java(TM) SE Runtime Environment (build 1.8.0_491-b10)
+JAVA_HOME=<unset>
+jre1.8.0_491/
+latest/
+C:\Program Files (x86)\Common Files\Oracle\Java\java8path\java.exe

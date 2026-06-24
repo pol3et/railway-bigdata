@@ -1,0 +1,7 @@
+Collecting pyspark==4.1.* (from railway-lakehouse==0.1.0)
+  Using cached pyspark-4.1.2.tar.gz (455.4 MB)
+Collecting delta-spark==4.1.* (from railway-lakehouse==0.1.0)
+Requirement already satisfied: importlib-metadata>=1.0.0 in C:\Users\XxX360QUICKSCOPERXxX\AppData\Roaming\Python\Python314\site-packages (from delta-spark==4.1.*->railway-lakehouse==0.1.0) (8.7.1)
+Collecting py4j<0.10.9.10,>=0.10.9.7 (from pyspark==4.1.*->railway-lakehouse==0.1.0)
+Requirement already satisfied: zipp>=3.20 in C:\Users\XxX360QUICKSCOPERXxX\AppData\Roaming\Python\Python314\site-packages (from importlib-metadata>=1.0.0->delta-spark==4.1.*->railway-lakehouse==0.1.0) (3.23.1)
+Would install delta-spark-4.1.0 py4j-0.10.9.9 pyspark-4.1.2 railway-lakehouse-0.1.0

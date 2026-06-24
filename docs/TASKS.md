@@ -132,7 +132,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 **Contract A (verify before Wave 2):**
 - [x] On a clean checkout, the two documented commands regenerate the real Gold + `counts.json` (2,139×3; no empty Gold).
-- [ ] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1); `JAVA_HOME` points to JDK 17 or 21.
+- [~] `pip install .[spark]` resolves a pyspark **4.1.x** (coherent with delta-spark 4.1.x + hadoop-aws 3.4.1 Maven coord) — **verified** (`--dry-run` → pyspark 4.1.2 + delta-spark 4.1.0); `JAVA_HOME` → JDK 17/21 **not yet provisioned** (machine has Java 8). JDK is the live-Spark prerequisite, handled in Wave 2 / GAP-009.
 - [x] `python -m pytest -q` green; a guard test fails on a wrong-major pandas/pyarrow.
 
 ### Wave 2 — Spark fast track (parallel)
