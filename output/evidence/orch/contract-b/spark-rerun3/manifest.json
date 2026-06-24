@@ -1,0 +1,38 @@
+{
+  "command": "python -m railway_lakehouse.spark_jobs.coverage --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/orch/contract-b/spark-rerun3/ --master 'local[*]'",
+  "spark_version": "4.1.2",
+  "java_version": "21.0.11",
+  "java_home": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.11.10-hotspot",
+  "hadoop_home": "C:\\Users\\XxX360QUICKSCOPERXxX\\Documents\\tmp\\ai-masters\\coursework\\bigdata\\wt-gap-009\\tmp\\hadoop-3.4.0-win10-x64",
+  "input_path": "output/evidence/inventory-live-2026-06-23/railway_ml.parquet",
+  "input_rows": 2968,
+  "input_columns": 4,
+  "input_column_names": [
+    "geo",
+    "year",
+    "rail_freight_tonne_km",
+    "rail_network_length_km"
+  ],
+  "output_path": "output/evidence/orch/contract-b/spark-rerun3/coverage_by_geo_year",
+  "output_rows": 2968,
+  "output_columns": 5,
+  "output_column_names": [
+    "geo",
+    "year",
+    "row_count",
+    "rail_freight_tonne_km_non_null",
+    "rail_network_length_km_non_null"
+  ],
+  "files_written": [
+    "._SUCCESS.crc",
+    ".part-00000-6ee81ef5-a0a6-427a-a6f4-55c06cbd5a73-c000.snappy.parquet.crc",
+    "_SUCCESS",
+    "part-00000-6ee81ef5-a0a6-427a-a6f4-55c06cbd5a73-c000.snappy.parquet"
+  ],
+  "partitions_written": 1,
+  "duration_seconds": 7.810218,
+  "status": "passed",
+  "started_at_utc": "2026-06-24T04:15:12.439973+00:00",
+  "finished_at_utc": "2026-06-24T04:15:20.245417+00:00",
+  "evidence_path": "output/evidence/orch/contract-b/spark-rerun3/manifest.json"
+}

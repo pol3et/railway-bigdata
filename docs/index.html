@@ -189,7 +189,7 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">105</div><div class="cap">tests passing · incl. Spark</div></div>
+      <div class="card green"><div class="big">104</div><div class="cap">tests passing · +2 spark (env)</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card green"><div class="big">1</div><div class="cap">Spark job · evidence</div></div>
@@ -349,7 +349,7 @@
       <div class="ucol gold">
         <h3>Gold</h3>
         <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>spark/evidence-job</b> (GAP-009) Spark reads real Gold → writes <span class="mono">output/evidence/spark/</span> evidence. <em>The graded target has its first artifact.</em></span></div>
-        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-007</b> wire Gold to read <em>persisted</em> Silver (clean lakehouse handoff; in-memory today).</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>GAP-007</b> <span class="mono">gold.run</span> reads <em>persisted</em> Silver → Gold + counts (clean lakehouse handoff; integration-tested).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-015</b> normalize units in Gold (the contract promises it; nothing does).</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-016</b> deterministic Gold news schema (reindex pivots to canonical vocab).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-026</b> <span class="mono">aggregate_news</span> KeyError on partial dict rows.</span></div>
@@ -388,13 +388,13 @@
       <div class="flow">↓</div>
 
       <div class="wave fast">
-        <div class="wave-head"><span class="wave-no">WAVE 2</span><span class="wave-title">Spark fast track</span><span class="wave-par">2 in parallel</span></div>
+        <div class="wave-head"><span class="wave-no">WAVE 2</span><span class="wave-title">Spark fast track</span><span class="wave-par">2 closed · merged</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-009 spark/evidence-job (2,968×4 → evidence)</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u high">HIGH</span> GAP-007 Gold ← persisted Silver</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-007 Gold ← persisted Silver</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">Contract B — Spark evidence passed</div><div class="cbody">Spark reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (Spark version, in/out row+col counts, files written); counts match Gold. Bonus still open: Gold built from persisted Silver.</div></div>
+      <div class="contract"><div class="ctitle">✅ Contract B — passed</div><div class="cbody">Spark 4.1.2 reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (version, in/out row+col counts, files); counts match Gold and the job is independently re-runnable (re-run 2,968×4 → 2,968×5 verified). Bonus done: Gold built from persisted Silver via <span class="mono">gold.run</span> (GAP-007).</div></div>
 
       <div class="flow">↓</div>
 

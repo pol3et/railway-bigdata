@@ -40,3 +40,48 @@ rebased onto `main` with doc conflicts resolved by combining each gap's status f
 
 **Status:** Contract A met for all code/config items; the only open item is JDK 17/21 provisioning,
 which is GAP-009's documented environment prerequisite. Advancing to Wave 2 (GAP-009 ‖ GAP-007).
+
+## Wave 2 — Spark fast track (2026-06-24)
+
+**Merged to `main` (squash, dependency order):**
+
+| PR | Gap | Squash commit | Suite on merge |
+|---|---|---|---|
+| #18 | GAP-007 — wire `gold.run` CLI to read persisted Silver → Gold + counts; relocate `write_gold_counts` to `gold/build.py`; integration test | `586fac5` | 103 passed |
+| #19 | GAP-009 — Spark evidence job `spark_jobs.coverage` (reads real Gold, writes `output/evidence/spark/` manifest + Spark parquet) + CI-safe tests | `ec6fb5d` | 104 passed + 2 spark |
+
+**The JDK blocker resolved itself:** GAP-009's implementer (full-access) provisioned **JDK 21.0.11**
+(Eclipse Temurin) + native Windows Hadoop helper (winutils/hadoop.dll) and produced a **genuine live
+Spark run** — so the END OF FAST TRACK "Spark evidence exists" condition is truly met, not deferred.
+
+**Review:** both PRs got independent `codex_review` (approve, 0 findings). GAP-009 (the graded
+deliverable) additionally got a `ship-it:ship-reviewer` deep pass → **PASS**, with one P2 (the
+write-path spark test failed rather than skipped on a fresh machine lacking `HADOOP_HOME`/winutils).
+Fixed via resume (commit hardening the test to `pytest.skip` when the native Hadoop helper is absent),
+keeping the committed evidence untouched. No open P1/P2 at merge.
+
+**Spark evidence (verified genuine, committed in #19):** `output/evidence/spark/manifest.json` —
+Spark **4.1.2**, JDK **21.0.11**, input **2,968×4** (real inventory-live Gold) → output **2,968×5**
+(per-(geo,year) coverage), 1 partition, `part-00000-….snappy.parquet` + `_SUCCESS`, `status=passed`.
+Manifest input shape cross-checked against the real Gold Parquet.
+
+**Contract B audit (on `main`):**
+- [x] Spark job writes `output/evidence/spark/` with Spark version, in/out row+col counts, files. ✓
+- [x] Recorded counts match the Gold Parquet; job is **re-runnable** — orchestrator independently
+  re-ran it (JAVA_HOME→JDK21, HADOOP_HOME→winutils, `hadoop.dll` on PATH): **2,968×4 → 2,968×5,
+  status=passed**. Evidence: `output/evidence/orch/contract-b/` (`rerun3.log`, `spark-rerun3/manifest.json`).
+- [x] (bonus) Gold built from persisted Silver via `gold.run` (GAP-007). ✓
+
+**Suite:** `pytest -q -m "not spark"` → **104 passed, 2 deselected** (CI-safe; the spark file
+`importorskip`-skips without PySpark, so the default `[test]` env stays green). With the Spark env
+(PySpark 4.1.2 + JDK 21 + `HADOOP_HOME`), the 2 spark tests pass.
+
+**Note (minor, non-blocking):** on a machine that has PySpark installed but no `JAVA_HOME`→JDK17+,
+a bare `pytest -q` will try to boot Spark 4.1 on Java 8 and hang. The default `[test]` env (no
+PySpark) is unaffected. A future hardening could also skip the spark tests when JDK 17+ is absent.
+
+**Conflict resolution note:** #19 rebased onto the #18-updated `main`; doc conflicts combined both
+gaps' done-states. `spark_jobs/`, `tests/`, `pyproject.toml` (pytest `pythonpath`) auto-merged.
+
+**Status:** Contract B passed (all three items, incl. bonus). 🏁 Spark evidence exists. Advancing to
+Wave 3 (GAP-011 report/draft) — the final fast-track step.

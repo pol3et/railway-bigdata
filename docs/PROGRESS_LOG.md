@@ -1299,6 +1299,31 @@ Evidence:
 Next:
 - Keep PR #15 on `impl/gap-017` mergeable; GAP-009 can consume `SPARK_S3A_PACKAGES` when implementing the Spark evidence job.
 
+## 2026-06-24 - GAP-009 Spark Evidence Job
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/spark_jobs/__init__.py`, `src/railway_lakehouse/spark_jobs/coverage.py`
+- `tests/test_spark_coverage.py`, `tests/test_spark_stack_pins.py`
+- `output/evidence/spark/manifest.json`, `output/evidence/spark/coverage_by_geo_year/`
+- `README.md`, `docs/VERIFICATION.md`, `docs/TASKS.md`, `docs/STATE_AND_ROADMAP.md`, `docs/GAP_REGISTER.md`, `docs/index.html`
+
+Findings:
+- `railway_lakehouse.spark_jobs.coverage` reads a real Gold Parquet with a SparkSession, computes a per-(geo,year) coverage aggregation, and writes a Spark output directory + an evidence manifest. Spark imports are deferred so the module imports without PySpark (CI-safe).
+- Live run used the real inventory-live Gold (2,968×4); manifest records Spark 4.1.2, JDK 21.0.11, output 2,968×5, one part-file + `_SUCCESS`, duration, UTC timestamps, `status=passed`.
+- Missing input raises `FileNotFoundError`; 0-row input raises `ValueError` (no silent-empty output).
+- The spark write-path test skips cleanly when `HADOOP_HOME`/winutils is absent (mirrors `importorskip`).
+
+Evidence:
+- `python -m pytest -q -m "not spark"` -> 104 passed, 2 deselected (CI-safe; spark file `importorskip`-skips without PySpark).
+- `python -m pytest -q -m spark` -> 2 passed (with PySpark 4.1.2 + JDK 21 + `HADOOP_HOME`).
+- `python -m railway_lakehouse.spark_jobs.coverage --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/spark/` -> `status=passed`; manifest at `output/evidence/spark/manifest.json`.
+- Orchestrator Contract-B re-run independently reproduced 2,968×4 → 2,968×5 (`output/evidence/orch/contract-b/`).
+
+Next:
+- GAP-011 drafts the report from `output/evidence/spark/manifest.json` + the real Gold counts.
+
 ## 2026-06-24 - GAP-007 Gold Load From Persisted Silver
 
 Status: done
