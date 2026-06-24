@@ -357,7 +357,7 @@
 
   <section>
     <div class="sec-head"><span class="sec-no">05</span><h2>Open gaps &amp; tasks by level</h2></div>
-    <p class="small muted" style="margin:-6px 0 14px;">Remaining work only. Closed gaps (GAP-007/009/011/012/017/018/020/023) are recorded as <span class="mono">done</span> in the execution plan below and in <span class="mono">docs/WAVE_LOG.md</span>.</p>
+    <p class="small muted" style="margin:-6px 0 14px;">Remaining work only. Closed gaps (GAP-007/009/011/012/013/017/018/020/023) are recorded as <span class="mono">done</span> in the execution plan below and in <span class="mono">docs/WAVE_LOG.md</span>.</p>
     <div class="legend">
       <span><span class="u high">HIGH</span> needed for a <em>full</em> report</span>
       <span><span class="u mid">MID</span> should-have; defer only if short on time</span>
@@ -367,7 +367,6 @@
 
       <div class="ucol bronze">
         <h3>Bronze</h3>
-        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-013</b> live MinIO stats path must also land + read World Bank (today drops it).</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-019</b> make "automatic updates" deployable (cron/systemd/compose) — assignment requirement.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-005</b> schedule KSH / Statistik Austria / UIC in <span class="mono">bronze/run.py</span>.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>backfill</b> GDELT history → 100k+ articles (real volume).</span></div>
@@ -442,11 +441,12 @@
       <div class="flow">↓</div>
 
       <div class="wave full">
-        <div class="wave-head"><span class="wave-no">WAVE 4</span><span class="wave-title">Make the report full</span><span class="wave-par">1 closed · 2 open</span></div>
+        <div class="wave-head"><span class="wave-no">WAVE 4</span><span class="wave-title">Make the report full</span><span class="wave-par">2 closed · 2 open</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> eurostat→Gold mapping — 2nd source, 8 feats (GAP-023, PR #21)</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u high">HIGH</span> ollama-model + news LLM → news_* features</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u high">HIGH</span> GAP-013 live-MinIO WB + GAP-019 deployable auto-updates</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-013 live-MinIO World Bank wired into stats read</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u high">HIGH</span> GAP-019 deployable auto-updates</span>
         </div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract C</div><div class="cbody">Gold carries ≥2 stats sources + <span class="mono">news_*</span> columns; a live MinIO Bronze→Silver→Gold run completes end-to-end; a scheduled run lands fresh Bronze.</div></div>

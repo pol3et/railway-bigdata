@@ -102,16 +102,17 @@ develop against it independently with no schema collisions.
 ## Newly found gaps (re-audit 2026-06-24)
 
 The `undocumented-gap-hunt` workflow surfaced **19 verified undocumented gaps**
-(`GAP-012…030`, full list in `GAP_REGISTER.md`). GAP-012 is closed by the
-2026-06-24 regen-recipe fix; GAP-013 still touches the active path and should be
-folded into the tasks above:
+(`GAP-012…030`, full list in `GAP_REGISTER.md`). GAP-012 and GAP-013 are closed:
 
 - **GAP-012** (closed 2026-06-24) — the documented Bronze→Gold reproduction
   recipe now uses `output/evidence/local-stats-bronze-regen`, and the pipeline
   raises on a missing/empty local `--bronze-root` instead of writing empty Gold.
-- **GAP-013** (medium) — the live MinIO stats path reads Eurostat only and drops World
-  Bank, so a genuinely-live Gold is feature-less. Fold into `gold/load-from-silver` /
-  the live-MinIO wiring.
+- **GAP-013** (closed 2026-06-24) — the live MinIO stats path now reads World Bank
+  JSON in addition to Eurostat (`_read_bronze_worldbank` reusing
+  `silver.stats.load.load_worldbank_frame`) and WARNs on zero WB frames, so a
+  genuinely-live Gold is no longer silently feature-less. Verified by a
+  deterministic fsspec `memory://` integration test (`pytest -q -m integration
+  tests/test_pipeline_live_stats_worldbank.py`).
 - **GAP-014** (medium) — closed 2026-06-24 by forcing the s3/MinIO text read branch to
   decode UTF-8 from bytes and covering it in `tests/test_pipeline_s3_readback.py`.
 - **GAP-020** (medium) — closed 2026-06-24 by deterministic fsspec memory:// unit tests
@@ -153,7 +154,8 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 ### Wave 4 — Make the report full (parallel)
 - `[x]` eurostat→Gold mapping (GAP-023) — **done (PR #21)**: 2nd real stats source, 8 mapped features → Gold 1,554×10 (evidence `output/evidence/eurostat-silver-gold/`)
 - `H` `infra/ollama-model` + `silver/news-llm-extraction` — news_* features into Gold
-- `H` GAP-013 (live-MinIO World Bank) + GAP-019 (deployable automatic updates)
+- `[x]` GAP-013 (live-MinIO World Bank) — **closed 2026-06-24** (live stats path now reads WB + Eurostat)
+- `H` GAP-019 (deployable automatic updates)
 
 **Contract C (verify before Wave 5 / final report):**
 - [ ] Gold carries ≥2 stats sources **and** `news_*` columns.

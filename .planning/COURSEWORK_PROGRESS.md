@@ -1273,3 +1273,10 @@ Evidence:
 
 Next:
 - GAP-011 can draft the report from the committed Spark evidence plus existing Gold counts.
+## 2026-06-24 - GAP-013 live World Bank wiring
+
+Status: closed (Codex implemented; orchestrator verified + shipped)
+
+- Orchestration: `/research-orchestrator` research (`gap013-live-minio-worldbank-stats-2026-06-24.md`) → spec/prompt (`output/evidence/orch/gap-013/`) → Codex agent on worktree `impl/gap-013` (thread `019efa7b-4d50-…`).
+- The Codex agent added `_read_bronze_worldbank` + `_read_bytes` and the live Eurostat+World Bank combination in `src/railway_lakehouse/pipeline.py` (local `bronze_root` branch unchanged), plus the deterministic `memory://` integration test. Its exec sandbox could not spawn processes (`CreateProcessAsUserW failed: 5`), so it could not verify/commit/push/PR and correctly reported `blocked` without fabricating evidence.
+- Orchestrator verification + closure: `pytest -q -m integration tests/test_pipeline_live_stats_worldbank.py` → 2 passed; full `pytest -q` (JAVA_HOME=jdk-21) → 123 passed, 1 skipped (known Windows Spark/winutils skip); `compileall` clean. Updated `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`; PR opened against `main`.
