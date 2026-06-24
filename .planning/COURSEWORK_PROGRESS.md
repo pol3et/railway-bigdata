@@ -968,3 +968,32 @@ Boundary:
 
 Next:
 - Open the PR for GAP-012. Continue with GAP-017/018 and GAP-020 after review/merge.
+## 2026-06-24 - GAP-020 s3 Bronze Read-Back Tests
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/pipeline.py`
+- `tests/test_pipeline_s3_readback.py`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gap-020-s3-readback-tests-2026-06-24.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- The s3/non-Path Bronze read-back branch is now covered deterministically with an injected fsspec `memory://` filesystem: glob/filtering, no-backend `ValueError`, gzip TSV read-back, TSV local/s3 parity, news article parity, and UTF-8 text parity.
+- The old s3 `_read_text` text-mode branch was reproduced as a RED failure with a UTF-8 payload containing accents and typographic quotes; the failure was `UnicodeDecodeError` on byte `0x98` through a cp1251 text-mode wrapper.
+- `_read_text` now opens s3 objects in binary mode and decodes UTF-8 explicitly. No numeric stats are rewritten, no LLM is used, and `tests/fixtures/bronze/**` stayed read-only.
+- No Docker, MinIO, Ollama, Spark, live collectors, or network data collection was run for this gap.
+
+Evidence:
+- `python -m pytest -q tests/test_pipeline_s3_readback.py` before fix -> failed as expected: 5 passed, 1 failed.
+- `python -m pytest -q -m unit tests/test_pipeline_s3_readback.py` -> 6 passed.
+- `python -m pytest -q -m unit` -> 83 passed, 10 deselected.
+- `python -m pytest -q` -> 93 passed.
+- `python -m compileall -q src tests` -> passed.
+
+Next:
+- Open the GAP-020 PR; remaining active-path gaps include GAP-012, GAP-013, GAP-017/018, Spark evidence, persisted-Silver Gold loading, and report work.
