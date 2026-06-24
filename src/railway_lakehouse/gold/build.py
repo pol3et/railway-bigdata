@@ -126,6 +126,17 @@ def aggregate_news(news_rows: list) -> pd.DataFrame:
 # --------------------------------------------------------------------------
 # 3) join stats + news -> ML-ready matrix
 # --------------------------------------------------------------------------
+def _geo_level(geo) -> str:
+    """Classify a geo code: country (2-letter), aggregate (EU*/EA* totals),
+    or region (NUTS code). Lets the country+region matrix be filtered by level."""
+    g = str(geo).strip().upper()
+    if g.startswith(("EU", "EA")) and any(c.isdigit() for c in g):
+        return "aggregate"
+    if len(g) == 2 and g.isalpha():
+        return "country"
+    return "region"
+
+
 def build_gold(stats_long: pd.DataFrame, news_rows: list, *,
                year_min: Optional[int] = None,
                year_max: Optional[int] = None) -> pd.DataFrame:
@@ -150,6 +161,9 @@ def build_gold(stats_long: pd.DataFrame, news_rows: list, *,
             gold[c] = gold[c].fillna(0)
 
     gold = gold.sort_values(["geo", "year"]).reset_index(drop=True)
+    # tag the geo grain so country/region/aggregate rows can be filtered
+    if "geo" in gold.columns:
+        gold.insert(1, "geo_level", gold["geo"].map(_geo_level))
     if year_min is not None:
         gold = gold[gold["year"] >= year_min]
     if year_max is not None:

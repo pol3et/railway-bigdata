@@ -47,6 +47,30 @@ CONFIRMED_RAIL_INDICATORS = [
 # Backwards-compatible alias: earlier code/tests refer to this name.
 KNOWN_RAIL_INDICATORS = CONFIRMED_RAIL_INDICATORS
 
+# Broad EU-stats indicator set for the big-data Bronze net: rail first (keeps the
+# focused tests valid), then economy, population/demography, quality of life,
+# health/education, safety and environment. Rules-only mapping downstream; dead
+# or archived ids are skipped by series_has_observations() at land time.
+EU_STATS_INDICATORS = [
+    # --- transport (rail first) ---
+    "IS.RRS.TOTL.KM", "IS.RRS.GOOD.MT.K6", "IS.RRS.PASG.KM",
+    "IS.AIR.PSGR", "IS.AIR.GOOD.MT.K1", "IS.ROD.PAVE.ZS",
+    # --- economy ---
+    "NY.GDP.MKTP.CD", "NY.GDP.PCAP.CD", "NY.GDP.MKTP.KD.ZG", "NY.GNP.PCAP.CD",
+    "FP.CPI.TOTL.ZG", "SL.UEM.TOTL.ZS", "GC.DOD.TOTL.GD.ZS",
+    "NE.EXP.GNFS.ZS", "NE.IMP.GNFS.ZS", "BX.KLT.DINV.WD.GD.ZS",
+    # --- population / demography ---
+    "SP.POP.TOTL", "SP.POP.GROW", "SP.URB.TOTL.IN.ZS", "EN.POP.DNST",
+    "SP.DYN.LE00.IN", "SP.DYN.TFRT.IN", "SP.DYN.IMRT.IN",
+    # --- quality of life / health / education / digital ---
+    "SE.XPD.TOTL.GD.ZS", "SH.XPD.CHEX.GD.ZS", "EG.ELC.ACCS.ZS",
+    "SI.POV.GINI", "IT.NET.USER.ZS", "SH.STA.SUIC.P5",
+    # --- safety ---
+    "VC.IHR.PSRC.P5",
+    # --- environment ---
+    "EN.GHG.CO2.PC.CE.AR5", "EN.ATM.CO2E.PC",
+]
+
 # Word-anchored match: "rail", "railway(s)", "railroad(s)" -- but NOT
 # "trail", "trailer", "curtail", "monorail", etc.
 _RAIL_RE = re.compile(r"\brail\w*", re.IGNORECASE)

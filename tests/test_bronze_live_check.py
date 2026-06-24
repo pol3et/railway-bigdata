@@ -7,6 +7,7 @@ import pytest
 
 from railway_lakehouse.bronze.lander import RawArtifact
 from railway_lakehouse.bronze import live_check
+from railway_lakehouse.bronze.sources import eurostat
 from railway_lakehouse.bronze.live_check import (
     collect_eurostat,
     collect_ksh,
@@ -226,11 +227,12 @@ def test_run_live_check_validates_all_sources_before_writing(tmp_path):
     assert not (tmp_path / "bronze").exists()
     assert not (tmp_path / "manifest.json").exists()
 
-def test_collect_eurostat_discovers_rail_dataset_from_toc(monkeypatch, tmp_path):
-    # A rail dataset that is NOT in the configured seed list, so landing it
-    # proves TOC discovery (not the seeds) drove the result. The TOC also carries
-    # a non-rail dataset and a folder row that must be filtered out.
-    rail_tsv = b"freq,unit,geo\\TIME_PERIOD\t2020\nA,MIO_TKM,HU\t100\n"
+def test_collect_eurostat_pulls_curated_allowlist(monkeypatch, tmp_path):
+    # Collection is driven by the curated allowlist, NOT by broad TOC discovery:
+    # a curated dataset lands even though the TOC does not list it, and a random
+    # in-TOC dataset that is not on the allowlist is never fetched.
+    tsv = b"freq,unit,geo\\TIME_PERIOD\t2020\nA,MIO_TKM,HU\t100\n"
+    curated_code = eurostat.EUROSTAT_CURATED_DATASETS[0]  # e.g. rail_pa_total
 
     class Response:
         def __init__(self, status_code, content, content_type="text/plain"):
@@ -245,39 +247,34 @@ def test_collect_eurostat_discovers_rail_dataset_from_toc(monkeypatch, tmp_path)
     class Session:
         def get(self, url, timeout, headers):
             if "catalogue/toc" in url:
-                return Response(
-                    200,
-                    b'Railway goods transport, regional\t"rail_go_disc"\t"dataset"\n'
-                    b'Road goods transport\t"road_go_demo"\t"dataset"\n'
-                    b'Railway transport\t"rail"\t"folder"\n',
-                )
-            if "/rail_" in url:  # seeds and the discovered rail dataset
-                return Response(200, rail_tsv, "text/tab-separated-values")
-            return Response(404, b"")
+                return Response(200, b'Some unrelated dataset\t"xyz_demo"\t"dataset"\n')
+            # serve a valid TSV for any dataset that is actually requested
+            return Response(200, tsv, "text/tab-separated-values")
 
     monkeypatch.setattr(live_check.requests, "Session", Session)
     lander = LocalBronzeLander(tmp_path, run_id="run-001", clock=lambda: FIXED_NOW)
 
-    result = collect_eurostat(lander=lander, max_artifacts=8, timeout_seconds=3)
+    result = collect_eurostat(
+        lander=lander,
+        max_artifacts=len(eurostat.EUROSTAT_CURATED_DATASETS),
+        timeout_seconds=3,
+    )
 
     landed = {artifact["dataset_id"] for artifact in lander.artifacts}
     assert result.status == "passed"
     assert "_catalogue_toc" in landed
-    # discovery drove this: rail_go_disc is not one of the configured seeds
-    assert "rail_go_disc" not in live_check.EUROSTAT_CONFIRMED_DATASETS
-    assert "rail_go_disc" in landed
-    # the non-rail dataset and the folder row are never enqueued/landed
-    assert "road_go_demo" not in landed
-    assert "rail" not in landed
+    assert curated_code in landed       # curated allowlist drove the fetch
+    assert "xyz_demo" not in landed     # in TOC but not on the allowlist
     assert (
         tmp_path
         / "bronze"
         / "stats"
         / "eurostat"
-        / "rail_go_disc"
+        / curated_code
         / "ingest_date=2026-06-21"
-        / "rail_go_disc.tsv.gz"
+        / f"{curated_code}.tsv.gz"
     ).exists()
+
 
 def test_collect_worldbank_lands_valid_series(monkeypatch, tmp_path):
     class Response:

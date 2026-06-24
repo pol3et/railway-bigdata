@@ -301,8 +301,12 @@ def collect_eurostat(
         )
     )
 
-    discovered = eurostat.discover_rail_datasets(toc_response.text)
-    codes = list(dict.fromkeys(list(EUROSTAT_CONFIRMED_DATASETS) + discovered))[:max_artifacts]
+    # Collection = curated allowlist (economy / population / quality of life /
+    # urban) PLUS the full transport theme (all sub-themes, incl. regional and
+    # sub-annual) discovered from the TOC.
+    transport = eurostat.discover_transport_datasets(toc_response.text)
+    codes = list(dict.fromkeys(
+        list(eurostat.EUROSTAT_CURATED_DATASETS) + transport))[:max_artifacts]
 
     for code in codes:
         url = eurostat.DATA_URL.format(code=code)
@@ -451,7 +455,7 @@ def collect_worldbank(
     except Exception:  # noqa: BLE001
         discovered = list(worldbank.CONFIRMED_RAIL_INDICATORS)
 
-    indicators = list(dict.fromkeys(list(worldbank.CONFIRMED_RAIL_INDICATORS) + discovered))[:max_artifacts]
+    indicators = list(dict.fromkeys(list(worldbank.EU_STATS_INDICATORS) + discovered))[:max_artifacts]
 
     for indicator in indicators:
         url = worldbank.SERIES_URL.format(indicator=indicator)
