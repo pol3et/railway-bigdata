@@ -48,6 +48,8 @@ CANONICAL_FEATURES = {
     "gdp_current_usd":             "GDP at current prices (current USD)",
     "gdp_growth_pct":              "GDP volume growth rate (%)",
     "gdp_per_capita_eur":          "GDP per capita (current EUR)",
+    "gdp_pps":                     "GDP in purchasing power standards (million PPS)",
+    "gdp_per_capita_pps":          "GDP per capita (PPS)",
     "gdp_per_capita_usd":          "GDP per capita (current USD)",
     "gni_per_capita_usd":          "GNI per capita (current USD)",
     "gva_total_meur":              "Gross value added, total (million EUR)",
@@ -89,6 +91,10 @@ CANONICAL_FEATURES = {
     "co2_per_capita":              "CO2 emissions per capita",
     # transport modal split
     "freight_modal_split_rail_pct": "Rail share of inland freight transport (%)",
+    "cars_per_1000_inhabitants":   "Passenger cars per 1000 inhabitants",
+    "price_level_index":           "Comparative price level index (EU27=100)",
+    "ppp_factor":                  "Purchasing power parity conversion factor (GDP)",
+    "rail_high_speed_pkm":         "High-speed rail passenger-km (million)",
     "passenger_modal_split_rail_pct": "Rail share of inland passenger transport (%)",
 }
 
