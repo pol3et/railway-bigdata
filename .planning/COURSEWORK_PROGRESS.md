@@ -918,3 +918,53 @@ Boundary:
 Next:
 - GAP-012 (regen recipe) + GAP-013 (live MinIO WB) before relying on the live path; then
   GAP-007 Gold<-persisted Silver, GAP-009 Spark (pin pyspark 3.5.* + JDK 17), report.
+
+## 2026-06-24 - GAP-012 Regen Recipe Guard
+
+Status: done.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/gap-012-bronze-gold-regen-recipe.md`.
+- Approved implementation plan:
+  `.planning/coursework/plans/bigdata/gap-012-bronze-gold-regen-recipe.md`.
+- Local files reviewed first: `src/railway_lakehouse/bronze/live_check.py`,
+  `src/railway_lakehouse/pipeline.py`, `src/railway_lakehouse/silver/stats/load.py`,
+  `src/railway_lakehouse/gold/run.py`, `tests/test_bronze_live_check.py`,
+  `tests/test_pipeline_gaps.py`, `docs/VERIFICATION.md`, `docs/GAP_REGISTER.md`,
+  `docs/TASKS.md`, and `docs/index.html`.
+- No external docs were needed because the change is repo-local and makes no new
+  framework/API claims.
+
+Changed:
+- Added a local `--bronze-root` existence/type guard in `pipeline.py`.
+- Added a local empty-input guard in `pipeline.py` so missing/empty local Bronze
+  cannot write an empty Gold parquet.
+- Added deterministic GAP-012 integration tests using `tmp_path` and fake
+  live-check collectors only.
+- Updated the regen recipe to use `output/evidence/local-stats-bronze-regen`
+  consistently, and synced `GAP_REGISTER.md`, `TASKS.md`, and the dashboard.
+
+Evidence:
+- RED reproduction: scratch command against a non-existent nested Bronze root
+  wrote 0-row Gold before the fix.
+- Corrected live regen passed: 4 raw artifacts, 14,996,995 bytes, then Gold
+  counts `rows=2139`, `columns=3`, `rail_network_length_km`, `contains_AT=true`,
+  `contains_HU=true`, `year_min=1995`, `year_max=2021`.
+- Missing-root CLI check now exits non-zero with a `FileNotFoundError` mentioning
+  `--bronze-root` and `live_check`; no parquet is written.
+- `python -m pytest -q -m integration`: 13 passed, 77 deselected.
+- `python -m pytest -q -m unit`: 77 passed, 13 deselected.
+- `python -m pytest -q`: 90 passed.
+- `python -m compileall -q src tests`: passed.
+- `git diff --check`: passed.
+
+Boundary:
+- Raw Bronze landing semantics were not changed.
+- Numeric stat merging remains deterministic; no LLM rewrites numeric rows.
+- New tests use only `tmp_path`/fixtures and do not depend on coursework/output data.
+- Generated live regen raw Bronze remains under `output/evidence/**/bronze/`,
+  which is intentionally gitignored.
+
+Next:
+- Open the PR for GAP-012. Continue with GAP-017/018 and GAP-020 after review/merge.

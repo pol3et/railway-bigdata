@@ -1131,3 +1131,38 @@ Next:
 - Fix GAP-012 (regen recipe) and GAP-013 (live MinIO World Bank) before relying on the live path.
 - Then GAP-007 (Gold reads persisted Silver), GAP-009 Spark (pin pyspark 3.5.* + JDK 17 per GAP-017), report.
 - Live MinIO stack left up; `docker compose down` to stop.
+
+## 2026-06-24 - GAP-012 Regen Recipe Guard
+
+Status: done.
+
+Changed:
+- `src/railway_lakehouse/pipeline.py`
+- `tests/test_pipeline_gaps.py`
+- `docs/VERIFICATION.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gap-012-bronze-gold-regen-recipe.md`
+- `.planning/coursework/plans/bigdata/gap-012-bronze-gold-regen-recipe.md`
+
+Findings:
+- Red-state reproduction in `output/runtime/gap-012-red/` confirmed the clean-checkout trap: a root containing only `manifest.json` made `live_check` write raw Bronze under `<out>/<run_id>/bronze`, while the old hardcoded `<out>/bronze` pipeline path exited 0 and wrote `rows=0`, `columns=0`.
+- GAP-012 fix keeps raw Bronze landing semantics unchanged and preserves the existing run-id nesting contract.
+- The documented recipe now uses fresh `output/evidence/local-stats-bronze-regen`, and `pipeline.run_pipeline()` validates local `--bronze-root` before any Gold output write.
+- Missing local Bronze roots now raise `FileNotFoundError`; existing local roots that yield zero stats frames and zero news articles raise `ValueError`.
+
+Evidence:
+- RED: old scratch pipeline command against `output/runtime/gap-012-red/local-stats-bronze/bronze` exited 0 and wrote `output/runtime/gap-012-red/empty-gold/counts.json` with `rows=0`, `columns=0`.
+- `python -m railway_lakehouse.bronze.live_check --sources eurostat,worldbank --out output/evidence/local-stats-bronze-regen --max-artifacts 1 --timeout-seconds 60` passed: 4 artifacts, 14,996,995 bytes.
+- `python -m railway_lakehouse.pipeline --bronze-root output/evidence/local-stats-bronze-regen/bronze --skip-news-extraction --news 0 --out output/evidence/local-stats-bronze-regen/railway_ml.parquet --crosswalk-path output/evidence/local-stats-bronze-regen/crosswalk_cache.json --counts-out output/evidence/local-stats-bronze-regen/counts.json` passed: 2,139 rows x 3 columns, `rail_network_length_km`, AT/HU present, 1995-2021.
+- Negative check `python -m railway_lakehouse.pipeline --bronze-root output/evidence/does-not-exist/bronze --skip-news-extraction --news 0 --out output/runtime/gap-012-negative/empty.parquet` exited non-zero with a path-specific `FileNotFoundError`; the output parquet was not created.
+- `python -m pytest -q -m integration` passed: 13 passed, 77 deselected.
+- `python -m pytest -q -m unit` passed: 77 passed, 13 deselected.
+- `python -m pytest -q` passed: 90 passed.
+- `python -m pytest -q tests/test_bronze_live_check.py::test_run_live_check_uses_run_subdirectory_when_output_already_has_evidence` passed: 1 passed.
+- `python -m compileall -q src tests` passed.
+- `git diff --check` passed.
+
+Next:
+- Open the GAP-012 PR and proceed with the remaining Wave 1 items after review/merge: GAP-017/018 Spark stack pins and GAP-020 s3 read-back tests.
