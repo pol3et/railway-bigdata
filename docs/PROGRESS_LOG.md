@@ -1425,3 +1425,25 @@ Evidence:
 
 Next:
 - Commit, push `impl/gap-011`, and confirm PR #20 remains mergeable.
+## 2026-06-24 - GAP-013 live World Bank wiring
+
+Status: closed (Codex implemented; orchestrator verified + shipped)
+
+Changed:
+- `src/railway_lakehouse/pipeline.py` — `_read_bronze_worldbank`, `_read_bytes`, live Eurostat+World Bank frame combination + zero-WB WARN (local `bronze_root` branch unchanged)
+- `tests/test_pipeline_live_stats_worldbank.py` — deterministic fsspec `memory://` integration test
+- `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html` — GAP-013 closed + Test Failure Mapping rows
+- research: `.planning/coursework/research/bigdata/gap013-live-minio-worldbank-stats-2026-06-24.md`; orch evidence: `output/evidence/orch/gap-013/`
+
+Findings:
+- The live `_read_bronze_stats_frames` branch only read Eurostat TSV; World Bank (the only source mapping to a live Gold feature) was dropped, so a genuinely-live Gold stats matrix was silently feature-less.
+- `silver.stats.load.load_worldbank_frame` already parses deterministic World Bank `[meta, records]` JSON and tags rows `source_system='worldbank'`; the fix reuses it (no LLM, no numeric rewriting).
+- The Codex agent's exec sandbox could not spawn processes (`CreateProcessAsUserW failed: 5`); orchestrator ran verification + closure.
+
+Evidence:
+- `python -m pytest -q -m integration tests/test_pipeline_live_stats_worldbank.py` → 2 passed (WB frame returned alongside Eurostat; WB values byte-exact HU=789.12/AT=456.78; `_catalogue` skipped; zero-WB WARN fires).
+- `python -m pytest -q` (JAVA_HOME=jdk-21) → 123 passed, 1 skipped (known Windows Spark/winutils skip).
+- `python -m compileall -q src tests` → clean.
+
+Next:
+- Merge PR; rebase GAP-019's PR over the shared GAP_REGISTER/dashboard rows.

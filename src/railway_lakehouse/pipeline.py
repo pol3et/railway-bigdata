@@ -206,24 +206,49 @@ def _read_bronze_eurostat(lander) -> dict:
 
 
 
+def _read_bronze_worldbank(lander) -> list[pd.DataFrame]:
+    """Return non-empty Silver stats frames from live Bronze World Bank JSON."""
+    frames = []
+    for path in _list_bronze_files(
+        lander,
+        domain="stats",
+        source="worldbank",
+        include=lambda name: name.endswith(".json"),
+    ):
+        dataset_id = _dataset_id_from_path(path, "worldbank")
+        if dataset_id.startswith("_"):
+            continue
+        frame = stats_load.load_worldbank_frame(_read_bytes(lander, path), dataset_id)
+        if not frame.empty:
+            frames.append(frame)
+    return frames
+
+
 def _read_bronze_stats_frames(lander) -> list[pd.DataFrame]:
     """Return Silver stats frames from Bronze stats artifacts.
 
     Local Bronze mode reads all supported stats sources through
     silver.stats.load. At the moment this includes Eurostat and World Bank.
-    Live MinIO mode keeps the existing Eurostat-only fallback.
+    Live MinIO mode reads Eurostat TSV and World Bank JSON artifacts directly.
     """
     local_root = getattr(lander, "bronze_root", None)
     if local_root is not None:
         return stats_load.frames_from_bronze(local_root)
 
     raw_eurostat_tables = _read_bronze_eurostat(lander)
-    frames = []
+    eurostat_frames = []
     for dataset_id, df in raw_eurostat_tables.items():
         long = stats_merge.read_eurostat_tsv(df, dataset_id)
         long["source_system"] = "eurostat"
-        frames.append(long)
-    return frames
+        eurostat_frames.append(long)
+    wb_frames = _read_bronze_worldbank(lander)
+    if not wb_frames:
+        log.warning(
+            "live stats read produced 0 World Bank frames; live Gold stats matrix "
+            "may be feature-less. Check "
+            "bronze/stats/worldbank/*/ingest_date=*/*.json landed via the lander."
+        )
+    return eurostat_frames + wb_frames
 
 
 def _read_bronze_news(lander, limit: int) -> list:
@@ -295,6 +320,13 @@ def _read_text(lander, path) -> str:
         return path.read_text(encoding="utf-8")
     with lander.s3.open(path, "rb") as f:
         return f.read().decode("utf-8")
+
+
+def _read_bytes(lander, path) -> bytes:
+    if isinstance(path, Path):
+        return path.read_bytes()
+    with lander.s3.open(path, "rb") as f:
+        return f.read()
 
 
 def _dataset_id_from_path(path, source: str) -> str:
