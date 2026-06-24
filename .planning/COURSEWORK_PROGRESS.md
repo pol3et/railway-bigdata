@@ -1,5 +1,54 @@
 # Coursework Progress
 
+## 2026-06-24 - GAP-011 Report And Presentation Drafts
+
+Status: done for implementation and local verification; PR handoff pending.
+
+Research:
+- Required local research note:
+  `.planning/coursework/research/bigdata/gap-011-report-presentation.md`.
+- Approved implementation plan:
+  `.planning/coursework/plans/bigdata/gap-011-report-presentation.md`.
+- Local files and committed evidence JSON were researched first. No external
+  docs were needed because the work quotes repo artifacts rather than new API or
+  library behavior.
+
+Changed:
+- Added `output/report/REPORT.md` with problem/dataset, architecture,
+  proven Gold result, MinIO, Bronze source coverage, Spark evidence, known
+  gaps, and Evidence Index.
+- Added `output/presentation/PRESENTATION.md` as a slide outline using the same
+  cited figures.
+- Added `tests/test_report_evidence_links.py`, marked `unit`, to assert
+  deliverables exist, cited evidence paths exist, and headline values loaded
+  from JSON appear in the report.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/STATE_AND_ROADMAP.md`,
+  `docs/VERIFICATION.md`, `docs/index.html`, and `docs/PROGRESS_LOG.md`.
+
+Findings:
+- GAP-009 Spark evidence already exists in this checkout, so the report cites
+  `output/evidence/spark/manifest.json` instead of claiming Spark is unbuilt.
+- No raw Bronze paths are cited; the documents cite committed manifests,
+  counts, crosswalk, samples, and Spark/MinIO evidence only.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_report_evidence_links.py` failed with
+  3 expected failures before the deliverables existed.
+- GREEN: `python -m pytest -q tests/test_report_evidence_links.py` -> 3 passed.
+- Evidence path scan -> `MISSING EVIDENCE PATHS: []`.
+- `python -m pytest -q -m "not spark"` -> 107 passed, 2 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q -m spark` -> 1 passed, 1 skipped, 107 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 108 passed, 1 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF warnings only.
+
+Boundary:
+- No live collectors, MinIO/Ollama/Spark evidence regeneration, raw Bronze
+  movement, or pipeline behavior changes were made for GAP-011.
+
+Next:
+- Commit, push `impl/gap-011`, open the PR against `main`, and verify mergeability.
+
 ## 2026-06-24 - GAP-018 Dependency Bounds And Lockfile
 
 Status: done for implementation and local verification.
