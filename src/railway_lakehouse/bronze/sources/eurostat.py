@@ -51,7 +51,11 @@ USER_AGENT = (
 )
 
 RAIL_TITLE_TOKENS = ("rail", "railway")
-RAIL_CODE_PREFIXES = ("rail_", "tran_r_", "tran_sf_")
+# `rail_*` is a rail-only code family (always in scope). `tran_r_*` (regional
+# transport) and `tran_sf_*` (transport safety) also cover road/air/sea/all-mode,
+# so those are only taken when the English title actually names rail.
+RAIL_ONLY_PREFIX = "rail_"
+BROAD_TRANSPORT_PREFIXES = ("tran_r_", "tran_sf_")
 STOP_TOKENS = ("trailer",)   # avoid road "trailer" false-positives
 
 # TOC `type` column values. Only datasets are served by the SDMX data endpoint;
@@ -108,13 +112,17 @@ def _strip(token: str) -> str:
 def _qualifies(title_lc: str, code_lc: str) -> bool:
     if any(s in title_lc for s in STOP_TOKENS):
         return False
-    if code_lc.startswith(RAIL_CODE_PREFIXES):
+    # the rail-only code family is always in scope
+    if code_lc.startswith(RAIL_ONLY_PREFIX):
         return True
-    if any(t in title_lc for t in RAIL_TITLE_TOKENS):
-        # for the broad transport-safety/regional code spaces, require the
-        # rail token in the title; otherwise accept any 'rail' title.
-        return True
-    return False
+    has_rail_title = any(t in title_lc for t in RAIL_TITLE_TOKENS)
+    # the broad regional/safety code spaces (tran_r_*, tran_sf_*) also carry
+    # road/air/sea/all-mode datasets, so require the rail token in the title
+    # rather than accepting the whole family on the code prefix alone.
+    if code_lc.startswith(BROAD_TRANSPORT_PREFIXES):
+        return has_rail_title
+    # any other code: include only when the English title names rail
+    return has_rail_title
 
 
 def discover_rail_datasets(toc_text: str) -> list[str]:

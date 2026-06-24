@@ -108,9 +108,12 @@ _EUROSTAT_DATASET_RULES = {
 
 
 def _parse_eurostat_value(series: pd.Series) -> pd.Series:
-    # values may carry flags ("1234 b", "726 e") or be ":"/"@C" (missing) -> NaN
-    return pd.to_numeric(
-        series.astype(str).str.extract(r"([-\d.]+)")[0], errors="coerce")
+    # values may carry flags ("1234 b", "726 e") or be ":"/"@C" (missing) -> NaN.
+    # Capture the numeric token including any thousands separators, then strip the
+    # commas so a grouped value like "1,234" parses to 1234 rather than 1.
+    nums = (series.astype(str).str.extract(r"([-\d.,]+)")[0]
+            .str.replace(",", "", regex=False))
+    return pd.to_numeric(nums, errors="coerce")
 
 
 def read_eurostat_tsv(df: pd.DataFrame, dataset_id: str) -> pd.DataFrame:

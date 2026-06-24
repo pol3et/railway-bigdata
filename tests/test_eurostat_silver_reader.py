@@ -4,8 +4,19 @@ unit code). Breakdown datasets keep only the relevant rows (TOTAL / KIL) instead
 of summing detail+total, which would double count.
 """
 import pandas as pd
+import pytest
 
 from railway_lakehouse.silver.stats import merge as stats_merge
+
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _isolate_crosswalk_cache(tmp_path, monkeypatch):
+    """build_crosswalk() persists its cache to CROSSWALK_PATH; redirect it to a
+    tmp file so these tests never read or write the real silver/crosswalk_cache.json."""
+    monkeypatch.setattr(stats_merge, "CROSSWALK_PATH",
+                        str(tmp_path / "crosswalk_cache.json"))
 
 
 def _feature(df, geo, year):

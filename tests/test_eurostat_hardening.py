@@ -4,9 +4,12 @@ Covers two documented live-run failures:
   * RemoteDisconnected on the TOC fetch -> session must carry a UA + retries.
   * 404s from enqueuing non-dataset TOC rows -> discovery must skip folder/table.
 """
+import pytest
 import requests
 
 from railway_lakehouse.bronze.sources import eurostat
+
+pytestmark = pytest.mark.unit
 
 
 def test_build_session_sets_user_agent_and_is_idempotent():

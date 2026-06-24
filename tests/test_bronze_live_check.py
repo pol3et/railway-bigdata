@@ -226,7 +226,12 @@ def test_run_live_check_validates_all_sources_before_writing(tmp_path):
     assert not (tmp_path / "bronze").exists()
     assert not (tmp_path / "manifest.json").exists()
 
-def test_collect_eurostat_lands_catalogue_and_dataset(monkeypatch, tmp_path):
+def test_collect_eurostat_discovers_rail_dataset_from_toc(monkeypatch, tmp_path):
+    # A rail dataset that is NOT in the configured seed list, so landing it
+    # proves TOC discovery (not the seeds) drove the result. The TOC also carries
+    # a non-rail dataset and a folder row that must be filtered out.
+    rail_tsv = b"freq,unit,geo\\TIME_PERIOD\t2020\nA,MIO_TKM,HU\t100\n"
+
     class Response:
         def __init__(self, status_code, content, content_type="text/plain"):
             self.status_code = status_code
@@ -242,34 +247,36 @@ def test_collect_eurostat_lands_catalogue_and_dataset(monkeypatch, tmp_path):
             if "catalogue/toc" in url:
                 return Response(
                     200,
-                    b"Railway goods transport\ttran_r_rago\nRoad transport\troad_demo\n",
+                    b'Railway goods transport, regional\t"rail_go_disc"\t"dataset"\n'
+                    b'Road goods transport\t"road_go_demo"\t"dataset"\n'
+                    b'Railway transport\t"rail"\t"folder"\n',
                 )
-            if "tran_r_rago" in url:
-                return Response(
-                    200,
-                    b"Rail goods total\t2020\nA,NR,HU\t100\n",
-                    "text/tab-separated-values",
-                )
+            if "/rail_" in url:  # seeds and the discovered rail dataset
+                return Response(200, rail_tsv, "text/tab-separated-values")
             return Response(404, b"")
 
     monkeypatch.setattr(live_check.requests, "Session", Session)
     lander = LocalBronzeLander(tmp_path, run_id="run-001", clock=lambda: FIXED_NOW)
 
-    result = collect_eurostat(lander=lander, max_artifacts=1, timeout_seconds=3)
+    result = collect_eurostat(lander=lander, max_artifacts=8, timeout_seconds=3)
 
+    landed = {artifact["dataset_id"] for artifact in lander.artifacts}
     assert result.status == "passed"
-    assert {artifact["dataset_id"] for artifact in lander.artifacts} == {
-        "_catalogue_toc",
-        "tran_r_rago",
-    }
+    assert "_catalogue_toc" in landed
+    # discovery drove this: rail_go_disc is not one of the configured seeds
+    assert "rail_go_disc" not in live_check.EUROSTAT_CONFIRMED_DATASETS
+    assert "rail_go_disc" in landed
+    # the non-rail dataset and the folder row are never enqueued/landed
+    assert "road_go_demo" not in landed
+    assert "rail" not in landed
     assert (
         tmp_path
         / "bronze"
         / "stats"
         / "eurostat"
-        / "tran_r_rago"
+        / "rail_go_disc"
         / "ingest_date=2026-06-21"
-        / "tran_r_rago.tsv.gz"
+        / "rail_go_disc.tsv.gz"
     ).exists()
 
 def test_collect_worldbank_lands_valid_series(monkeypatch, tmp_path):

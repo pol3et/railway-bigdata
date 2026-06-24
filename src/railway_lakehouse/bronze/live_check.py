@@ -230,11 +230,23 @@ def collect_rss(
     return _source_result("rss", lander.artifacts[start_count:], statuses, failures)
 
 
-# Fallback seeds used when TOC discovery is partial. Verified present and of
-# type "dataset" in the live Eurostat TOC (regional rail goods/passengers by
-# NUTS2). The previous seed "enpe_rail_go" was retired: it 404s on the SDMX
-# data endpoint (see output/evidence/parser-live-check-2026-06-21).
-EUROSTAT_CONFIRMED_DATASETS = ("tran_r_rago", "tran_r_rapa")
+# Fallback seeds used when TOC discovery is partial, and the datasets the
+# bounded check lands first. All are NATIONAL rail datasets that are (a) present
+# and of type "dataset" in the live Eurostat TOC, and (b) covered by the Silver
+# dataset rules in silver/stats/merge.py, so the bounded check lands data that
+# actually reaches StatFact. Verified live 2026-06-24 through read_eurostat_tsv:
+# rail_go_total/rail_pa_total ~1,562 Silver rows each, the others 1.3k-2.1k
+# (see .planning/.../pr21-eurostat-pipeline-review). The earlier regional seeds
+# (tran_r_rago/tran_r_rapa) were dropped: they carry c_load/c_unload breakdown
+# dims, match no Silver rule, and produced 0 Silver rows.
+EUROSTAT_CONFIRMED_DATASETS = (
+    "rail_go_total",    # freight tonne-km + freight tonnes
+    "rail_pa_total",    # passenger-km + passengers
+    "rail_if_line_tr",  # rail network length km
+    "rail_eq_locon",    # locomotives
+    "rail_eq_wagon",    # wagons
+    "rail_if_electri",  # electrified km
+)
 
 
 def collect_eurostat(
