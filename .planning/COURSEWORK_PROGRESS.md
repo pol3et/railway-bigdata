@@ -1644,3 +1644,28 @@ Evidence:
 
 Next:
 - Monitor PR #28 mergeability/checks and proceed to GAP-050/GAP-033 after merge.
+
+## 2026-06-25 - GAP-033 live qwen3:4b NewsFeature evidence
+
+Status: done; shipping via PR.
+
+Research:
+- `research-orchestrator` record written at `.planning/coursework/research/bigdata/silver-news-llm-extraction-live.md`.
+- Local implementation plan written and approved at `.planning/coursework/plans/bigdata/gap-033-news-llm-extraction-live.md`.
+
+Changed:
+- Added a live-marked regression smoke test for real Ollama extraction.
+- Landed a bounded real RSS+GDELT Bronze sample locally under ignored `output/evidence/news-extraction-sample-bronze/`.
+- Ran the GAP-050 production `silver.run.run_news(...)` path with `qwen3:4b`, persisted 40 real `NewsFeature` rows, the run manifest, the empty failure sidecar, a news-only Gold traceability Parquet, and a human evidence manifest under `output/evidence/news-extraction-sample/`.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `docs/LLM_EXTRACTION_DESIGN.md`.
+
+Evidence:
+- Live smoke: 1 passed.
+- Live extraction: 40 processed, 40 succeeded, 0 permanent failures.
+- Parquet readback: `(40, 43)`, rail-related `True=21`, `False=19`.
+- Unit marker suite: 171 passed, 30 deselected.
+- Full suite: 195 passed, 6 skipped.
+- Compileall: passed.
+
+Next:
+- GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.

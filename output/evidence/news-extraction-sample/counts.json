@@ -1,0 +1,29 @@
+{
+  "path": "output/evidence/news-extraction-sample/railway_ml.parquet",
+  "rows": 1,
+  "columns": 12,
+  "column_names": [
+    "geo",
+    "geo_level",
+    "year",
+    "news_article_count",
+    "news_sentiment_mean",
+    "news_share_negative",
+    "news_total_investment_eur",
+    "news_n_accident",
+    "news_n_line_opening",
+    "news_n_other",
+    "news_n_policy",
+    "news_n_service_change"
+  ],
+  "geos_count": 1,
+  "contains_AT": false,
+  "contains_HU": true,
+  "geo_level_counts": {
+    "country": 1
+  },
+  "year_min": 2026,
+  "year_max": 2026,
+  "at_rows": 0,
+  "hu_rows": 1
+}

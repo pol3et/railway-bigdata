@@ -1875,3 +1875,36 @@ Evidence:
 
 Next:
 - GAP-033 can run the now-wired production path with live Ollama and commit bounded evidence artifacts under `output/evidence/`.
+
+## 2026-06-25 - GAP-033 live qwen3:4b news extraction evidence
+
+Status: done; shipping via PR.
+
+Changed:
+- `tests/test_silver_news_extraction_live.py`
+- `output/evidence/news-extraction-sample/MANIFEST.md`
+- `output/evidence/news-extraction-sample/silver/news/news_feature/ingest_date=2026-06-25/news_feature.parquet`
+- `output/evidence/news-extraction-sample/silver/news/news_extraction_runs/ingest_date=2026-06-25/manifest.json`
+- `output/evidence/news-extraction-sample/silver/news/news_extraction_failures/ingest_date=2026-06-25/failures.json`
+- `output/evidence/news-extraction-sample/railway_ml.parquet`
+- `output/evidence/news-extraction-sample/counts.json`
+- `.planning/coursework/research/bigdata/silver-news-llm-extraction-live.md`
+- `.planning/coursework/plans/bigdata/gap-033-news-llm-extraction-live.md`
+- `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, `docs/LLM_EXTRACTION_DESIGN.md`
+
+Findings:
+- Local Ollama 0.30.9 served `qwen3:4b` Q4_K_M; API model digest is `359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`.
+- The bounded real Bronze pool contained 237 parsed articles (`gdelt=25`, `rss=212`); the live extraction selected 40 (`gdelt=25`, `rss=15`).
+- The GAP-050 production `silver.run.run_news(...)` path processed 40/40 articles, persisted 40 validated `NewsFeature` rows, wrote a run manifest, and wrote an empty failure sidecar.
+- Quality caveat: schema and persistence are proven, but sparse GDELT snippets over-marked some non-rail items as rail-related; report-quality gates remain GAP-040/GAP-043 follow-up.
+
+Evidence:
+- `python -m pytest tests/test_silver_news_extraction_live.py -m live -v` -> 1 passed.
+- Parquet readback -> `(40, 43)`, `is_rail_related`: `True=21`, `False=19`.
+- `python -m pytest -m unit -q` -> 171 passed, 30 deselected.
+- `python -m pytest -q` -> 195 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
