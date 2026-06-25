@@ -1983,3 +1983,30 @@ Evidence:
 
 Next:
 - Watch PR #35 for refreshed mergeability/checks.
+
+## 2026-06-25 - GAP-043 news evaluation harness
+
+Status: done for Option C harness scope; real labeled quality numbers remain owner-gated.
+
+Changed:
+- Added `railway_lakehouse.eval` with pure NumPy/pandas metric primitives and the CLI harness.
+- Added deterministic synthetic harness tests and synthetic placeholder fixtures.
+- Added the golden-set protocol, research record, synthetic smoke evidence, and dashboard/verification sync.
+
+Findings:
+- The committed GAP-033 Silver sample cannot support real labeling because it lacks original title/body text; `summary_en` is model output and cannot be used as gold.
+- The current committed fixture is synthetic seed data only and deliberately keeps all default gates report-only at `min_support=30`.
+- The harness path is parameterized so a future owner-approved title/body corpus can drop in without code changes.
+
+Evidence:
+- RED before implementation: focused test failed on missing `railway_lakehouse.eval`.
+- `python -m pytest -q tests/test_news_eval_harness.py` -> 10 passed.
+- `python -m railway_lakehouse.eval.harness --golden-set tests/fixtures/news_golden_set.json --extraction-results tests/fixtures/news_synthetic_predictions.json --model-digest synthetic-baseline --out output/evidence/news_eval --partition TEST --min-support 30 --boot-seed 12345` -> passed and wrote `output/evidence/news_eval/`.
+- `python -m pytest -q` -> 299 passed, 7 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `python -c "import railway_lakehouse.eval.harness; import railway_lakehouse.eval.news"` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+- PR #40 opened against `main`; GitHub reports `MERGEABLE` / `CLEAN`, and the dashboard-sync-reminder check passed.
+
+Next:
+- Use `docs/GOLDEN_SET_PROTOCOL.md` for the future real corpus; keep live fetching/labeling outside this harness-only PR.

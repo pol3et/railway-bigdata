@@ -13,6 +13,7 @@ This documentation set is the project-local starting point for agents and contri
 | `PIPELINE.md` | Intended Bronze -> Silver -> Gold run sequence and current wiring gap. |
 | `SILVER_DESIGN.md` | Hybrid Silver design: deterministic numeric merge and bounded LLM extraction. |
 | `LLM_EXTRACTION_DESIGN.md` | GAP-050 news LLM prompt, cache, retry, lifecycle, and run-manifest design. |
+| `GOLDEN_SET_PROTOCOL.md` | GAP-043 synthetic seed fixture caveat and future Sonnet-labeling protocol for a real news golden corpus. |
 | `WORKSTREAMS.md` | Parallel ownership boundaries for contributors. |
 | `WORK_SPLIT.md` | Classmate ownership model, sync points, and done criteria. |
 | `PARSER_WORK_LOG.md` | Rolling parser inventory, bounded live evidence, source-to-feature matrix, and owner-ready parser waves. |

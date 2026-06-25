@@ -2286,3 +2286,45 @@ Evidence:
 
 Next:
 - PR #35 should be mergeable once GitHub refreshes the updated head.
+
+## 2026-06-25 - GAP-043 news evaluation harness
+
+Status: done for Option C harness scope; real labeled quality numbers remain owner-gated.
+
+Changed:
+- `src/railway_lakehouse/eval/__init__.py`
+- `src/railway_lakehouse/eval/news.py`
+- `src/railway_lakehouse/eval/harness.py`
+- `tests/test_news_eval_harness.py`
+- `tests/fixtures/news_golden_set.json`
+- `tests/fixtures/news_golden_set.README.md`
+- `tests/fixtures/news_golden_baseline.json`
+- `tests/fixtures/news_synthetic_predictions.json`
+- `docs/GOLDEN_SET_PROTOCOL.md`
+- `docs/GAP_REGISTER.md`
+- `docs/INDEX.md`
+- `docs/TASKS.md`
+- `docs/VERIFICATION.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/news-eval-harness.md`
+- `.planning/coursework/plans/bigdata/gap-043-news-eval-harness.md`
+- `output/evidence/news_eval/`
+
+Findings:
+- The live GAP-033 Silver sample is not a valid labeling base because committed `NewsFeature` rows do not contain original title/body text, and the raw Bronze title/body sample is absent/gitignored.
+- GAP-043 therefore closes only the Option C harness/protocol/synthetic-fixture scope: real Sonnet labeling remains blocked on owner-approved bounded re-extraction that retains labelable text evidence.
+- The harness is corpus-parameterized and implements collapsed event superclasses, fixed-seed bootstrap CIs, min-support demotion, TEST/TUNE partitioning, CI-overlap non-regression checks, B-cubed, Cohen's kappa, and deterministic manifest/CSV writers without live models.
+
+Evidence:
+- RED before implementation: `python -m pytest -q tests/test_news_eval_harness.py` failed with `ModuleNotFoundError: No module named 'railway_lakehouse.eval'`.
+- Editable install updated this interpreter to the current `impl/gap-043` worktree: `python -m pip install -e ".[test]" -c constraints.txt`.
+- Focused harness: `python -m pytest -q tests/test_news_eval_harness.py` -> 10 passed.
+- Synthetic smoke: `python -m railway_lakehouse.eval.harness --golden-set tests/fixtures/news_golden_set.json --extraction-results tests/fixtures/news_synthetic_predictions.json --model-digest synthetic-baseline --out output/evidence/news_eval --partition TEST --min-support 30 --boot-seed 12345` -> passed; all default gates are report-only because synthetic TEST support is below 30.
+- Full suite: `python -m pytest -q` -> 299 passed, 7 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `python -c "import railway_lakehouse.eval.harness; import railway_lakehouse.eval.news"` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+- PR #40 opened against `main`; GitHub reports `MERGEABLE` / `CLEAN`, and the dashboard-sync-reminder check passed.
+
+Next:
+- Future real quality evaluation must first run the owner-approved bounded re-extraction described in `docs/GOLDEN_SET_PROTOCOL.md`; do not label from `summary_en`.
