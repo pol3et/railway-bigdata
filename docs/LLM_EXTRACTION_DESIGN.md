@@ -1,6 +1,6 @@
 # LLM News Extraction Design (GAP-050)
 
-Status: implemented for the pre-live pipeline scaffold. GAP-033 owns the first live Ollama run and evidence.
+Status: implemented for the production LLM extraction runner. GAP-033 closed the first bounded live Ollama run and evidence on 2026-06-25.
 
 ## Scope
 

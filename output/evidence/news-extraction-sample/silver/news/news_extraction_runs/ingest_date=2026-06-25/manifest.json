@@ -1,0 +1,48 @@
+{
+  "cache_stats": {
+    "cached_count": 40,
+    "hits": 0,
+    "misses": 40,
+    "root": "output/runtime/news-extraction-cache-gap033"
+  },
+  "counts": {
+    "cache_hits": 0,
+    "cache_misses": 40,
+    "cache_writes": 40,
+    "failed": 0,
+    "gdelt_passthrough": 0,
+    "llm_attempted": 40,
+    "llm_attempts": 40,
+    "processed": 40,
+    "received": 40,
+    "retry_attempts": 0,
+    "succeeded": 40
+  },
+  "duration_seconds": 409.921,
+  "failure_rate": 0.0,
+  "latency_seconds": {
+    "max_article": 24.612,
+    "total_llm": 405.344
+  },
+  "lifecycle": {
+    "warm_up": {
+      "latency_seconds": 4.577,
+      "status": "ok"
+    }
+  },
+  "model_digest": "83d74a89b2f24fb44b3dede0983816490339d293cc807e345273f71bc48de66a",
+  "ollama_model": "qwen3:4b",
+  "prompt_version": "gap050-news-v1",
+  "run_finished_utc": "2026-06-25T05:22:56Z",
+  "run_started_utc": "2026-06-25T05:16:06Z",
+  "settings": {
+    "concurrency": 1,
+    "keep_alive": "10m",
+    "max_attempts": 2,
+    "num_batch": null,
+    "num_ctx": 4096,
+    "num_predict": 1024,
+    "think": false
+  },
+  "status": "passed"
+}

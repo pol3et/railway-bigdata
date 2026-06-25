@@ -87,10 +87,10 @@ develop against it independently with no schema collisions.
 | `gold/first-real-result` | Прогнать pipeline по реальным stats → первый настоящий Gold Parquet + counts | 1 | `bronze/local-stats-landing` | done — live WB Bronze→Silver→Gold **2,968×4** (freight + network-km, 151 geos, 1995–2021) reproduced 2026-06-24; Eurostat now mapped → Gold too (GAP-023, PR #21) | Phase A · **MILESTONE** |
 | `silver/persist-contract` | Заморозить схему и пути Parquet для локального Parquet-персиста Silver stats/news | 1 | — | done (frozen in `docs/DATA_CONTRACTS.md`) | GAP-006 · **unblocker** |
 | `infra/minio-storage` | Поднять MinIO (Docker), включить живой lakehouse-путь | 1 | — | done + **live-proven 2026-06-24** (`docker compose up -d` + `scripts/minio_smoke.py` round-trip) | GAP-010 · Phase C |
-| `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | todo | LLM setup |
+| `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | done 2026-06-25 — Ollama 0.30.9 served `qwen3:4b` (Q4_K_M) on the GTX 1060; GAP-033 live sample passed and records the API digest in `output/evidence/news-extraction-sample/MANIFEST.md` | LLM setup |
 | `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | done (`gold.run` reads persisted Silver, writes Gold + counts; integration + CLI smoke passed) | GAP-007 |
-| `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | todo | GAP-006 |
+| `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | done for first live evidence 2026-06-25 — 40 real `NewsFeature` rows persisted and a news-only Gold traceability row written under `output/evidence/news-extraction-sample/`; quality/eval/wider Gold follow-ups remain GAP-040/GAP-043 | GAP-033 |
 | `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | done — local Spark coverage evidence written to `output/evidence/spark/` (Spark 4.1.2; input 2,968×4; output 2,968×5; 1 part-file + `_SUCCESS`); PR #27 adds correlation/regional jobs plus an artifact snapshot, but full reruns require a wider Gold with investment/regional columns | GAP-009 · orig. task #12 |
 | `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | done — `output/report/REPORT.md` + `output/presentation/PRESENTATION.md`, guarded by `tests/test_report_evidence_links.py` | GAP-011 |
 
@@ -157,12 +157,12 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 ### Wave 4 — Make the report full (parallel)
 - `[x]` eurostat→Gold mapping (GAP-023) — **done (PR #21)**: 2nd real stats source, 8 mapped features → Gold 1,554×10 (evidence `output/evidence/eurostat-silver-gold/`)
-- `H` `infra/ollama-model` + `silver/news-llm-extraction` — news_* features into Gold
+- `[x]` `infra/ollama-model` + `silver/news-llm-extraction` — first live `qwen3:4b` news extraction evidence persisted (`output/evidence/news-extraction-sample/`); model-quality gates remain in Wave 6
 - `[x]` GAP-013 (live-MinIO World Bank) — **closed 2026-06-24** (live stats path now reads WB + Eurostat)
 - `[x]` GAP-019 (deployable automatic updates) — **closed 2026-06-24** (preflight-degrade scheduler + Compose `scheduler` service + systemd/cron runbook)
 
 **Contract C (verify before Wave 5 / final report):**
-- [ ] Gold carries ≥2 stats sources **and** `news_*` columns.
+- [ ] Gold carries ≥2 stats sources **and** `news_*` columns in one refreshed report-grade matrix. GAP-033 adds a bounded news-only Gold traceability file; the combined full matrix is still open.
 - [ ] A live MinIO Bronze→Silver→Gold run completes end-to-end (no `--bronze-root`).
 - [ ] A scheduled run lands fresh Bronze (automatic-updates demo).
 - [x] Bounded stats-only review smoke proves Eurostat + World Bank can land together
@@ -180,15 +180,15 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/cluster in Spark). Detailed specs: `GAP_TASKS.md`; design contract + the **8 must-fix review blockers** + single-box plan (Ryzen 5 1600 / GTX 1060 6 GB → **sequential model passes**, torch CPU-only on Py3.14): `SPEC_NEWS_PREPROCESSING.md`. Build **MVP-first**; model-heavy tasks are fast-follow gated on the MVP being green. Urgency: `P0` blocker · `P1` high · `P2` mid · `P3` deferred.
 
-- `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar; full live LLM run remains GAP-033/GAP-050)
-- `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints; live model execution remains GAP-033
-- `[P0]` GAP-033 `silver/news-llm-extraction-live` — run the LLM pass for REAL once + persist evidence (has never run live; needs `infra/ollama-model` = Qwen3-4B q4 on the 1060; uses the GAP-050 prompt)
+- `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar)
+- `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints
+- `[x]` GAP-033 `silver/news-llm-extraction-live` — live `qwen3:4b` pass completed on 40 real articles; Silver Parquet, run manifest, empty failure sidecar, news-only Gold traceability, and human manifest committed under `output/evidence/news-extraction-sample/`
 - `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
 - `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage` ‖ GAP-042 `silver/stataustria-ods-reader`
 - `[P3]` GAP-037 `spark/news-clustering` (separate artifact, not a Gold column — SPARK-21679) ‖ GAP-038 `silver/news-ner` (conditional) ‖ GAP-031-v2 GKG csv.zip history parser
 
-**Contract D (verify before claiming the news-model track done):** real `NewsFeature` rows reach Gold from a live Ollama run; the eval harness reports per-feature metrics on a held-out golden TEST set; dedup is shown to deflate inflated `(geo,year)` counts; each gap synced `docs/TASKS.md` + `docs/index.html`.
+**Contract D (verify before claiming the news-model track done):** `[x]` real `NewsFeature` rows reach Gold from a live Ollama run (GAP-033); `[ ]` the eval harness reports per-feature metrics on a held-out golden TEST set; `[ ]` dedup is shown to deflate inflated `(geo,year)` counts; `[x]` closed gaps sync `docs/TASKS.md` + `docs/index.html`.
 
 ### Wave 7 — Spark EDA → hypotheses → analysis → report (GAP-045…049, the finale)
 
