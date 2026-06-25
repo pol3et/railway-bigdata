@@ -1,0 +1,31 @@
+{
+  "path": "output/evidence/macro-indicators-gap045/railway_ml.parquet",
+  "rows": 14903,
+  "columns": 12,
+  "column_names": [
+    "geo",
+    "geo_level",
+    "year",
+    "cars_per_1000",
+    "gdp_current_usd",
+    "gdp_growth_pct",
+    "gdp_per_capita_usd",
+    "gni_per_capita_usd",
+    "ppp_conversion_factor",
+    "rail_freight_tonne_km",
+    "rail_network_length_km",
+    "rail_passenger_km"
+  ],
+  "geos_count": 315,
+  "contains_AT": true,
+  "contains_HU": true,
+  "geo_level_counts": {
+    "aggregate": 1439,
+    "country": 13287,
+    "region": 177
+  },
+  "year_min": 1960,
+  "year_max": 2025,
+  "at_rows": 66,
+  "hu_rows": 65
+}

@@ -186,6 +186,9 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[x]` GAP-040 `gold/widen-news-aggregation` — deterministic language/confidence/rail_lines/GKG rollups + year-month option (+GAP-016/022/026)
 - `[P1]` GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
+- `[x]` GAP-035 `silver/language-id` — pinned Lingua EN/DE/HU detector populates `language` before the LLM; prompt/schema no longer include language
+- `[P1]` GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
+- `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
 - `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage` ‖ GAP-042 `silver/stataustria-ods-reader`
 - `[P3]` GAP-037 `spark/news-clustering` (separate artifact, not a Gold column — SPARK-21679) ‖ GAP-038 `silver/news-ner` (conditional) ‖ GAP-031-v2 GKG csv.zip history parser
 
@@ -195,7 +198,7 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 
 The closing arc. Full plan + Contracts E/F: `docs/ROADMAP_NEWS_TO_REPORT.md`. **Strictly EDA-first: hypotheses are formed FROM the artifacts (GAP-048), never pre-listed.** Embedder default `multilingual-e5-base` (config knob). Investment X = Eurostat `rail_investment` (dense), news money secondary.
 
-- `[P2]` GAP-045 `add-macro-indicators` — `IS.VEH.PCAR.P3` + `PA.NUS.PPP` (only new-data ticket; 9/12 teammate correlates already collected). *(Session B — widens the matrix before EDA.)*
+- `[x]` GAP-045 `add-macro-indicators` — closed 2026-06-25: `IS.VEH.PCAR.P3` + `PA.NUS.PPP` are in World Bank Bronze collection and deterministic Silver/Gold mapping. Evidence `output/evidence/macro-indicators-gap045/` proves `ppp_conversion_factor` for AT/HU; `cars_per_1000` is wired but current WB API has 0 AT/HU non-null rows, so H17 must report coverage.
 - `[P1]` GAP-046 `spark-eda-harness` — iterative Spark EDA → artifacts only (all-pairs corr + YoY deltas + lag + panels + coverage + top-correlations) → `output/evidence/eda/`
 - `[P1]` GAP-047 `analysis-integration` — `analysis_artifacts/` inbox + Spark `verify_analyses` (teammate claims recompute vs current Gold → confirmed/drifted/broken) + empty `docs/HYPOTHESES.md`
 - `[P1]` GAP-048 `hypothesis-analyses-spark` — **form hypotheses from EDA**, then Spark analyses (corr/lag/panel/clustering; AT-vs-HU; investment↔everything+deltas)

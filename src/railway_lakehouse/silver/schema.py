@@ -192,11 +192,17 @@ def news_feature_from_row(row: dict) -> NewsFeature:
 
 
 def validate_news_feature(raw: dict, *, article_id: str, source: str, url: str,
-                          published_date: Optional[str],
+                          published_date: Optional[str], language: Optional[str] = None,
                           event_types: list, operators_allowed: list) -> "NewsFeature":
-    """Coerce a raw LLM dict into a NewsFeature, enforcing enums and types.
-    Unknown event types collapse to 'other'; unknown operators collapse to 'other';
-    out-of-range/missing fields become safe defaults. Never raises on bad LLM data."""
+    """Coerce raw semantic extraction into a NewsFeature.
+
+    Language is identified deterministically before validation and takes
+    priority over any legacy/raw model field. LLM-owned fields are still
+    bounded here: enums and types are enforced, unknown event types collapse
+    to 'other', unknown operators collapse to 'other', and
+    out-of-range/missing fields become safe defaults. Never raises on bad LLM data.
+    """
+    detected_language = _language_code(language)
     ev = raw.get("event_type")
     ev = ev if ev in event_types else "other"
     ops_in = raw.get("operators") or []
@@ -225,9 +231,13 @@ def validate_news_feature(raw: dict, *, article_id: str, source: str, url: str,
             wide[name] = _clamp_float(raw.get(name), 0.0, 1.0)
     for name in GKG_STRING_FIELDS:
         wide[name] = _str_or_none(raw.get(name))
-    wide["language_detected_code"] = _language_code(
-        raw.get("language_detected_code") or raw.get("language")
-    )
+    raw_language = _language_code(raw.get("language"))
+    if detected_language:
+        wide["language_detected_code"] = detected_language
+    elif "language_detected_code" in raw:
+        wide["language_detected_code"] = _language_code(raw.get("language_detected_code"))
+    else:
+        wide["language_detected_code"] = raw_language
     wide["sentiment_label"] = _sentiment(raw.get("sentiment_label"))
     wide["sentiment_score"] = _clamp_float(raw.get("sentiment_score"), -1.0, 1.0)
     wide["summary_en_source"] = _str_or_none(raw.get("summary_en_source"))
@@ -249,7 +259,7 @@ def validate_news_feature(raw: dict, *, article_id: str, source: str, url: str,
     )
     return NewsFeature(
         article_id=article_id, source=source, url=url, published_date=published_date,
-        language=_language_code(raw.get("language")) or _str_or_none(raw.get("language")),
+        language=detected_language or raw_language,
         is_rail_related=bool(raw.get("is_rail_related", False)),
         country=country, event_type=ev, operators=ops, rail_lines=[str(x) for x in lines],
         monetary_amount_eur=_float_or_none(raw.get("monetary_amount_eur")),

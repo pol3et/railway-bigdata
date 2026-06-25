@@ -22,15 +22,15 @@ evidence.
 |---|---|---|
 | Bronze (ingest) | operational | Raw landing works. 4 sources scheduled (Eurostat, World Bank, GDELT, RSS); KSH, Statistik Austria, UIC, GDELT-history are live-proven but **not scheduled** (GAP-005). |
 | Silver (normalize) | partial | World Bank + Eurostat stats and RSS + GDELT news normalize correctly inside fixture/local pipeline paths. Local Parquet persistence now exists for `StatFact` and successful `NewsFeature` rows; MinIO/s3fs persistence, extraction-failure accounting, and `silver/run.py` remain open. |
-| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. The current richer real Gold is World Bank-backed at `output/evidence/inventory-live-2026-06-23/railway_ml.parquet` with 2,968 rows x 4 columns. `gold/run.py` now loads persisted local Silver Parquet and records counts (GAP-007 closed); full live MinIO/Ollama E2E remains open. |
+| Gold (feature matrix) | partial | The `(geo, year)` feature-matrix builder works and writes Parquet. Fixture evidence exists, and a first real stats-only Gold was produced from bounded local Eurostat + World Bank Bronze landing: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` with 2,139 rows x 3 columns. Current richer World Bank-backed evidence includes `output/evidence/inventory-live-2026-06-23/railway_ml.parquet` with 2,968 rows x 4 columns and GAP-045 `output/evidence/macro-indicators-gap045/railway_ml.parquet` with 14,903 rows x 12 columns including `ppp_conversion_factor` and `cars_per_1000`. `gold/run.py` now loads persisted local Silver Parquet and records counts (GAP-007 closed); full live MinIO/Ollama E2E remains open. |
 | Spark (big-data jobs) | local evidence written | `railway_lakehouse.spark_jobs.coverage` reads the real Gold Parquet and writes `output/evidence/spark/manifest.json` plus a Spark Parquet output directory (GAP-009 closed). |
 | Report / presentation | draft evidence-linked | `output/report/REPORT.md` and `output/presentation/PRESENTATION.md` exist and cite committed evidence artifacts; `tests/test_report_evidence_links.py` guards cited paths and headline JSON values (GAP-011 closed). |
 
 ### At A Glance
 
-- `python -m pytest -q`: **108 passed**, 1 skipped when run with the
-  existing JDK 21 Spark runtime env; the skip is the Windows Spark write-path
-  guard because `HADOOP_HOME`/`winutils.exe` is absent in this worktree.
+- `python -m pytest -q`: **197 passed**, 6 skipped after GAP-045; the skips
+  are Windows Spark prerequisite guards because JDK/Hadoop native paths are
+  absent in this worktree.
 - Bronze sources built: **8**; scheduled: **4**; live-proven (raw bytes): **4**
   (RSS, KSH, UIC, World Bank) + Statistik Austria probed.
 - Stats parsers to `StatFact`: **3 / 5**. News parser stages to `NewsFeature`: **3 / 3**.
@@ -38,6 +38,7 @@ evidence.
 - End-to-end Bronze->Silver->Gold artifacts:
   - fixture: `output/evidence/fixture-e2e/railway_ml.parquet` = **4 rows x 3 cols**, news skipped.
   - first real stats-only run: `output/evidence/first-real-gold-local-stats-v2/railway_ml.parquet` = **2,139 rows x 3 cols**, World Bank `rail_network_length_km`, includes `AT` and `HU`, news skipped.
+  - GAP-045 macro run: `output/evidence/macro-indicators-gap045/railway_ml.parquet` = **14,903 rows x 12 cols**, including World Bank `ppp_conversion_factor` for AT/HU and `cars_per_1000` with the current upstream no-AT/HU coverage caveat.
 
 ### Evidence Reality Check
 
@@ -54,8 +55,7 @@ storage reachability only, not a full MinIO/Ollama/news/Spark run.
   (`output/evidence/uic-live-check-2026-06-22/manifest.json`).
 - Statistik Austria: 5 rail ODS, HTTP 200
   (`output/evidence/statistik-austria-live-check-2026-06-22/manifest.json`).
-- World Bank: 3 confirmed indicators with valid time series; 2 error envelopes
-  correctly rejected (`output/evidence/worldbank-live-check-2026-06-22/manifest.json`).
+- World Bank: confirmed rail indicators plus GAP-045 macro ids land through the same raw JSON path. `PA.NUS.PPP` reaches AT/HU Gold; `IS.VEH.PCAR.P3` lands and maps, but the current API response has zero AT/HU non-null observations (`output/evidence/macro-indicators-gap045/gap045_feature_coverage.json`).
 - GDELT live: **failed** (HU HTTP 429, AT RemoteDisconnected) -> fixture-only.
 
 There is no full MinIO/Ollama/news Silver/Gold output. Local Spark evidence now exists under `output/evidence/spark/`.
@@ -67,7 +67,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | Source | Format | Geo · Topic | Bronze (collection) | Silver (-> rows) |
 |---|---|---|---|---|
 | `eurostat` | TSV/.gz (SDMX) | EU incl. HU/AT · rail passengers, freight, network, electrification, safety | scheduled · live-capable | StatFact · tested |
-| `worldbank` | JSON | global (HU/AT picked in Silver) · route-km, tonne-km, passenger-km, since 1960 | scheduled · live-proven | StatFact · tested |
+| `worldbank` | JSON | global (HU/AT picked in Silver) · rail route/traffic, GDP levels/growth, PPP; passenger-car metadata lands but has no current AT/HU observations | scheduled · live-proven | StatFact · tested |
 | `rss_media` | XML | HU/AT media + MAV/OEBB press · all-topic, rail-filtered in Silver | scheduled · live-proven | ArticleRecord · tested |
 | `gdelt` | JSON (DOC 2.0) | HU + AT · rail news | scheduled · **live FAILS (429)** | ArticleRecord · tested (fixture) |
 | `ksh` | XLSX | HU only · freight, passengers, rolling stock, network, regional + narrow-gauge lines | live-proven · **not scheduled** | StatFact reader · tested |
@@ -77,10 +77,10 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 ### Extracted (proven) today
 
-- World Bank rail series -> `StatFact` (verbatim values, ISO3->geo map).
+- World Bank rail and macro series -> `StatFact` (verbatim values, ISO3->geo map); GAP-045 adds `ppp_conversion_factor` and `cars_per_1000` mappings.
 - Eurostat rail series (TSV incl. gzip) -> `StatFact` (flag-stripped, labels mapped).
 - RSS XML and GDELT ArtList JSON -> `ArticleRecord` (stable IDs).
-- `ArticleRecord` -> validated `NewsFeature` (Ollama; tested with mocked LLM output).
+- `ArticleRecord` -> validated `NewsFeature` (deterministic Lingua language ID first; Ollama only for semantic fields; tested with mocked LLM output).
 - A unified `(geo, year)` Gold matrix from Bronze fixtures (proven on 4 rows).
 
 ### Extractable next (bytes already land; only parsers missing)
@@ -309,6 +309,13 @@ Verified this session (real, on disk):
   merge kept 35112/35112. Supersedes the prior 2,139×3 single-feature smoke.
 - Silver `StatFact` (35,112 rows) persisted via `silver/persist.py` and reloaded identically;
   the parquet was also uploaded to the MinIO `silver` bucket as a manual demonstration.
+
+## Update 2026-06-25 - GAP-045 macro indicators
+
+- Added World Bank `IS.VEH.PCAR.P3` and `PA.NUS.PPP` to the curated World Bank selector and deterministic Silver map.
+- Added canonical keys `cars_per_1000` and `ppp_conversion_factor`.
+- Bounded live evidence: `output/evidence/macro-indicators-gap045/manifest.json` landed 13 World Bank artifacts; `output/evidence/macro-indicators-gap045/railway_ml.parquet` wrote **14,903 rows x 12 columns**.
+- Coverage: `ppp_conversion_factor` has 36 AT rows and 36 HU rows (1990-2025). `cars_per_1000` is a Gold column with 177 non-null rows globally, but 0 AT/HU non-null rows because the current World Bank API exposes `IS.VEH.PCAR.P3` through an older ADI/licensing-limited data path.
 
 ## Update 2026-06-24 — GAP-018 reproducibility guard
 
