@@ -59,6 +59,7 @@ review_merge_one() {  # <gap> : review, then auto-merge or park
     runstate_set "$gap" "parked_review" "$(pr_number_of "$out/verdict.json")" "review not clean"; return 1
   fi
   pr="$(pr_number_of "$out/verdict.json")"
+  ensure_pol3et >/dev/null 2>&1 || true   # gh active account can flip back to cul8err mid-run -> 403 on merge
   orch_log "$gap: clean verdict + approving review -> merging PR #$pr"
   if gh pr merge "$pr" --squash --delete-branch >/dev/null 2>"$out/merge.log"; then
     sync_main
