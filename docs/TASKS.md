@@ -1,6 +1,6 @@
 # Task Board
 
-Snapshot: 2026-06-24. Canonical named task list for `bigdata/course_proj`.
+Snapshot: 2026-06-25. Canonical named task list for `bigdata/course_proj`.
 
 Each task has a stable slug name (e.g. `gold/first-real-result`). **The slug is the
 cross-link key**: the same slugs are used in the team chat list, so a task named in
@@ -77,6 +77,7 @@ develop against it independently with no schema collisions.
 | `bronze/broad-stats-pipeline` | Broaden production Eurostat + World Bank stats collection without drifting from live checks | done (PR #25) — production and bounded live-check selectors are shared; Eurostat has curated+transport bounds and size caps; World Bank pulls curated EU-stats indicators plus discovered rail IDs; review evidence produced 14 Bronze stats artifacts, 152,054 counted observations, and a stats-only 3,550×11 Gold smoke under `output/evidence/pr25-bigdata-live-*` | GAP-010 · stats volume |
 | `silver/stats-ksh-xlsx-reader` | KSH XLSX → Silver `StatFact` | done — deterministic `openpyxl` reader registered as `ksh`; live KSH Bronze probe parsed all six current XLSX artifacts; `tests/test_silver_stats_ksh.py` passed 9 tests; full suite passed 136 tests, 1 skipped | GAP-006 · extra stats parser 1/3 |
 | `silver/stats-uic-pdf-reader` | UIC PDF → Silver `StatFact` | done — deterministic `pdfplumber` table reader registered as `uic`; current UIC synopsis PDF parsed to 39 unified rows across AT/HU and 9 mapped features; traffic-trends PDF skipped because it has no country-level synopsis table; evidence `output/evidence/pr26-uic-pdf-silver-probe/manifest.json` | GAP-006 · extra stats parser 2/3 |
+| `spark/analysis-artifact-snapshot` | Spark correlation + regional analysis snapshot | done — rerunnable jobs added under `src/railway_lakehouse/spark_jobs/`; committed CSV/manifest snapshot moved to `output/evidence/analysis-artifacts/`; default committed Gold path now exists, and the jobs fail loudly until passed a wider Gold with rail-investment/regional columns | GAP-009 extension |
 
 ## Now — active path
 
@@ -90,7 +91,7 @@ develop against it independently with no schema collisions.
 | `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | done (`gold.run` reads persisted Silver, writes Gold + counts; integration + CLI smoke passed) | GAP-007 |
 | `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | todo | GAP-006 |
-| `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | done — local Spark evidence written to `output/evidence/spark/` (Spark 4.1.2; input 2,968×4; output 2,968×5; 1 part-file + `_SUCCESS`) | GAP-009 · orig. task #12 |
+| `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | done — local Spark coverage evidence written to `output/evidence/spark/` (Spark 4.1.2; input 2,968×4; output 2,968×5; 1 part-file + `_SUCCESS`); PR #27 adds correlation/regional jobs plus an artifact snapshot, but full reruns require a wider Gold with investment/regional columns | GAP-009 · orig. task #12 |
 | `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | done — `output/report/REPORT.md` + `output/presentation/PRESENTATION.md`, guarded by `tests/test_report_evidence_links.py` | GAP-011 |
 
 ## Later — deferred (after the core is E2E)

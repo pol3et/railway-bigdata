@@ -15,7 +15,7 @@ Two analysis modes:
     cross-country differences (closer to a within-country / causal reading).
 
     python -m railway_lakehouse.spark_jobs.correlations \
-        --input output/evidence/bigdata/railway_ml.parquet \
+        --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet \
         --out output/evidence/spark-correlations/
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 APP_NAME = "railway-correlations"
-DEFAULT_INPUT = "output/evidence/bigdata/railway_ml.parquet"
+DEFAULT_INPUT = "output/evidence/inventory-live-2026-06-23/railway_ml.parquet"
 DEFAULT_OUT = "output/evidence/spark-correlations/"
 OUTPUT_DIR_NAME = "correlations"
 MANIFEST_NAME = "manifest.json"
@@ -38,6 +38,12 @@ DEFAULT_TARGET = "rail_investment_pps"
 INVESTMENT_FAMILY = {"rail_investment", "rail_investment_pps"}
 NON_FEATURE = {"geo", "year", "geo_level"}
 NUMERIC_TYPES = {"double", "float", "int", "bigint", "long", "smallint", "tinyint", "decimal"}
+MISSING_INPUT_HINT = (
+    "run the Gold pipeline first or pass --input to an existing Gold parquet"
+)
+MISSING_TARGET_HINT = (
+    "pass a Gold parquet that contains rail_investment or rail_investment_pps"
+)
 
 
 def _utc_now() -> str:
@@ -69,6 +75,40 @@ def build_session(master: str):
     )
 
 
+def _mode_suffix(*, by_country: bool, panel: bool) -> str:
+    scope = "by_country" if by_country else "pooled"
+    design = "panel" if panel else "levels"
+    return f"_{scope}_{design}"
+
+
+def _output_name(*, by_country: bool, panel: bool) -> str:
+    return f"{OUTPUT_DIR_NAME}{_mode_suffix(by_country=by_country, panel=panel)}"
+
+
+def _manifest_name(*, by_country: bool, panel: bool) -> str:
+    return f"manifest{_mode_suffix(by_country=by_country, panel=panel)}.json"
+
+
+def _rank_partition_cols(label_col: str, *, by_country: bool) -> list[str]:
+    return (["geo"] if by_country else []) + [label_col]
+
+
+def _validate_input_exists(input_file: Path) -> None:
+    if not input_file.exists():
+        raise FileNotFoundError(
+            f"Gold parquet not found: {input_file.as_posix()}. "
+            f"{MISSING_INPUT_HINT}."
+        )
+
+
+def _raise_if_empty(label: str, count: int, input_file: Path) -> None:
+    if count == 0:
+        raise ValueError(
+            f"{label} has 0 rows for {input_file.as_posix()}; no correlation "
+            "evidence can be written."
+        )
+
+
 def run_correlations(
     spark: Any,
     input_path,
@@ -87,15 +127,14 @@ def run_correlations(
     started = time.perf_counter()
     input_file = Path(input_path)
     out_root = Path(out_dir)
-    output_path = out_root / OUTPUT_DIR_NAME
-    manifest_path = out_root / MANIFEST_NAME
-    if not input_file.exists():
-        raise FileNotFoundError(f"Gold parquet not found: {input_file.as_posix()}")
+    _validate_input_exists(input_file)
     out_root.mkdir(parents=True, exist_ok=True)
 
     df = spark.read.parquet(_spark_local_path(input_file))
+    _raise_if_empty("Input Gold parquet", int(df.count()), input_file)
     if country_only and "geo_level" in df.columns:
         df = df.filter(F.col("geo_level") == "country")
+        _raise_if_empty("Country-only Gold selection", int(df.count()), input_file)
 
     cols = set(df.columns)
     numeric = [c for c, t in df.dtypes
@@ -111,9 +150,15 @@ def run_correlations(
     if {"rail_investment_pps", "rail_network_length_km"} <= cols:
         df = df.withColumn("rail_investment_per_network_km",
                            F.col("rail_investment_pps") / F.col("rail_network_length_km"))
-    target_candidates = [target, "rail_investment_per_capita",
-                         "rail_investment_pct_gdp", "rail_investment_per_network_km"]
+    target_candidates = [target, "rail_investment_pps", "rail_investment",
+                         "rail_investment_per_capita", "rail_investment_pct_gdp",
+                         "rail_investment_per_network_km"]
     targets = [t for t in dict.fromkeys(target_candidates) if t in set(df.columns)]
+    if not targets:
+        raise ValueError(
+            f"No investment target columns found in {input_file.as_posix()}. "
+            f"{MISSING_TARGET_HINT}."
+        )
 
     # year-over-year deltas (consecutive years only)
     w = Window.partitionBy("geo").orderBy("year")
@@ -139,6 +184,16 @@ def run_correlations(
     else:
         feature_cols = feature_levels + list(delta_of.values())
         target_cols = targets
+    if not feature_cols:
+        raise ValueError(
+            f"No numeric non-investment feature columns found in "
+            f"{input_file.as_posix()}."
+        )
+    if not target_cols:
+        raise ValueError(
+            f"No target columns available for correlation in "
+            f"{input_file.as_posix()}."
+        )
 
     def _melt(frame, columns, name_col, val_col):
         pairs = ", ".join(f"'{c}', CAST(`{c}` AS DOUBLE)" for c in columns)
@@ -148,12 +203,23 @@ def run_correlations(
 
     feat_long = _melt(df, feature_cols, "feat", "fval")
     feat_long = feat_long.withColumn(
-        "frank", F.percent_rank().over(Window.partitionBy("feat").orderBy("fval")))
+        "frank",
+        F.percent_rank().over(
+            Window.partitionBy(*_rank_partition_cols("feat", by_country=by_country))
+            .orderBy("fval")
+        ),
+    )
     tgt_long = _melt(df, target_cols, "tgt", "tval")
     tgt_long = tgt_long.withColumn(
-        "trank", F.percent_rank().over(Window.partitionBy("tgt").orderBy("tval")))
+        "trank",
+        F.percent_rank().over(
+            Window.partitionBy(*_rank_partition_cols("tgt", by_country=by_country))
+            .orderBy("tval")
+        ),
+    )
 
     joined = tgt_long.join(feat_long, ["geo", "year"])
+    _raise_if_empty("Joined target-feature pairs", int(joined.count()), input_file)
     group_cols = (["geo"] if by_country else []) + ["tgt", "feat"]
     stats = (joined.groupBy(*group_cols)
              .agg(F.corr("tval", "fval").alias("pearson_r"),
@@ -170,15 +236,21 @@ def run_correlations(
         pdf = pdf[(pdf["n"] >= min_obs) & pdf["pearson_r"].notna()].copy()
         pdf["abs_r"] = pdf["pearson_r"].abs()
         pdf = pdf.sort_values(["target", "abs_r"], ascending=[True, False])
+    if pdf.empty:
+        raise ValueError(
+            f"No correlation pairs met min_obs={min_obs} for "
+            f"{input_file.as_posix()}."
+        )
     keep = (["geo"] if by_country else []) + ["target", "feature", "kind",
             "pearson_r", "p_pearson", "spearman_r", "p_spearman", "n"]
-    pdf = pdf[keep] if not pdf.empty else pdf
+    pdf = pdf[keep]
 
-    suffix = ("_by_country" if by_country else "") + ("_panel" if panel else "")
+    suffix = _mode_suffix(by_country=by_country, panel=panel)
+    output_path = out_root / _output_name(by_country=by_country, panel=panel)
+    manifest_path = out_root / _manifest_name(by_country=by_country, panel=panel)
     csv_path = out_root / f"correlations{suffix}.csv"
     pdf.to_csv(csv_path, index=False)
-    if not pdf.empty:
-        spark.createDataFrame(pdf).write.mode("overwrite").parquet(_spark_local_path(output_path))
+    spark.createDataFrame(pdf).write.mode("overwrite").parquet(_spark_local_path(output_path))
 
     # for by-country, surface the strongest *significant* pairs across countries
     view = pdf

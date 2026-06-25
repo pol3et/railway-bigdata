@@ -1397,3 +1397,35 @@ Evidence:
 
 Next:
 - Run focused/full verification, push PR #26, wait for GitHub checks, and merge if clean.
+
+## 2026-06-25 - PR 27 Spark analysis review fixes
+
+Status: done for review fixes.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/pr27-spark-analysis-review-fixes-2026-06-25.md`.
+- Local review inspected Gold/Spark contracts, dashboard/task docs, and the
+  committed analysis artifact paths before editing.
+- External docs check used Context7 for PySpark correlation, Parquet writer, and
+  `percent_rank` window behavior.
+
+Changed:
+- Removed the unsupported constant `terrain_complexity` Gold feature.
+- Hardened Spark correlation/regional jobs with existing default input paths,
+  required-column guards, non-empty result guards, and mode-specific correlation
+  output paths.
+- Fixed by-country Spearman ranks to partition by `geo` and variable.
+- Moved analysis CSV/JSON snapshots to `output/evidence/analysis-artifacts/` and
+  updated manifests to avoid claiming uncommitted input/output paths.
+- Added deterministic import/helper guards and Spark-marked job tests.
+- Updated `docs/TASKS.md`, `docs/index.html`, and `docs/VERIFICATION.md`.
+
+Evidence:
+- Focused verification: 19 passed, 2 skipped for missing Windows
+  `HADOOP_HOME`/`winutils.exe`.
+- Compileall passed.
+- `git diff --check` passed with CRLF normalization warnings only.
+
+Next:
+- Push PR #27 fixes, wait for GitHub checks, merge PR #27, and clean up the PR
+  worktree.

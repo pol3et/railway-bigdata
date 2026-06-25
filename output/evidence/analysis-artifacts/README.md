@@ -1,8 +1,10 @@
 # Analysis artifacts — rail investment correlation study
 
-Outputs of the Spark analysis run over the Gold feature matrix
-(`output/evidence/bigdata/railway_ml.parquet`). This folder holds the result
-tables (CSV) and run manifests (JSON), plus the summary below.
+Committed CSV and JSON copies from a Spark analysis run over a wider Gold feature
+matrix. This folder holds the result tables and manifest snapshots used by the
+summary below. The source Gold Parquet for this snapshot was not committed in
+this PR, so reruns must pass `--input` to an existing Gold file with rail
+investment and regional columns.
 
 ## What was analysed
 
@@ -10,8 +12,8 @@ tables (CSV) and run manifests (JSON), plus the summary below.
 economic, demographic and quality-of-life indicators — and to their year-over-year
 changes — across European countries and regions?
 
-**Data.** Gold feature matrix built by the Bronze→Silver→Gold pipeline from two
-open sources, **Eurostat** and **World Bank**:
+**Data.** Snapshot Gold feature matrix built by the Bronze→Silver→Gold pipeline
+from two open sources, **Eurostat** and **World Bank**:
 - Bronze net: ~285 datasets, ~16 million observations.
 - Gold matrix: ~28,000 rows × 71 columns (~64 features), grain `(geo, year)` with
   a `geo_level` of country / region / aggregate.
@@ -75,8 +77,9 @@ separate genuine signal from trend- and outlier-driven artifacts.
 | `correlations_by_country_panel.csv` | Per-country, Δ vs Δ |
 | `regional_descriptives.csv` | Per region-year: network, electrification share, NUTS level |
 | `regional_inequality.csv` | Per country-year: CV of network/electrification across NUTS2 |
-| `manifest_*.json` | Run metadata (Spark version, targets, mode, top results) |
+| `manifest_*.json` | Run metadata snapshots (Spark version, targets, mode, top results) |
 
 Notes: correlation tables carry `pearson_r`, `p_pearson`, `spearman_r`,
 `p_spearman`, `n` (and `geo` for per-country, `target` for the intensity variant).
-All monetary comparisons use PPS; terrain complexity is a constant placeholder (7).
+All monetary comparisons use PPS. No terrain-complexity feature is included in
+Gold unless a future source lands a real measured value.

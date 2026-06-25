@@ -169,19 +169,6 @@ def test_geo_level_classification_in_gold():
     }
 
 
-def test_gold_adds_constant_terrain_complexity():
-    from railway_lakehouse.gold.build import build_gold, TERRAIN_COMPLEXITY
-    stats = pd.DataFrame({
-        "geo": ["AT", "HU"], "year": [2021, 2021],
-        "feature": ["rail_network_length_km"] * 2, "value": [5000.0, 7600.0],
-        "unit": ["KM"] * 2, "source_system": ["eurostat"] * 2,
-        "source_dataset": ["x"] * 2, "source_column": ["rail_network_length_km"] * 2,
-    })
-    gold = build_gold(stats, [])
-    assert (gold["terrain_complexity"] == TERRAIN_COMPLEXITY).all()
-    assert TERRAIN_COMPLEXITY == 7
-
-
 def test_cars_per_capita_and_ppp_and_high_speed_rules():
     cars = stats_merge.read_eurostat_tsv(pd.DataFrame({
         "freq,unit,geo\\TIME_PERIOD": ["A,NR,HU"], "2021": ["390"]}), "road_eqs_carhab")

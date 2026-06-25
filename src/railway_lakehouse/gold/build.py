@@ -125,12 +125,6 @@ def aggregate_news(news_rows: list) -> pd.DataFrame:
     return out
 
 
-# --------------------------------------------------------------------------
-# 3) join stats + news -> ML-ready matrix
-# --------------------------------------------------------------------------
-TERRAIN_COMPLEXITY = 7   # project-specified terrain difficulty coefficient
-
-
 def _geo_level(geo) -> str:
     """Classify a geo code: country (2-letter), aggregate (EU*/EA* totals),
     or region (NUTS code). Lets the country+region matrix be filtered by level."""
@@ -171,8 +165,6 @@ def build_gold(stats_long: pd.DataFrame, news_rows: list, *,
     # tag the geo grain so country/region/aggregate rows can be filtered
     if "geo" in gold.columns:
         gold.insert(1, "geo_level", gold["geo"].map(_geo_level))
-    # terrain complexity placeholder coefficient (constant, per project spec)
-    gold["terrain_complexity"] = TERRAIN_COMPLEXITY
     # convert rail investment (EUR) to PPS using the comparative price level
     # (PLI, EU27=100):  value_PPS = value_EUR * 100 / PLI
     if "rail_investment" in gold.columns and "price_level_index" in gold.columns:

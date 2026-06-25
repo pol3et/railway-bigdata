@@ -2,7 +2,7 @@
   "command": "python -m railway_lakehouse.spark_jobs.regional",
   "spark_version": "4.1.2",
   "ansi_enabled": false,
-  "input_path": "output/evidence/bigdata/railway_ml.parquet",
+  "input_path": null,
   "region_rows": 9667,
   "nuts2_regions": 276,
   "top_nuts2_by_network_km": [
@@ -181,10 +181,12 @@
     "n": 329
   },
   "outputs": {
-    "descriptives_csv": "output/evidence/spark-regional/regional_descriptives.csv",
-    "inequality_csv": "output/evidence/spark-regional/regional_inequality.csv"
+    "descriptives_csv": "output/evidence/analysis-artifacts/regional_descriptives.csv",
+    "inequality_csv": "output/evidence/analysis-artifacts/regional_inequality.csv"
   },
   "duration_seconds": 12.545,
   "status": "passed",
-  "generated_at_utc": "2026-06-24T23:19:33.617095+00:00"
+  "generated_at_utc": "2026-06-24T23:19:33.617095+00:00",
+  "input_path_committed": false,
+  "input_note": "Original wide Gold source path from the Spark run was output/evidence/bigdata/railway_ml.parquet; the source Parquet is not committed in this PR."
 }

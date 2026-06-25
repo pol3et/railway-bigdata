@@ -12,11 +12,11 @@
   ],
   "country_only": true,
   "min_obs": 8,
-  "input_path": "output/evidence/bigdata/railway_ml.parquet",
+  "input_path": null,
   "n_features": 132,
   "n_rows_reported": 12130,
-  "output_path": "output/evidence/spark-corr-by-country/correlations",
-  "csv_path": "output/evidence/spark-corr-by-country/correlations_by_country.csv",
+  "output_path": null,
+  "csv_path": "output/evidence/analysis-artifacts/correlations_by_country_levels.csv",
   "top_by_target": {
     "rail_investment_pct_gdp": [
       {
@@ -570,5 +570,8 @@
   "duration_seconds": 18.583,
   "status": "passed",
   "started_at_utc": "2026-06-24T23:12:07.707335+00:00",
-  "finished_at_utc": "2026-06-24T23:12:26.291004+00:00"
+  "finished_at_utc": "2026-06-24T23:12:26.291004+00:00",
+  "input_path_committed": false,
+  "input_note": "Original wide Gold source path from the Spark run was output/evidence/bigdata/railway_ml.parquet; the source Parquet is not committed in this PR.",
+  "output_note": "Original Spark Parquet output directory was not committed; csv_path points to the committed evidence copy."
 }

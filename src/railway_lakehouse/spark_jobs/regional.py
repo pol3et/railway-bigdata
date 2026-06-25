@@ -11,7 +11,7 @@ rail_electrified_km from tran_r_net) to produce:
      between national rail investment (PPS) and that within-country disparity.
 
     python -m railway_lakehouse.spark_jobs.regional \
-        --input output/evidence/bigdata/railway_ml.parquet \
+        --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet \
         --out output/evidence/spark-regional/
 """
 from __future__ import annotations
@@ -26,9 +26,19 @@ from pathlib import Path
 from typing import Any
 
 APP_NAME = "railway-regional"
-DEFAULT_INPUT = "output/evidence/bigdata/railway_ml.parquet"
+DEFAULT_INPUT = "output/evidence/inventory-live-2026-06-23/railway_ml.parquet"
 DEFAULT_OUT = "output/evidence/spark-regional/"
 MANIFEST_NAME = "manifest.json"
+MISSING_INPUT_HINT = (
+    "run the Gold pipeline first or pass --input to an existing Gold parquet"
+)
+REQUIRED_REGION_COLUMNS = {
+    "geo",
+    "year",
+    "geo_level",
+    "rail_network_length_km",
+    "rail_electrified_km",
+}
 
 
 def _utc_now() -> str:
@@ -53,29 +63,56 @@ def build_session(master: str):
             .config("spark.sql.ansi.enabled", "false").getOrCreate())
 
 
+def _validate_input_exists(input_file: Path) -> None:
+    if not input_file.exists():
+        raise FileNotFoundError(
+            f"Gold parquet not found: {input_file.as_posix()}. "
+            f"{MISSING_INPUT_HINT}."
+        )
+
+
+def _missing_required_columns(columns: list[str] | tuple[str, ...] | set[str]) -> list[str]:
+    return sorted(REQUIRED_REGION_COLUMNS - set(columns))
+
+
+def _raise_if_empty(label: str, count: int, input_file: Path) -> None:
+    if count == 0:
+        raise ValueError(
+            f"{label} has 0 rows for {input_file.as_posix()}; no regional "
+            "evidence can be written."
+        )
+
+
 def run_regional(spark, input_path, out_dir, *, min_regions=3, command=None):
     from pyspark.sql import functions as F
 
     started = time.perf_counter()
     input_file = Path(input_path)
     out_root = Path(out_dir)
-    if not input_file.exists():
-        raise FileNotFoundError(f"Gold parquet not found: {input_file.as_posix()}")
+    _validate_input_exists(input_file)
     out_root.mkdir(parents=True, exist_ok=True)
 
     full = spark.read.parquet(_spark_local_path(input_file))
+    missing_columns = _missing_required_columns(full.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Input Gold parquet is missing required regional columns "
+            f"{missing_columns}: {input_file.as_posix()}."
+        )
+    _raise_if_empty("Input Gold parquet", int(full.count()), input_file)
     NET, ELC = "rail_network_length_km", "rail_electrified_km"
 
     # ---- 1) regional descriptives ----
     reg = full.filter(F.col("geo_level") == "region")
+    region_rows = int(reg.count())
+    _raise_if_empty("Regional Gold selection", region_rows, input_file)
     reg = (reg.withColumn("country_code", F.substring("geo", 1, 2))
               .withColumn("nuts_level", F.length("geo") - 2)  # 1=NUTS1,2=NUTS2,3=NUTS3
               .withColumn("electrification_share",
                           F.when(F.col(NET) > 0, F.col(ELC) / F.col(NET))))
     desc = reg.select("geo", "country_code", "nuts_level", "year",
                       NET, ELC, "electrification_share")
-    desc.write.mode("overwrite").parquet(_spark_local_path(out_root / "descriptives"))
-    desc.toPandas().to_csv(out_root / "regional_descriptives.csv", index=False)
+    _raise_if_empty("Regional descriptives", int(desc.count()), input_file)
 
     # ranking of NUTS2 regions by mean network length & electrification share
     nuts2 = reg.filter(F.col("nuts_level") == 2)
@@ -83,6 +120,8 @@ def run_regional(spark, input_path, out_dir, *, min_regions=3, command=None):
                  .agg(F.avg(NET).alias("mean_network_km"),
                       F.avg("electrification_share").alias("mean_elec_share"),
                       F.count(F.lit(1)).alias("years")))
+    nuts2_regions = int(rank.count())
+    _raise_if_empty("NUTS2 regional ranking", nuts2_regions, input_file)
     rpd = rank.toPandas()
     top_net = (rpd.dropna(subset=["mean_network_km"])
                   .sort_values("mean_network_km", ascending=False).head(10))
@@ -103,8 +142,11 @@ def run_regional(spark, input_path, out_dir, *, min_regions=3, command=None):
                 .withColumn("cv_elec",
                             F.when(F.col("mean_elec") > 0,
                                    F.col("std_elec") / F.col("mean_elec"))))
-    ineq.write.mode("overwrite").parquet(_spark_local_path(out_root / "inequality"))
-    ineq.toPandas().to_csv(out_root / "regional_inequality.csv", index=False)
+    _raise_if_empty(
+        f"Regional inequality groups with at least {min_regions} regions",
+        int(ineq.count()),
+        input_file,
+    )
 
     # average disparity per country (which countries have the most uneven rail)
     cv_by_country = (ineq.groupBy("country_code")
@@ -113,7 +155,15 @@ def run_regional(spark, input_path, out_dir, *, min_regions=3, command=None):
                          .sort_values("avg_cv_network", ascending=False))
 
     # ---- correlation: national rail investment (PPS) vs within-country disparity ----
-    invest_col = "rail_investment_pps" if "rail_investment_pps" in full.columns else "rail_investment"
+    if "rail_investment_pps" in full.columns:
+        invest_col = "rail_investment_pps"
+    elif "rail_investment" in full.columns:
+        invest_col = "rail_investment"
+    else:
+        raise ValueError(
+            f"Input Gold parquet is missing rail investment columns: "
+            f"{input_file.as_posix()}."
+        )
     nat = (full.filter(F.col("geo_level") == "country")
                .select(F.col("geo").alias("country_code"), "year",
                        F.col(invest_col).alias("invest")))
@@ -123,14 +173,25 @@ def run_regional(spark, input_path, out_dir, *, min_regions=3, command=None):
                                     & F.col("invest").isNotNull(), 1)).alias("n")).collect()[0]
     inv_r = None if row["r"] is None else float(row["r"])
     inv_n = int(row["n"])
+    min_pairs = max(4, min_regions)
+    if inv_n < min_pairs or inv_r is None:
+        raise ValueError(
+            f"Investment-vs-disparity has insufficient usable pairs "
+            f"(n={inv_n}, required>={min_pairs}) for {input_file.as_posix()}."
+        )
+
+    desc.write.mode("overwrite").parquet(_spark_local_path(out_root / "descriptives"))
+    desc.toPandas().to_csv(out_root / "regional_descriptives.csv", index=False)
+    ineq.write.mode("overwrite").parquet(_spark_local_path(out_root / "inequality"))
+    ineq.toPandas().to_csv(out_root / "regional_inequality.csv", index=False)
 
     manifest = {
         "command": command or "run_regional",
         "spark_version": str(spark.version),
         "ansi_enabled": False,
         "input_path": input_file.as_posix(),
-        "region_rows": int(reg.count()),
-        "nuts2_regions": int(rank.count()),
+        "region_rows": region_rows,
+        "nuts2_regions": nuts2_regions,
         "top_nuts2_by_network_km": [
             {"geo": r.geo, "country": r.country_code,
              "mean_network_km": round(r.mean_network_km, 1)} for r in top_net.itertuples()],
