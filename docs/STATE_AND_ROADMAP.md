@@ -80,7 +80,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 - World Bank rail series -> `StatFact` (verbatim values, ISO3->geo map).
 - Eurostat rail series (TSV incl. gzip) -> `StatFact` (flag-stripped, labels mapped).
 - RSS XML and GDELT ArtList JSON -> `ArticleRecord` (stable IDs).
-- `ArticleRecord` -> validated `NewsFeature` (Ollama; tested with mocked LLM output).
+- `ArticleRecord` -> validated `NewsFeature` (deterministic Lingua language ID first; Ollama only for semantic fields; tested with mocked LLM output).
 - A unified `(geo, year)` Gold matrix from Bronze fixtures (proven on 4 rows).
 
 ### Extractable next (bytes already land; only parsers missing)

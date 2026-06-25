@@ -476,14 +476,15 @@
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-033 live qwen3:4b extraction evidence → first real news Gold traceability row</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
-          <span class="wtask"><span class="u mid">P1</span> GAP-035 lang-id ‖ GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-035 deterministic Lingua lang-id (EN/DE/HU, no LLM)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">P1</span> GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness ‖ GAP-044 parser audit</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
         </div>
-        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path; the committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
+        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path; GAP-035 now keeps language ID deterministic with Lingua before any LLM call. The committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract D</div><div class="cbody">✅ Real <span class="mono">NewsFeature</span> rows reach Gold from a live Ollama run (GAP-033). Still open: the eval harness reports per-feature metrics on a held-out golden TEST set; dedup deflates inflated <span class="mono">(geo,year)</span> counts.</div></div>
 
