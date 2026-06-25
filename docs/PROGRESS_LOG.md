@@ -1909,12 +1909,39 @@ Evidence:
 Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
 
+## 2026-06-25 - GAP-040 widened Gold news aggregation
 ## 2026-06-25 - GAP-045 World Bank macro indicators
 ## 2026-06-25 - GAP-035 deterministic Silver language ID
 
 Status: done; shipping via PR.
 
 Changed:
+- `src/railway_lakehouse/gold/build.py`
+- `tests/test_gold_characterization.py`
+- `tests/test_gold_load_from_silver.py`
+- `docs/DATA_CONTRACTS.md`
+- `docs/TASKS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gold-widen-news.md`
+
+Findings:
+- The drafted GAP-040 spec was stale: `NewsFeature` is now a 43-field Silver contract and includes persisted `gkg_*` fields.
+- Gold now aggregates deterministic language counts/modal/entropy, confidence stats/bins, rail-line unique/list rollups, bounded GKG tone/token rollups, canonical event/operator counts, and optional year-month grain.
+- GAP-016, GAP-022, and GAP-026 are closed inside this change for Gold aggregation: canonical column reindexing, mixed ISO/RFC-822/GDELT date parsing, and optional dict-field defaults are covered.
+
+Evidence:
+- Red phase: focused unit suite failed 4 tests and focused integration failed 1 test before implementation.
+- `python -m pytest -q -m unit tests/test_gold_characterization.py` -> 9 passed.
+- `python -m pytest -q -m integration tests/test_gold_load_from_silver.py` -> 2 passed.
+- `python -m pytest -q -m unit` -> 175 passed, 31 deselected.
+- `python -m pytest -q -m integration` -> 24 passed, 182 deselected.
+- `python -m pytest -q` -> 200 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with line-ending warnings only.
+
+Next:
+- Use GAP-043 to evaluate the qwen3:4b NewsFeature quality before report-grade use; use GAP-031/GKG backfill work for deeper GKG parsing or canonical theme pivots.
 - `src/railway_lakehouse/bronze/sources/worldbank.py`
 - `src/railway_lakehouse/silver/config.py`
 - `src/railway_lakehouse/silver/stats/merge.py`

@@ -90,7 +90,7 @@ develop against it independently with no schema collisions.
 | `infra/ollama-model` | Поставить Ollama + Qwen3-4B (q4_K_M) на GTX 1060, проверить JSON-извлечение на сэмпле | 1 | — | done 2026-06-25 — Ollama 0.30.9 served `qwen3:4b` (Q4_K_M) on the GTX 1060; GAP-033 live sample passed and records the API digest in `output/evidence/news-extraction-sample/MANIFEST.md` | LLM setup |
 | `silver/persist-outputs` | Реализовать локальный персист Silver stats/news в Parquet по контракту | 2 | `silver/persist-contract` | done (`silver/persist.py` + tests; failure accounting remains in `silver/news-llm-extraction`) | GAP-006 |
 | `gold/load-from-silver` | Подключить `gold/run.py` к чтению персистнутого Silver + integration-тест | 2 | `silver/persist-outputs` | done (`gold.run` reads persisted Silver, writes Gold + counts; integration + CLI smoke passed) | GAP-007 |
-| `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | done for first live evidence 2026-06-25 — 40 real `NewsFeature` rows persisted and a news-only Gold traceability row written under `output/evidence/news-extraction-sample/`; quality/eval/wider Gold follow-ups remain GAP-040/GAP-043 | GAP-033 |
+| `silver/news-llm-extraction` | Извлечение из новостей малой моделью, two-pass: LLM классифицирует → числа детерминированно; фичи новостей → Gold | 2 | `infra/ollama-model`, `silver/persist-contract` | done for first live evidence 2026-06-25 — 40 real `NewsFeature` rows persisted and a news-only Gold traceability row written under `output/evidence/news-extraction-sample/`; wider Gold aggregation is closed by GAP-040, while quality/eval remains GAP-043 | GAP-033 |
 | `spark/evidence-job` | Spark-джоба читает реальный Gold, пишет evidence (версия, row counts, файлы) | 3 | `gold/first-real-result` (smoke); FAN-IN B (full) | done — local Spark coverage evidence written to `output/evidence/spark/` (Spark 4.1.2; input 2,968×4; output 2,968×5; 1 part-file + `_SUCCESS`); PR #27 adds correlation/regional jobs plus an artifact snapshot, but full reruns require a wider Gold with investment/regional columns | GAP-009 · orig. task #12 |
 | `report/draft` | Черновик отчёта + презентации на основе Spark + Gold evidence | 3 | `spark/evidence-job` | done — `output/report/REPORT.md` + `output/presentation/PRESENTATION.md`, guarded by `tests/test_report_evidence_links.py` | GAP-011 |
 
@@ -172,7 +172,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
 - `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX and UIC PDF readers done; StatAustria ODS still pending
 - `M` GDELT history backfill + GKG parser (volume)
-- `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
+- `M` robustness: GAP-015/021/025 (GAP-014 closed 2026-06-24; GAP-016/022/026 closed by GAP-040)
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops
 - → re-run Spark on the larger dataset → finalize report.
 
@@ -183,6 +183,9 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar)
 - `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints
 - `[x]` GAP-033 `silver/news-llm-extraction-live` — live `qwen3:4b` pass completed on 40 real articles; Silver Parquet, run manifest, empty failure sidecar, news-only Gold traceability, and human manifest committed under `output/evidence/news-extraction-sample/`
+- `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
+- `[x]` GAP-040 `gold/widen-news-aggregation` — deterministic language/confidence/rail_lines/GKG rollups + year-month option (+GAP-016/022/026)
+- `[P1]` GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
 - `[x]` GAP-035 `silver/language-id` — pinned Lingua EN/DE/HU detector populates `language` before the LLM; prompt/schema no longer include language
 - `[P1]` GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`

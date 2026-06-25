@@ -186,7 +186,12 @@ silver/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
 
 ## Gold Contract
 
-Grain: one row per `(geo, year)`.
+Default grain: one row per `(geo, year)`.
+
+Sub-annual option: `aggregate_news(..., granularity="year-month")` and
+`build_gold(..., granularity="year-month")` emit news features at
+`(geo, year, month)`. When yearly stats are merged with year-month news,
+stats join on `(geo, year)` and repeat across months that have news.
 
 Inputs:
 
@@ -196,7 +201,33 @@ Inputs:
 Outputs:
 
 - Wide statistical feature columns.
-- News aggregate columns such as article counts, event counts, sentiment, investment totals, and operator mentions.
+- News aggregate columns:
+  - Existing deterministic features: `news_article_count`,
+    `news_sentiment_mean`, `news_share_negative`,
+    `news_total_investment_eur`, canonical `news_n_<event_type>` counts, and
+    canonical `news_op_<operator>` counts.
+  - Language features: canonical ISO 639-1 count columns
+    `news_language_hu`, `news_language_de`, `news_language_en`,
+    `news_language_fr`, `news_language_es`, `news_language_it`,
+    `news_language_pl`, `news_language_ro`, `news_language_sk`,
+    `news_language_cs`, plus `news_language_primary` and
+    `news_language_entropy`. Czech is `cs`; `cz` is not an ISO 639-1
+    language code.
+  - Confidence features: `news_confidence_mean`, `news_confidence_std`,
+    `news_confidence_min`, `news_confidence_max`, and
+    `news_confidence_bin_low`, `news_confidence_bin_medium`,
+    `news_confidence_bin_high` for `[0,0.33]`, `(0.33,0.67]`,
+    `(0.67,1.0]`.
+  - Rail-line features: `news_n_rail_lines_unique` and
+    `news_rail_lines_list`. Gold intentionally does not pivot arbitrary
+    free-text rail-line names until a canonical rail-line gazetteer exists.
+  - GKG-ready features from already-persisted Silver `gkg_*` fields:
+    `news_gkg_tone_mean/std/min/max`, `news_n_gkg_<field>_unique`, and
+    `news_gkg_<field>_list` for themes, persons, organizations, locations,
+    and emotions. Raw GKG csv.zip parsing and canonical theme/CAMEO pivots
+    remain deferred to the GKG parser task.
 - Parquet output written through `src/railway_lakehouse/gold/build.py`.
 
-Rule: absence of news can be zero for count-like news columns. Missing statistical observations remain null/NaN.
+Rule: absence of news can be zero for count-like news columns and empty for
+deterministic list columns. Missing statistical observations and statistical
+news summaries such as sentiment/confidence/tone means remain null/NaN.

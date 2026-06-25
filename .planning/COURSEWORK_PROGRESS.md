@@ -1700,11 +1700,34 @@ Evidence:
 Next:
 - GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.
 
+## 2026-06-25 - GAP-040 Gold news aggregation widened
 ## 2026-06-25 - GAP-045 World Bank macro indicators
 
 Status: done; shipping via PR.
 
 Research:
+- `research-orchestrator` record and approved local plan written at `.planning/coursework/research/bigdata/gold-widen-news.md`.
+- Context7 covered pandas groupby/pivot/explode/cut patterns; Firecrawl covered ISO 639 and GDELT GKG docs after Ref returned no credits.
+
+Changed:
+- Widened `aggregate_news()` with canonical language columns, confidence stats/bins, rail-line unique/list rollups, bounded GKG tone/token rollups, canonical event/operator reindexing, optional `year-month` grain, mixed date parsing, and missing optional dict-field defaults.
+- Added unit coverage for the widened aggregation, deterministic schemas, mixed dates, and year-month buckets.
+- Added integration coverage proving persisted Silver NewsFeature list/GKG fields reload into widened Gold columns through the Gold CLI.
+- Synced `docs/DATA_CONTRACTS.md`, `docs/TASKS.md`, `docs/GAP_REGISTER.md`, and `docs/index.html`.
+
+Evidence:
+- Red focused tests failed before implementation: 4 unit failures and 1 integration failure.
+- Focused unit: 9 passed.
+- Focused integration: 2 passed.
+- Full unit marker suite: 175 passed, 31 deselected.
+- Integration marker suite: 24 passed, 182 deselected.
+- Full suite: 200 passed, 6 skipped.
+- Compileall: passed.
+- Diff check: passed with line-ending warnings only.
+
+Next:
+- GAP-043 remains the quality/eval gate before report-grade news claims.
+- GAP-031/GDELT backfill can add deeper GKG parsing or canonical theme pivots later; GAP-040 only aggregates already persisted fields.
 - `research-orchestrator` record written at `.planning/coursework/research/bigdata/macro-indicators-gap045.md`.
 - Local implementation plan written and self-approved at `.planning/coursework/plans/bigdata/macro-indicators-gap045-plan.md`.
 - Tavily/DataBank/API checks refined the subagent spec: `PA.NUS.PPP` has live AT/HU coverage; `IS.VEH.PCAR.P3` has metadata and lands through the current API but no AT/HU non-null rows; `IS.VEH.NVEH.P3` remains excluded.
