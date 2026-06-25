@@ -178,7 +178,7 @@
         <div class="train" aria-hidden="true">▸▮</div>
         <div class="stn"><div class="node green">B</div><div class="stn-code">stop 01</div><div class="stn-name">Bronze</div><div class="stn-note">Raw landing works. 4 of 8 sources scheduled.</div></div>
         <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Normalize + Parquet persist; round-trip proven.</div></div>
-        <div class="stn"><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Real WB stats: 2,968×4 live this session.</div></div>
+        <div class="stn"><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Real stats evidence plus wide news rollups.</div></div>
         <div class="stn"><div class="node green">S</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Coverage evidence plus guarded analysis snapshot.</div></div>
         <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node green">R</div><div class="stn-code">stop 05</div><div class="stn-name">Report</div><div class="stn-note">Drafts cite evidence and pass link checks.</div></div>
       </div>
@@ -188,12 +188,12 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">195</div><div class="cap">tests passing · 6 spark skips</div></div>
-      <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
+      <div class="card green"><div class="big">200</div><div class="cap">tests passing · 6 spark skips</div></div>
+      <div class="card amber"><div class="big">wide news</div><div class="cap">language · confidence · rail lines</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card green"><div class="big">3</div><div class="cap">Spark jobs · guarded</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. PR #27 adds guarded Spark correlation/regional jobs and a committed CSV/manifest snapshot under <span class="mono">output/evidence/analysis-artifacts/</span>; reruns require a wider Gold with rail-investment and regional columns. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Report drafts now live under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span> with an evidence-link checker. <b>Eurostat is now a 2nd real source (PR #21):</b> live national rail datasets → Silver → Gold <b>1,554 rows × 10 cols</b> (8 mapped rail features incl. passengers, freight, network km, electrified km, locomotives, wagons; 42 geos, 1962–2025) — evidence in <span class="mono">output/evidence/eurostat-silver-gold/</span>. PR #25 broadens the automatic stats net; bounded live evidence landed Eurostat + World Bank together and built <b>3,550×11</b> Gold under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>. GAP-033 now adds live Ollama <span class="mono">qwen3:4b</span> evidence: <b>40</b> real NewsFeature rows and a news-only Gold traceability row under <span class="mono">output/evidence/news-extraction-sample/</span>. Still open: full MinIO/Ollama/news/Spark E2E, cross-source unit normalization (GAP-015), and news quality/eval/wider aggregation.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. PR #27 adds guarded Spark correlation/regional jobs and a committed CSV/manifest snapshot under <span class="mono">output/evidence/analysis-artifacts/</span>; reruns require a wider Gold with rail-investment and regional columns. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Report drafts now live under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span> with an evidence-link checker. <b>Eurostat is now a 2nd real source (PR #21):</b> live national rail datasets → Silver → Gold <b>1,554 rows × 10 cols</b> (8 mapped rail features incl. passengers, freight, network km, electrified km, locomotives, wagons; 42 geos, 1962–2025) — evidence in <span class="mono">output/evidence/eurostat-silver-gold/</span>. PR #25 broadens the automatic stats net; bounded live evidence landed Eurostat + World Bank together and built <b>3,550×11</b> Gold under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>. GAP-033 now adds live Ollama <span class="mono">qwen3:4b</span> evidence: <b>40</b> real NewsFeature rows and a news-only Gold traceability row under <span class="mono">output/evidence/news-extraction-sample/</span>. GAP-040 widens deterministic Gold news aggregation with language, confidence, rail-line, GKG, and year-month rollups. Still open: full MinIO/Ollama/news/Spark E2E, cross-source unit normalization (GAP-015), and news quality/eval (GAP-043).</p>
   </section>
 
   <section>
@@ -203,12 +203,14 @@
         <thead><tr><th>Source</th><th>Collected</th><th>Bronze</th><th>Silver → rows</th></tr></thead>
         <tbody>
           <tr><td><span class="src">eurostat</span></td><td>curated rail/economy/population/living + transport SDMX (TSV)</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓ (8 feats)</span></td></tr>
-          <tr><td><span class="src">worldbank</span></td><td>EU-stats indicators + discovered rail IDs (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓</span></td></tr>
+          <tr><td><span class="src">worldbank</span></td><td>EU-stats indicators + discovered rail IDs + GAP-045 macro ids (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓ (PPP AT/HU; cars coverage caveat)</span></td></tr>
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord → NewsFeature sample</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live partial (429 on AT)</span></td><td><span class="sig amber"><span class="dot amber"></span>NewsFeature sample · quality caveat</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
           <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact + staging</span></td></tr>
+          <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>DONE — ODS → StatFact</span></td></tr>
+          <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG missing</span></td></tr>
         </tbody>
       </table>
@@ -224,11 +226,11 @@
       <div class="pcard">
         <div class="pcard-top"><span class="src">worldbank</span>
           <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: works">S</span><span class="lvl green" title="Gold: works">G</span></div></div>
-        <div class="lvlnote">Full spine. Live JSON → StatFact (35,112 rows) → 2 real Gold features. PR #25 keeps the production World Bank selector aligned with bounded live checks and filters dead/error indicator payloads.</div>
+        <div class="lvlnote">Full spine. Live JSON → StatFact → Gold. GAP-045 maps World Bank PPP and passenger-car ids; PPP reaches AT/HU, while current WB car data has zero AT/HU non-null rows.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw JSON · {"countryiso3code":"AUT","date":"2021","value":4962,"indicator":{"id":"IS.RRS.TOTL.KM"}}</div>
           <div class="sl"><span class="k">S</span> StatFact · AT 1995 rail_network_length_km 5672 worldbank_native IS.RRS.TOTL.KM</div>
-          <div class="sl"><span class="k">G</span> matrix · AT 1995 → freight 13715 · network 5672</div>
+          <div class="sl"><span class="k">G</span> matrix · AT 2021 → PPP 0.72035 · cars NaN (upstream no AT/HU)</div>
         </div>
       </div>
 
@@ -245,19 +247,19 @@
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">rss_media</span>
-          <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: ArticleRecord + NewsFeature sample">S</span><span class="lvl amber" title="Gold: bounded sample only">G</span></div></div>
-        <div class="lvlnote">Live feeds → ArticleRecord → bounded NewsFeature sample. GAP-033 persisted 15 RSS rows in the live run; two were rail-related, but null parsed dates kept them out of the Gold aggregate.</div>
+          <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: ArticleRecord + NewsFeature sample">S</span><span class="lvl green" title="Gold: wide deterministic rollups">G</span></div></div>
+        <div class="lvlnote">Live feeds → ArticleRecord → bounded NewsFeature sample. GAP-040 adds deterministic language/confidence/rail-line rollups and robust mixed date parsing; report-grade quality remains gated by GAP-043.</div>
         <div class="sample">
           <div class="sl"><span class="k">S</span> ArticleRecord · source=hu_telex  published=2026-06-22</div>
           <div class="sl"><span class="c">     title="RSS rail upgrade announced"  id=…/rss-rail-upgrade</span></div>
-          <div class="sl"><span class="k">G</span> sample — NewsFeature rows persisted; RSS date parsing still blocks some Gold counts</div>
+          <div class="sl"><span class="k">G</span> sample — NewsFeature rows now aggregate into wide news_* columns when dates/country are usable</div>
         </div>
       </div>
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">gdelt</span>
-          <div class="plevels"><span class="lvl amber" title="Bronze: partial live pull">B</span><span class="lvl green" title="Silver: ArticleRecord + NewsFeature sample">S</span><span class="lvl amber" title="Gold: bounded sample with quality caveat">G</span></div></div>
-        <div class="lvlnote">Bounded live pull landed one country artifact; the second hit HTTP 429. GAP-033 ran 25 GDELT rows through qwen3:4b; schema persistence worked, but sparse snippets over-marked some non-rail items.</div>
+          <div class="plevels"><span class="lvl amber" title="Bronze: partial live pull">B</span><span class="lvl green" title="Silver: ArticleRecord + NewsFeature sample">S</span><span class="lvl green" title="Gold: GKG-ready rollups">G</span></div></div>
+        <div class="lvlnote">Bounded live pull landed one country artifact; the second hit HTTP 429. GAP-033 ran 25 GDELT rows through qwen3:4b; GAP-040 now aggregates persisted GKG tone/token fields, but sparse-snippet quality remains GAP-043.</div>
         <div class="sample">
           <div class="sl"><span class="k">S</span> ArticleRecord · source=gdelt  published=2020-04-01</div>
           <div class="sl"><span class="c">     title="RailCargo investment announced"  id=…/rail-investment</span></div>
@@ -292,12 +294,12 @@
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">statistik_austria</span>
-          <div class="plevels"><span class="lvl amber" title="Bronze: ingest coded, live unproven">B</span><span class="lvl red" title="Silver: no reader">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
-        <div class="lvlnote">Austria ODS. Ingest is coded but not in live_check; no ODS→StatFact reader.</div>
+          <div class="plevels"><span class="lvl amber" title="Bronze: live raw ODS evidence, unscheduled">B</span><span class="lvl green" title="Silver: ODS StatFact reader">S</span><span class="lvl amber" title="Gold: available after next matrix refresh">G</span></div></div>
+        <div class="lvlnote">Austria ODS. Ingest is coded but not in live_check; ODS→StatFact reader parses freight totals and rolling-stock counts.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw ODS · 5 rail .ods resources (kind="ods" validated)</div>
-          <div class="sl"><span class="c">     live landing unproven (absent from live_check)</span></div>
-          <div class="sl"><span class="x">S</span> — no ODS→StatFact reader</div>
+          <div class="sl"><span class="c">     live raw ODS evidence exists; scheduler pending</span></div>
+          <div class="sl"><span class="k">S</span> ODS → StatFact · geo=AT</div>
         </div>
       </div>
 
@@ -328,13 +330,15 @@
           <tr><td class="mono">year</td><td>Int64</td><td>key · observation year</td><td>all</td></tr>
           <tr><td class="mono">rail_freight_tonne_km</td><td>float64</td><td>feature · million t-km</td><td><span class="src">worldbank</span> <span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_network_length_km</td><td>float64</td><td>feature · km</td><td><span class="src">worldbank</span> <span class="src">eurostat</span></td></tr>
+          <tr><td class="mono">ppp_conversion_factor</td><td>float64</td><td>feature · LCU per international $</td><td><span class="src">worldbank</span></td></tr>
+          <tr><td class="mono">cars_per_1000</td><td>float64</td><td>feature · passenger cars / 1,000 people</td><td><span class="src">worldbank</span> · no current AT/HU rows</td></tr>
           <tr><td class="mono">rail_passenger_km</td><td>float64</td><td>feature · million p-km</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_passengers</td><td>float64</td><td>feature · thousand</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_electrified_km</td><td>float64</td><td>feature · km</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_locomotives</td><td>float64</td><td>feature · count</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_wagons</td><td>float64</td><td>feature · count</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_freight_tonnes</td><td>float64</td><td>feature · thousand t</td><td><span class="src">eurostat</span></td></tr>
-          <tr><td class="mono">news_*</td><td>float/int</td><td>feature block · per geo-year (HU/AT)</td><td><span class="src">rss_media</span> <span class="src">gdelt</span> · LLM sample proven</td></tr>
+          <tr><td class="mono">news_*</td><td>float/int/string</td><td>feature block · per geo-year or optional year-month · language/confidence/rail_lines/GKG</td><td><span class="src">rss_media</span> <span class="src">gdelt</span> · deterministic Gold rollups</td></tr>
         </tbody>
       </table>
     </div>
@@ -355,7 +359,8 @@
         </tbody>
       </table>
     </div>
-    <p class="small muted" style="margin-top:10px;">Committed live Gold evidence is World Bank-only (<b>2,968×4</b>, 151 geos, 1995–2021), and Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path. PR #25's bounded review smoke landed Eurostat + World Bank together and built a stats-only local <b>3,550×11</b> Gold matrix under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>; GAP-033 adds a bounded news-only Gold traceability file under <span class="mono">output/evidence/news-extraction-sample/</span>. Neither is the full MinIO/Ollama/news/Spark E2E. <b>Grain</b>: <span class="mono">(geo, year)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; only <span class="mono">news_*</span> counts fill to 0.</p>
+    <p class="small muted" style="margin-top:10px;">Committed live Gold evidence is World Bank-only (<b>2,968×4</b>, 151 geos, 1995–2021), and Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path. PR #25's bounded review smoke landed Eurostat + World Bank together and built a stats-only local <b>3,550×11</b> Gold matrix under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>; GAP-033 adds a bounded news-only Gold traceability file under <span class="mono">output/evidence/news-extraction-sample/</span>. Neither is the full MinIO/Ollama/news/Spark E2E. <b>Grain</b>: default <span class="mono">(geo, year)</span>; news aggregation can also emit <span class="mono">(geo, year, month)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; news count columns fill to 0, while sentiment/confidence/tone means stay <span class="mono">NaN</span> if unmeasured.</p>
+    <p class="small muted" style="margin-top:10px;">Committed live Gold evidence includes the original World Bank-only run (<b>2,968×4</b>, 151 geos, 1995–2021) and GAP-045's macro run (<b>14,903×12</b>, 315 geos, 1960–2025) under <span class="mono">output/evidence/macro-indicators-gap045/</span>. GAP-045 adds <span class="mono">ppp_conversion_factor</span> for AT/HU (36 rows each) and wires <span class="mono">cars_per_1000</span>, but the current WB API has 0 AT/HU car rows. Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path. Neither is the full MinIO/Ollama/news/Spark E2E. <b>Grain</b>: <span class="mono">(geo, year)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; only <span class="mono">news_*</span> counts fill to 0.</p>
   </section>
 
   <section>
@@ -379,9 +384,11 @@
         <h3>Silver</h3>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-043/GAP-040</b> add news quality evaluation and widen Gold aggregation before report-grade use.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS remains; KSH XLSX, UIC PDF, and GAP-041 UIC staging are done.</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>parsers-extra</b> KSH XLSX, StatAustria ODS, and UIC PDF → StatFact readers done.</span></div>
+        <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-043</b> add news quality evaluation before report-grade use; GAP-040 widening is closed.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS / UIC PDF → StatFact; KSH XLSX reader done.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-021</b> crosswalk "unmapped" is terminal — add retry/rebuild.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-025</b> RSS <span class="mono">ParseError</span> aborts the whole batch — isolate per feed.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-022</b> robust mixed-format <span class="mono">published_date</span> parsing.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GKG parser</b> GDELT csv.zip → ArticleRecord (volume).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-029</b> doc: add <span class="mono">monetary_raw</span> to DATA_CONTRACTS.</span></div>
       </div>
@@ -389,8 +396,6 @@
       <div class="ucol gold">
         <h3>Gold</h3>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-015</b> normalize units in Gold (the contract promises it; nothing does).</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-016</b> deterministic Gold news schema (reindex pivots to canonical vocab).</span></div>
-        <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-026</b> <span class="mono">aggregate_news</span> KeyError on partial dict rows.</span></div>
       </div>
 
       <div class="ucol cross">
@@ -460,6 +465,7 @@
         <div class="wave-head"><span class="wave-no">WAVE 5</span><span class="wave-title">Coverage · volume · polish</span><span class="wave-par">parallel · deferrable</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="u mid">MID</span> StatAustria ODS + GAP-005 scheduler; KSH/UIC readers done</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>done</span> KSH/AT/UIC Silver readers; GAP-005 scheduler pending</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
@@ -479,13 +485,19 @@
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u mid">P1</span> GAP-035 lang-id ‖ GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-040 widen Gold news</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">P1</span> GAP-043 eval harness ‖ GAP-044 parser audit</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-035 deterministic Lingua lang-id (EN/DE/HU, no LLM)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">P1</span> GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness ‖ GAP-044 parser audit</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
         </div>
-        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path; the committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
+        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path and GAP-040 widens deterministic Gold aggregation; the committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so the evaluator follow-up remains. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
+        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path; GAP-035 now keeps language ID deterministic with Lingua before any LLM call. The committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract D</div><div class="cbody">✅ Real <span class="mono">NewsFeature</span> rows reach Gold from a live Ollama run (GAP-033). Still open: the eval harness reports per-feature metrics on a held-out golden TEST set; dedup deflates inflated <span class="mono">(geo,year)</span> counts.</div></div>
 
@@ -494,6 +506,7 @@
       <div class="wave full">
         <div class="wave-head"><span class="wave-no">WAVE 7</span><span class="wave-title">Spark EDA → hypotheses → analysis → report</span><span class="wave-par">GAP-045…049 · EDA-first · the finale</span></div>
         <div class="wbatch">
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-045 WB macro indicators: PPP AT/HU + cars coverage caveat</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">P1</span> GAP-046 iterative Spark EDA → artifacts only (all-pairs corr + YoY deltas + lag + panels + coverage)</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
@@ -501,7 +514,7 @@
           <span class="wtask"><span class="u mid">P1</span> GAP-048 form hypotheses FROM EDA → Spark analyses</span><span class="wtask"><span class="pl">→</span></span>
           <span class="wtask"><span class="u mid">P1</span> GAP-049 final report (evidence-checked)</span>
         </div>
-        <div style="margin-top:9px;" class="small muted">Hypotheses are formed FROM the EDA artifacts (GAP-048), never pre-listed. Investment X = Eurostat rail_investment (dense); news money secondary. GAP-045 adds 2 macro indicators. GAP-049 (final report) runs a full <b>dashboard-actuality audit</b> — every number &amp; sample re-verified against current Gold/evidence (release gate). Plan: <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> · run: <span class="mono">docs/OVERNIGHT_READINESS.md</span>.</div>
+        <div style="margin-top:9px;" class="small muted">Hypotheses are formed FROM the EDA artifacts (GAP-048), never pre-listed. Investment X = Eurostat rail_investment (dense); news money secondary. GAP-045 adds 2 macro mappings, with World Bank car ownership currently coverage-limited for AT/HU. GAP-049 (final report) runs a full <b>dashboard-actuality audit</b> — every number &amp; sample re-verified against current Gold/evidence (release gate). Plan: <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> · run: <span class="mono">docs/OVERNIGHT_READINESS.md</span>.</div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract F</div><div class="cbody">Every report claim cites a committed <span class="mono">output/evidence/eda|analysis/</span> artifact; teammate analyses re-verified vs current Gold; hypotheses trace to EDA artifacts; limitations honest.</div></div>
 
@@ -523,7 +536,7 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, the GAP-033 live qwen3:4b NewsFeature evidence, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's production LLM runner and GAP-033's live evidence are implemented, while quality/eval/wider aggregation remain follow-up. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, the GAP-033 live qwen3:4b NewsFeature evidence, the GAP-040 widened Gold news aggregation, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's production LLM runner, GAP-033's live evidence, and GAP-040's deterministic aggregation are implemented, while quality/eval remains follow-up. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
 
 </main>
 </body>

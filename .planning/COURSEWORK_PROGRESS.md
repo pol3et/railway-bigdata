@@ -1,5 +1,63 @@
 # Coursework Progress
 
+## 2026-06-25 - GAP-042 Statistik Austria ODS Reader
+
+Status: done; ready for PR.
+
+Research:
+- Required `research-orchestrator` record written at `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md`.
+- Local files were reviewed first; Context7 was used for pandas ODS IO, Ref was attempted and credit-blocked, and Firecrawl/Tavily were used for odfpy/Statistik Austria source checks.
+- Self-approved implementation plan written at `.planning/coursework/plans/bigdata/gap-042-stataustria-ods-reader.md`.
+
+Changed:
+- Added core dependency `odfpy>=1.4,<2`.
+- Added `load_stataustria_frame` and ODS layout helpers for freight report-year totals and rolling-stock year-column blocks.
+- Registered `statistik_austria` in `_SOURCES`.
+- Added deterministic German label rules for the emitted Statistik Austria total labels.
+- Added generated-ODS unit tests plus a `frames_from_bronze` routing integration test.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `docs/STATE_AND_ROADMAP.md`.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_silver_stats_stataustria.py` failed before implementation with missing loader/routing.
+- `python -m pip install -e ".[test]"` passed; `odfpy==1.4.1` satisfied the new dependency.
+- `python -m pytest -q tests/test_silver_stats_stataustria.py` -> 5 passed.
+- `python -m pytest -q -m unit` -> 175 passed, 31 deselected.
+- `python -m pytest -q` -> 200 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+
+Next:
+- Commit, push `impl/gap-042`, open the PR, and verify mergeability.
+## 2026-06-25 - GAP-035 Deterministic Silver Language ID
+
+Status: done
+
+Research:
+- Required `research-orchestrator` record written at `.planning/coursework/research/bigdata/silver-language-id.md`.
+- Local-first review found the spec was stale: GAP-050 had already removed `language` from `_JSON_SCHEMA`, but few-shot examples and validation still let language come from model output.
+- Routed docs used Context7, Tavily, and Firecrawl. Chosen dependency: `lingua-language-detector==2.2.0`, restricted to EN/DE/HU for this project.
+
+Changed:
+- Added `src/railway_lakehouse/silver/language_id.py`.
+- Wired deterministic language detection into RSS/article extraction and GDELT passthrough before validation.
+- Added language-id identity to the news extraction cache digest.
+- Updated `validate_news_feature()` to prioritize explicit deterministic language over legacy raw model fields.
+- Removed language from the LLM prompt examples/rules and updated fake LLM test payloads.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, `docs/STATE_AND_ROADMAP.md`, `docs/SPEC_NEWS_PREPROCESSING.md`, and `README.md`.
+
+Evidence:
+- RED first: `python -m pytest -q tests/test_silver_language_id.py` failed on missing `railway_lakehouse.silver.language_id`.
+- `python -c "from railway_lakehouse.silver.language_id import identify_language; print(identify_language('Vasúti bővítés'))"` -> `hu`.
+- `python -m pytest -q tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q tests/test_silver_news_parsers.py` -> 7 passed.
+- `python -m pytest -q -m unit tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q` -> 202 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- Continue Wave 6 with GAP-034 sentiment and GAP-031/GAP-038 language-routed news follow-ups.
+
 ## 2026-06-25 - GAP-050 LLM Pipeline Engineering
 
 Status: done
@@ -1701,3 +1759,54 @@ Evidence:
 
 Next:
 - Open the PR for `impl/gap-041` and keep the dashboard/docs status synced through review.
+## 2026-06-25 - GAP-040 Gold news aggregation widened
+## 2026-06-25 - GAP-045 World Bank macro indicators
+
+Status: done; shipping via PR.
+
+Research:
+- `research-orchestrator` record and approved local plan written at `.planning/coursework/research/bigdata/gold-widen-news.md`.
+- Context7 covered pandas groupby/pivot/explode/cut patterns; Firecrawl covered ISO 639 and GDELT GKG docs after Ref returned no credits.
+
+Changed:
+- Widened `aggregate_news()` with canonical language columns, confidence stats/bins, rail-line unique/list rollups, bounded GKG tone/token rollups, canonical event/operator reindexing, optional `year-month` grain, mixed date parsing, and missing optional dict-field defaults.
+- Added unit coverage for the widened aggregation, deterministic schemas, mixed dates, and year-month buckets.
+- Added integration coverage proving persisted Silver NewsFeature list/GKG fields reload into widened Gold columns through the Gold CLI.
+- Synced `docs/DATA_CONTRACTS.md`, `docs/TASKS.md`, `docs/GAP_REGISTER.md`, and `docs/index.html`.
+
+Evidence:
+- Red focused tests failed before implementation: 4 unit failures and 1 integration failure.
+- Focused unit: 9 passed.
+- Focused integration: 2 passed.
+- Full unit marker suite: 175 passed, 31 deselected.
+- Integration marker suite: 24 passed, 182 deselected.
+- Full suite: 200 passed, 6 skipped.
+- Compileall: passed.
+- Diff check: passed with line-ending warnings only.
+
+Next:
+- GAP-043 remains the quality/eval gate before report-grade news claims.
+- GAP-031/GDELT backfill can add deeper GKG parsing or canonical theme pivots later; GAP-040 only aggregates already persisted fields.
+- `research-orchestrator` record written at `.planning/coursework/research/bigdata/macro-indicators-gap045.md`.
+- Local implementation plan written and self-approved at `.planning/coursework/plans/bigdata/macro-indicators-gap045-plan.md`.
+- Tavily/DataBank/API checks refined the subagent spec: `PA.NUS.PPP` has live AT/HU coverage; `IS.VEH.PCAR.P3` has metadata and lands through the current API but no AT/HU non-null rows; `IS.VEH.NVEH.P3` remains excluded.
+
+Changed:
+- Added `IS.VEH.PCAR.P3` and `PA.NUS.PPP` to the World Bank curated selector.
+- Added canonical `cars_per_1000` and `ppp_conversion_factor` keys and deterministic World Bank source-id mapping.
+- Added unit and integration tmp_path tests for World Bank macro indicators.
+- Wrote bounded live evidence under `output/evidence/macro-indicators-gap045/`.
+- Synced `README.md`, `docs/STATE_AND_ROADMAP.md`, `docs/GAP_REGISTER.md`, `docs/GAP_TASKS.md`, `docs/TASKS.md`, and `docs/index.html`.
+
+Evidence:
+- New test file red before implementation, then green: 2 passed.
+- Bounded live World Bank: 13 artifacts, 49,874,290 bytes.
+- Bronze -> Gold from that live Bronze: 14,903 rows x 12 columns.
+- Coverage summary: PPP AT/HU 36 rows each; cars_per_1000 AT/HU 0 rows.
+- Unit verify: 172 passed, 31 deselected.
+- Integration: 24 passed, 179 deselected.
+- Full suite: 197 passed, 6 skipped.
+- Compileall and diff check passed.
+
+Next:
+- Downstream EDA must use PPP for AT/HU and explicitly mark World Bank car ownership as uncovered for AT/HU in the current live API.

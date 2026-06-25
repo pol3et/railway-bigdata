@@ -22,18 +22,19 @@ The `-c constraints.txt` flag reproduces the graded Python 3.14 runtime/test sta
 Current verification result for this scaffold:
 
 - `python -m pip install --dry-run -e ".[test]" -c constraints.txt` confirmed pandas 3.0.3, pyarrow 24.0.0, and openpyxl 3.1.5 under the committed constraints.
-- `python -m pytest -q` passed with 136 tests after adding the KSH XLSX reader and live-layout coverage; one local Spark guard skipped because `HADOOP_HOME`/`winutils.exe` is absent.
-- `python -m compileall -q src tests` passed.
+- `python -m pytest -q` passed with 197 tests after adding GAP-045 macro-indicator coverage; 6 Spark tests skipped on this Windows worktree because JDK/Hadoop native prerequisites are absent.
+- `python -m compileall -q src tests` passed after GAP-045.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
 - GAP-009 Spark evidence was written to `output/evidence/spark/manifest.json` and `output/evidence/spark/coverage_by_geo_year/`.
 - KSH live Bronze evidence was written to `output/evidence/pr24-ksh-live-check-after-fix/manifest.json` and parsed into Silver `StatFact` rows.
+- GAP-045 macro-indicator evidence was written to `output/evidence/macro-indicators-gap045/`: World Bank `PA.NUS.PPP` reaches Gold for AT/HU, while `IS.VEH.PCAR.P3` is wired but currently has zero AT/HU non-null rows in the live API response.
 
 ## Current Status
 
 The project now has one installable source tree:
 
 - `src/railway_lakehouse/bronze/` contains raw ingestion, landing, scheduler, and source adapters.
-- `src/railway_lakehouse/silver/` contains stats/news normalization, validation logic, and local Parquet persistence. Eurostat TSV, World Bank JSON, and KSH XLSX fixtures now become `StatFact` rows; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
+- `src/railway_lakehouse/silver/` contains stats/news normalization, validation logic, and local Parquet persistence. Eurostat TSV, World Bank JSON, and KSH XLSX fixtures now become `StatFact` rows; World Bank macro ids map deterministically to `ppp_conversion_factor` and `cars_per_1000`; RSS XML + GDELT ArtList fixtures now become `ArticleRecord` rows.
 - `src/railway_lakehouse/gold/` contains deterministic feature matrix builders and Parquet writing.
 - `src/railway_lakehouse/pipeline.py` can read deterministic local Bronze stats/news fixtures via `--bronze-root`, including RSS XML, and can reproduce a bounded local stats-only Gold result from rerun Eurostat/World Bank raw Bronze artifacts. Local Spark evidence over real Gold is proven; full live MinIO/Ollama/news/Spark E2E remains unproven.
 - `tests/` contains deterministic characterization and integration tests, including the GAP-004 fixture E2E path.
@@ -63,17 +64,16 @@ Current implementation uses Python, MinIO/S3-style paths, pandas transformations
 
 ## Development Rule
 
-Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven paths are deterministic fixture Bronze -> Silver -> Gold, local Silver Parquet persistence, a bounded local stats-only Bronze -> Gold reproduction from Eurostat/World Bank raw artifacts, and a Spark coverage job over the real Gold Parquet at `output/evidence/inventory-live-2026-06-23/railway_ml.parquet`.
+Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command output is captured under `output/evidence/`. The current proven paths are deterministic fixture Bronze -> Silver -> Gold, local Silver Parquet persistence, bounded local stats-only Bronze -> Gold reproductions from Eurostat/World Bank raw artifacts, the GAP-045 World Bank macro run at `output/evidence/macro-indicators-gap045/`, and a Spark coverage job over the real Gold Parquet at `output/evidence/inventory-live-2026-06-23/railway_ml.parquet`.
 
 ## News Feature Extraction
 
-Silver news rows use a wide article-grain `NewsFeature` contract. The first 15 fields remain the legacy production surface consumed by current Gold (`article_id`, source/date fields, LLM gate/classification, operators/lines, money, summary, sentiment, confidence). GAP-039 adds reserved columns for deterministic language detection, XLM-R sentiment, GDELT GKG passthrough, per-field confidences, embeddings, dedup/cluster IDs, and extraction audit metadata.
+Silver news rows use a wide article-grain `NewsFeature` contract. The first 15 fields remain the legacy production surface consumed by current Gold (`article_id`, source/date fields, deterministic language ID, LLM gate/classification, operators/lines, money, summary, sentiment, confidence). GAP-039 adds reserved columns for XLM-R sentiment, GDELT GKG passthrough, per-field confidences, embeddings, dedup/cluster IDs, and extraction audit metadata.
 
-Expensive extraction is cached locally. `extract_cache_key()` hashes article identity plus title/body/url/date, and `model_digest_key()` hashes the current Ollama model name, prompt/schema, and config values. `FileSystemCache` stores JSON entries under `silver/.news_extraction_cache/<model_digest>/`; delete that directory to force a local re-extraction. The cache is git-ignored and is not a lakehouse table.
+Language detection runs before the LLM with pinned `lingua-language-detector==2.2.0`, restricted to EN/DE/HU for the current news pipeline. Expensive extraction is cached locally. `extract_cache_key()` hashes article identity plus title/body/url/date, and `model_digest_key()` hashes the current Ollama model name, prompt/schema, language-id identity, and config values. `FileSystemCache` stores JSON entries under `silver/.news_extraction_cache/<model_digest>/`; delete that directory to force a local re-extraction. The cache is git-ignored and is not a lakehouse table.
 
 Known limitations:
 
-- Language detection is reserved but not wired yet (GAP-035).
 - XLM-R sentiment is reserved but not wired yet (GAP-034).
 - Operators/rail-line NER is reserved but not wired yet (GAP-038).
 - Embeddings/dedup are reserved but not wired yet (GAP-036).

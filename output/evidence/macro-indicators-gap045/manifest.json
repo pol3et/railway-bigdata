@@ -1,0 +1,163 @@
+{
+  "run_id": "live-check-20260625-071809",
+  "timestamp_utc": "2026-06-25T07:18:09.525708+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "worldbank",
+      "status": "passed",
+      "artifact_count": 13,
+      "byte_count": 49874290,
+      "http_statuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "failures": []
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "_catalogue_indicators",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-25/indicators.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/_catalogue_indicators/ingest_date=2026-06-25/indicators.json.meta.json",
+      "bytes": 9316675,
+      "sha256": "053a0f0aee9131f9d55a9bcc2d7d63f539df89d0c1b798b3b3705f6eb0ec0c8b",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.RRS.TOTL.KM",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.RRS.TOTL.KM/ingest_date=2026-06-25/IS.RRS.TOTL.KM.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.RRS.TOTL.KM/ingest_date=2026-06-25/IS.RRS.TOTL.KM.json.meta.json",
+      "bytes": 3698244,
+      "sha256": "a7b046dc04a9e3eaded77b328e4fcc8832f26ca819ab383304f04c69f3326e69",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.RRS.GOOD.MT.K6",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.RRS.GOOD.MT.K6/ingest_date=2026-06-25/IS.RRS.GOOD.MT.K6.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.RRS.GOOD.MT.K6/ingest_date=2026-06-25/IS.RRS.GOOD.MT.K6.json.meta.json",
+      "bytes": 4050896,
+      "sha256": "ecf5243248357e4c306c94f38d0d3d63103f61f5c284a8af33d2f8bf9a402cb5",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.RRS.PASG.KM",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.RRS.PASG.KM/ingest_date=2026-06-25/IS.RRS.PASG.KM.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.RRS.PASG.KM/ingest_date=2026-06-25/IS.RRS.PASG.KM.json.meta.json",
+      "bytes": 4120979,
+      "sha256": "18bf69db69887c196bb6afec901e22fa6fb81a2724f34d0ba22ffe0909b1e9c7",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.AIR.PSGR",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.AIR.PSGR/ingest_date=2026-06-25/IS.AIR.PSGR.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.AIR.PSGR/ingest_date=2026-06-25/IS.AIR.PSGR.json.meta.json",
+      "bytes": 3786759,
+      "sha256": "3676d5d7570ad044f4556ffaf3d7ee63cd1ec413d9f543dde8be6ae5e2090e41",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.AIR.GOOD.MT.K1",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.AIR.GOOD.MT.K1/ingest_date=2026-06-25/IS.AIR.GOOD.MT.K1.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.AIR.GOOD.MT.K1/ingest_date=2026-06-25/IS.AIR.GOOD.MT.K1.json.meta.json",
+      "bytes": 4025333,
+      "sha256": "e6fcadf9c07de1bc0764aefc39ebde0cc41eb140fbb26089802a3e6ca584d69d",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.ROD.PAVE.ZS",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.ROD.PAVE.ZS/ingest_date=2026-06-25/IS.ROD.PAVE.ZS.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.ROD.PAVE.ZS/ingest_date=2026-06-25/IS.ROD.PAVE.ZS.json.meta.json",
+      "bytes": 674954,
+      "sha256": "194948f641cbe3354e77016d7410a3ec8f0240c615d96a3dbbc9fb051c51c6e6",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "IS.VEH.PCAR.P3",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.VEH.PCAR.P3/ingest_date=2026-06-25/IS.VEH.PCAR.P3.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/IS.VEH.PCAR.P3/ingest_date=2026-06-25/IS.VEH.PCAR.P3.json.meta.json",
+      "bytes": 677636,
+      "sha256": "06de9198e0fd425dc835f96b7bd79eca170a3b268e3c9f2d78a0cbe22fa6d72e",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "NY.GDP.MKTP.CD",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GDP.MKTP.CD/ingest_date=2026-06-25/NY.GDP.MKTP.CD.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GDP.MKTP.CD/ingest_date=2026-06-25/NY.GDP.MKTP.CD.json.meta.json",
+      "bytes": 3688512,
+      "sha256": "2d70a6d433a6e4b77ddb97cf2e8bb336870c3eeb0ad8e70418bae90ac65e726a",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "NY.GDP.PCAP.CD",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GDP.PCAP.CD/ingest_date=2026-06-25/NY.GDP.PCAP.CD.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GDP.PCAP.CD/ingest_date=2026-06-25/NY.GDP.PCAP.CD.json.meta.json",
+      "bytes": 3888077,
+      "sha256": "8cdb851dbeb285eaa9aabb18664d10ceb0c0c602ee7f860f9ae85c0994b9883f",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "NY.GDP.MKTP.KD.ZG",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GDP.MKTP.KD.ZG/ingest_date=2026-06-25/NY.GDP.MKTP.KD.ZG.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GDP.MKTP.KD.ZG/ingest_date=2026-06-25/NY.GDP.MKTP.KD.ZG.json.meta.json",
+      "bytes": 3816277,
+      "sha256": "91b70bb492b8d3389fa614d55a4de740e76aa8340f53a098d8bff98ad9acaa55",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "NY.GNP.PCAP.CD",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GNP.PCAP.CD/ingest_date=2026-06-25/NY.GNP.PCAP.CD.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/NY.GNP.PCAP.CD/ingest_date=2026-06-25/NY.GNP.PCAP.CD.json.meta.json",
+      "bytes": 3989956,
+      "sha256": "13d658516f08bc937771aff481b253a0123502f65a5ef0db15e149e1eb980086",
+      "http_status": 200
+    },
+    {
+      "source": "worldbank",
+      "domain": "stats",
+      "dataset_id": "PA.NUS.PPP",
+      "path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/PA.NUS.PPP/ingest_date=2026-06-25/PA.NUS.PPP.json",
+      "meta_path": "output/evidence/macro-indicators-gap045/bronze/stats/worldbank/PA.NUS.PPP/ingest_date=2026-06-25/PA.NUS.PPP.json.meta.json",
+      "bytes": 4139992,
+      "sha256": "9735c42c7176b2c799525552ce3d90727ac6fbe5c1d2171a287358c6570928cb",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 13,
+  "byte_count": 49874290
+}
