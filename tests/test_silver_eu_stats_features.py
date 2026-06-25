@@ -167,3 +167,38 @@ def test_geo_level_classification_in_gold():
         "1A": "aggregate",
         "Z4": "aggregate",
     }
+
+
+def test_cars_per_capita_and_ppp_and_high_speed_rules():
+    cars = stats_merge.read_eurostat_tsv(pd.DataFrame({
+        "freq,unit,geo\\TIME_PERIOD": ["A,NR,HU"], "2021": ["390"]}), "road_eqs_carhab")
+    assert _val(cars, "cars_per_1000_inhabitants", "HU", 2021) == 390
+
+    ppp = stats_merge.read_eurostat_tsv(pd.DataFrame({
+        "freq,na_item,ppp_cat,geo\\TIME_PERIOD": [
+            "A,PLI_EU27_2020,GDP,HU", "A,PPP_EU27_2020,GDP,HU",
+            "A,PLI_EU27_2020,A01,HU"],            # non-GDP category -> ignored
+        "2021": ["64.0", "0.55", "70.0"]}), "prc_ppp_ind")
+    assert _val(ppp, "price_level_index", "HU", 2021) == 64.0
+    assert _val(ppp, "ppp_factor", "HU", 2021) == 0.55
+
+    spd = stats_merge.read_eurostat_tsv(pd.DataFrame({
+        "freq,unit,vehicle,geo\\TIME_PERIOD": [
+            "A,MIO_PKM,TRN_HSPD,FR", "A,MIO_PKM,TOTAL,FR", "A,THS_PAS,TRN_HSPD,FR"],
+        "2021": ["55000", "90000", "120000"]}), "rail_pa_speed")
+    assert _val(spd, "rail_high_speed_pkm", "FR", 2021) == 55000
+
+
+def test_gold_derives_rail_investment_pps():
+    from railway_lakehouse.gold.build import build_gold
+    stats = pd.DataFrame({
+        "geo": ["HU", "HU"], "year": [2021, 2021],
+        "feature": ["rail_investment", "price_level_index"], "value": [1000.0, 64.0],
+        "unit": ["MIO_EUR", ""], "source_system": ["eurostat"] * 2,
+        "source_dataset": ["rail_ec_expend", "prc_ppp_ind"] * 1 + [],
+        "source_column": ["rail_investment", "price_level_index"],
+    })
+    stats["source_dataset"] = ["rail_ec_expend", "prc_ppp_ind"]
+    gold = build_gold(stats, [])
+    row = gold[gold.geo == "HU"].iloc[0]
+    assert abs(row["rail_investment_pps"] - 1000.0 * 100 / 64.0) < 1e-6

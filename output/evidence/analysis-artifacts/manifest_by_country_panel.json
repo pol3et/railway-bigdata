@@ -1,0 +1,577 @@
+{
+  "command": "python -m railway_lakehouse.spark_jobs.correlations",
+  "spark_version": "4.1.2",
+  "ansi_enabled": false,
+  "mode": "panel (delta vs delta) | per-country",
+  "by_country": true,
+  "targets": [
+    "rail_investment_pps",
+    "rail_investment_per_capita",
+    "rail_investment_pct_gdp",
+    "rail_investment_per_network_km"
+  ],
+  "country_only": true,
+  "min_obs": 8,
+  "input_path": null,
+  "n_features": 66,
+  "n_rows_reported": 5905,
+  "output_path": null,
+  "csv_path": "output/evidence/analysis-artifacts/correlations_by_country_panel.csv",
+  "top_by_target": {
+    "rail_investment_pct_gdp": [
+      {
+        "geo": "PT",
+        "feature": "rail_track_length_km",
+        "kind": "delta",
+        "pearson_r": 0.8994,
+        "p_pearson": 0.0,
+        "spearman_r": 0.516,
+        "n": 16
+      },
+      {
+        "geo": "DE",
+        "feature": "rail_accidents",
+        "kind": "delta",
+        "pearson_r": 0.8988,
+        "p_pearson": 0.0003,
+        "spearman_r": 0.7889,
+        "n": 9
+      },
+      {
+        "geo": "FR",
+        "feature": "rail_freight_tonne_km",
+        "kind": "delta",
+        "pearson_r": -0.8976,
+        "p_pearson": 0.0,
+        "spearman_r": -0.243,
+        "n": 13
+      },
+      {
+        "geo": "DE",
+        "feature": "rail_electrified_km",
+        "kind": "delta",
+        "pearson_r": -0.8711,
+        "p_pearson": 0.0,
+        "spearman_r": -0.1437,
+        "n": 14
+      },
+      {
+        "geo": "NO",
+        "feature": "rail_passengers",
+        "kind": "delta",
+        "pearson_r": -0.848,
+        "p_pearson": 0.0004,
+        "spearman_r": -0.0808,
+        "n": 11
+      },
+      {
+        "geo": "SK",
+        "feature": "rail_electrified_km",
+        "kind": "delta",
+        "pearson_r": 0.8279,
+        "p_pearson": 0.0,
+        "spearman_r": 0.3375,
+        "n": 24
+      },
+      {
+        "geo": "NL",
+        "feature": "rail_freight_tonnes",
+        "kind": "delta",
+        "pearson_r": -0.8054,
+        "p_pearson": 0.0016,
+        "spearman_r": -0.6579,
+        "n": 11
+      },
+      {
+        "geo": "PT",
+        "feature": "rail_network_length_km",
+        "kind": "delta",
+        "pearson_r": 0.7986,
+        "p_pearson": 0.0001,
+        "spearman_r": 0.4907,
+        "n": 16
+      },
+      {
+        "geo": "EE",
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "delta",
+        "pearson_r": -0.7741,
+        "p_pearson": 0.0004,
+        "spearman_r": -0.4249,
+        "n": 15
+      },
+      {
+        "geo": "CH",
+        "feature": "inflation_pct",
+        "kind": "delta",
+        "pearson_r": -0.7717,
+        "p_pearson": 0.0038,
+        "spearman_r": -0.8309,
+        "n": 11
+      },
+      {
+        "geo": "MD",
+        "feature": "imports_pct_gdp",
+        "kind": "delta",
+        "pearson_r": 0.7578,
+        "p_pearson": 0.0152,
+        "spearman_r": 0.801,
+        "n": 9
+      },
+      {
+        "geo": "DE",
+        "feature": "homicide_rate",
+        "kind": "delta",
+        "pearson_r": -0.7573,
+        "p_pearson": 0.0017,
+        "spearman_r": -0.4142,
+        "n": 13
+      },
+      {
+        "geo": "MD",
+        "feature": "internet_users_pct",
+        "kind": "delta",
+        "pearson_r": -0.7532,
+        "p_pearson": 0.0163,
+        "spearman_r": -0.7461,
+        "n": 9
+      },
+      {
+        "geo": "MD",
+        "feature": "inflation_pct",
+        "kind": "delta",
+        "pearson_r": 0.7419,
+        "p_pearson": 0.0194,
+        "spearman_r": 0.7261,
+        "n": 9
+      },
+      {
+        "geo": "SE",
+        "feature": "rail_high_speed_pkm",
+        "kind": "delta",
+        "pearson_r": 0.7297,
+        "p_pearson": 0.0008,
+        "spearman_r": 0.3237,
+        "n": 16
+      }
+    ],
+    "rail_investment_per_capita": [
+      {
+        "geo": "PT",
+        "feature": "rail_track_length_km",
+        "kind": "delta",
+        "pearson_r": 0.9126,
+        "p_pearson": 0.0,
+        "spearman_r": 0.5069,
+        "n": 16
+      },
+      {
+        "geo": "NO",
+        "feature": "rail_passengers",
+        "kind": "delta",
+        "pearson_r": -0.8831,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.249,
+        "n": 11
+      },
+      {
+        "geo": "DE",
+        "feature": "rail_accidents",
+        "kind": "delta",
+        "pearson_r": 0.8651,
+        "p_pearson": 0.0013,
+        "spearman_r": 0.6798,
+        "n": 9
+      },
+      {
+        "geo": "NL",
+        "feature": "population_total",
+        "kind": "delta",
+        "pearson_r": 0.8478,
+        "p_pearson": 0.0004,
+        "spearman_r": 0.755,
+        "n": 11
+      },
+      {
+        "geo": "SK",
+        "feature": "rail_electrified_km",
+        "kind": "delta",
+        "pearson_r": 0.8338,
+        "p_pearson": 0.0,
+        "spearman_r": 0.328,
+        "n": 24
+      },
+      {
+        "geo": "EE",
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "delta",
+        "pearson_r": -0.812,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.5497,
+        "n": 15
+      },
+      {
+        "geo": "DE",
+        "feature": "fertility_rate",
+        "kind": "delta",
+        "pearson_r": -0.7952,
+        "p_pearson": 0.0011,
+        "spearman_r": -0.7184,
+        "n": 12
+      },
+      {
+        "geo": "DE",
+        "feature": "birth_rate",
+        "kind": "delta",
+        "pearson_r": -0.7646,
+        "p_pearson": 0.0025,
+        "spearman_r": -0.7367,
+        "n": 12
+      },
+      {
+        "geo": "PT",
+        "feature": "rail_network_length_km",
+        "kind": "delta",
+        "pearson_r": 0.7596,
+        "p_pearson": 0.0003,
+        "spearman_r": 0.4802,
+        "n": 16
+      },
+      {
+        "geo": "SE",
+        "feature": "rail_high_speed_pkm",
+        "kind": "delta",
+        "pearson_r": 0.7534,
+        "p_pearson": 0.0004,
+        "spearman_r": 0.3091,
+        "n": 16
+      },
+      {
+        "geo": "NL",
+        "feature": "rail_freight_tonnes",
+        "kind": "delta",
+        "pearson_r": -0.7503,
+        "p_pearson": 0.0059,
+        "spearman_r": -0.5246,
+        "n": 11
+      },
+      {
+        "geo": "AT",
+        "feature": "urban_population_pct",
+        "kind": "delta",
+        "pearson_r": 0.7419,
+        "p_pearson": 0.0025,
+        "spearman_r": 0.6765,
+        "n": 13
+      },
+      {
+        "geo": "NL",
+        "feature": "population_density",
+        "kind": "delta",
+        "pearson_r": 0.7388,
+        "p_pearson": 0.0122,
+        "spearman_r": 0.7854,
+        "n": 10
+      },
+      {
+        "geo": "FR",
+        "feature": "rail_employees",
+        "kind": "delta",
+        "pearson_r": -0.716,
+        "p_pearson": 0.0173,
+        "spearman_r": -0.8052,
+        "n": 10
+      },
+      {
+        "geo": "LT",
+        "feature": "gdp_pps",
+        "kind": "delta",
+        "pearson_r": 0.6982,
+        "p_pearson": 0.0,
+        "spearman_r": 0.5068,
+        "n": 27
+      }
+    ],
+    "rail_investment_per_network_km": [
+      {
+        "geo": "PT",
+        "feature": "rail_track_length_km",
+        "kind": "delta",
+        "pearson_r": 0.9182,
+        "p_pearson": 0.0,
+        "spearman_r": 0.4661,
+        "n": 16
+      },
+      {
+        "geo": "NO",
+        "feature": "rail_passengers",
+        "kind": "delta",
+        "pearson_r": -0.8882,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.2616,
+        "n": 11
+      },
+      {
+        "geo": "NL",
+        "feature": "population_total",
+        "kind": "delta",
+        "pearson_r": 0.867,
+        "p_pearson": 0.0002,
+        "spearman_r": 0.6765,
+        "n": 11
+      },
+      {
+        "geo": "DE",
+        "feature": "rail_accidents",
+        "kind": "delta",
+        "pearson_r": 0.8636,
+        "p_pearson": 0.0014,
+        "spearman_r": 0.675,
+        "n": 9
+      },
+      {
+        "geo": "SK",
+        "feature": "rail_electrified_km",
+        "kind": "delta",
+        "pearson_r": 0.8341,
+        "p_pearson": 0.0,
+        "spearman_r": 0.3379,
+        "n": 24
+      },
+      {
+        "geo": "EE",
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "delta",
+        "pearson_r": -0.8191,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.5966,
+        "n": 15
+      },
+      {
+        "geo": "DE",
+        "feature": "fertility_rate",
+        "kind": "delta",
+        "pearson_r": -0.7947,
+        "p_pearson": 0.0011,
+        "spearman_r": -0.719,
+        "n": 12
+      },
+      {
+        "geo": "AT",
+        "feature": "urban_population_pct",
+        "kind": "delta",
+        "pearson_r": 0.7759,
+        "p_pearson": 0.0011,
+        "spearman_r": 0.715,
+        "n": 13
+      },
+      {
+        "geo": "DE",
+        "feature": "birth_rate",
+        "kind": "delta",
+        "pearson_r": -0.769,
+        "p_pearson": 0.0023,
+        "spearman_r": -0.7478,
+        "n": 12
+      },
+      {
+        "geo": "SE",
+        "feature": "rail_high_speed_pkm",
+        "kind": "delta",
+        "pearson_r": 0.7611,
+        "p_pearson": 0.0003,
+        "spearman_r": 0.3253,
+        "n": 16
+      },
+      {
+        "geo": "NL",
+        "feature": "rail_freight_tonnes",
+        "kind": "delta",
+        "pearson_r": -0.7598,
+        "p_pearson": 0.0049,
+        "spearman_r": -0.4314,
+        "n": 11
+      },
+      {
+        "geo": "NL",
+        "feature": "population_density",
+        "kind": "delta",
+        "pearson_r": 0.7529,
+        "p_pearson": 0.0095,
+        "spearman_r": 0.7851,
+        "n": 10
+      },
+      {
+        "geo": "PT",
+        "feature": "rail_network_length_km",
+        "kind": "delta",
+        "pearson_r": 0.7226,
+        "p_pearson": 0.001,
+        "spearman_r": 0.4477,
+        "n": 16
+      },
+      {
+        "geo": "FR",
+        "feature": "rail_employees",
+        "kind": "delta",
+        "pearson_r": -0.71,
+        "p_pearson": 0.0189,
+        "spearman_r": -0.7957,
+        "n": 10
+      },
+      {
+        "geo": "NL",
+        "feature": "rail_freight_tonne_km",
+        "kind": "delta",
+        "pearson_r": -0.6946,
+        "p_pearson": 0.0154,
+        "spearman_r": -0.4288,
+        "n": 11
+      }
+    ],
+    "rail_investment_pps": [
+      {
+        "geo": "PT",
+        "feature": "rail_track_length_km",
+        "kind": "delta",
+        "pearson_r": 0.9138,
+        "p_pearson": 0.0,
+        "spearman_r": 0.5021,
+        "n": 16
+      },
+      {
+        "geo": "NO",
+        "feature": "rail_passengers",
+        "kind": "delta",
+        "pearson_r": -0.8794,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.2761,
+        "n": 11
+      },
+      {
+        "geo": "DE",
+        "feature": "rail_accidents",
+        "kind": "delta",
+        "pearson_r": 0.8706,
+        "p_pearson": 0.0011,
+        "spearman_r": 0.4663,
+        "n": 9
+      },
+      {
+        "geo": "NL",
+        "feature": "population_total",
+        "kind": "delta",
+        "pearson_r": 0.8645,
+        "p_pearson": 0.0002,
+        "spearman_r": 0.7042,
+        "n": 11
+      },
+      {
+        "geo": "SK",
+        "feature": "rail_electrified_km",
+        "kind": "delta",
+        "pearson_r": 0.8337,
+        "p_pearson": 0.0,
+        "spearman_r": 0.3408,
+        "n": 24
+      },
+      {
+        "geo": "EE",
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "delta",
+        "pearson_r": -0.8125,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.661,
+        "n": 15
+      },
+      {
+        "geo": "DE",
+        "feature": "fertility_rate",
+        "kind": "delta",
+        "pearson_r": -0.7904,
+        "p_pearson": 0.0013,
+        "spearman_r": -0.5596,
+        "n": 12
+      },
+      {
+        "geo": "AT",
+        "feature": "urban_population_pct",
+        "kind": "delta",
+        "pearson_r": 0.7781,
+        "p_pearson": 0.001,
+        "spearman_r": 0.6967,
+        "n": 13
+      },
+      {
+        "geo": "NL",
+        "feature": "rail_freight_tonnes",
+        "kind": "delta",
+        "pearson_r": -0.7635,
+        "p_pearson": 0.0045,
+        "spearman_r": -0.457,
+        "n": 11
+      },
+      {
+        "geo": "DE",
+        "feature": "birth_rate",
+        "kind": "delta",
+        "pearson_r": -0.7574,
+        "p_pearson": 0.003,
+        "spearman_r": -0.6242,
+        "n": 12
+      },
+      {
+        "geo": "PT",
+        "feature": "rail_network_length_km",
+        "kind": "delta",
+        "pearson_r": 0.7562,
+        "p_pearson": 0.0004,
+        "spearman_r": 0.4753,
+        "n": 16
+      },
+      {
+        "geo": "SE",
+        "feature": "rail_high_speed_pkm",
+        "kind": "delta",
+        "pearson_r": 0.7556,
+        "p_pearson": 0.0004,
+        "spearman_r": 0.2986,
+        "n": 16
+      },
+      {
+        "geo": "NL",
+        "feature": "population_density",
+        "kind": "delta",
+        "pearson_r": 0.7484,
+        "p_pearson": 0.0103,
+        "spearman_r": 0.7841,
+        "n": 10
+      },
+      {
+        "geo": "FR",
+        "feature": "rail_employees",
+        "kind": "delta",
+        "pearson_r": -0.7136,
+        "p_pearson": 0.018,
+        "spearman_r": -0.781,
+        "n": 10
+      },
+      {
+        "geo": "NL",
+        "feature": "rail_freight_tonne_km",
+        "kind": "delta",
+        "pearson_r": -0.7047,
+        "p_pearson": 0.0132,
+        "spearman_r": -0.4712,
+        "n": 11
+      }
+    ]
+  },
+  "duration_seconds": 17.688,
+  "status": "passed",
+  "started_at_utc": "2026-06-24T23:18:09.199724+00:00",
+  "finished_at_utc": "2026-06-24T23:18:26.888120+00:00",
+  "input_path_committed": false,
+  "input_note": "Original wide Gold source path from the Spark run was output/evidence/bigdata/railway_ml.parquet; the source Parquet is not committed in this PR.",
+  "output_note": "Original Spark Parquet output directory was not committed; csv_path points to the committed evidence copy."
+}

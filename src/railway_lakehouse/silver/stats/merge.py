@@ -126,8 +126,10 @@ _EUROSTAT_DATASET_RULES = {
     "tran_hv_psmod": [("passenger_modal_split_rail_pct", {"vehicle": "TRN", "unit": "PC"})],
     # ---- economy: national accounts ----
     "nama_10_gdp": [("gdp_current_meur", {"na_item": "B1GQ", "unit": "CP_MEUR"}),
-                    ("gdp_growth_pct", {"na_item": "B1GQ", "unit": "CLV_PCH_PRE"})],
-    "nama_10_pc": [("gdp_per_capita_eur", {"na_item": "B1GQ", "unit": "CP_EUR_HAB"})],
+                    ("gdp_growth_pct", {"na_item": "B1GQ", "unit": "CLV_PCH_PRE"}),
+                    ("gdp_pps", {"na_item": "B1GQ", "unit": "CP_MPPS_EU27_2020"})],
+    "nama_10_pc": [("gdp_per_capita_eur", {"na_item": "B1GQ", "unit": "CP_EUR_HAB"}),
+                   ("gdp_per_capita_pps", {"na_item": "B1GQ", "unit": "CP_PPS_EU27_2020_HAB"})],
     "nama_10_a10": [("gva_total_meur", {"nace_r2": "TOTAL", "na_item": "B1G", "unit": "CP_MEUR"}),
                     ("compensation_employees_meur",
                      {"nace_r2": "TOTAL", "na_item": "D1", "unit": "CP_MEUR"})],
@@ -156,6 +158,11 @@ _EUROSTAT_DATASET_RULES = {
                   {"rskpovth": "A_60", "unit": "PC", "sex": "T", "age": "TOTAL", "statinfo": "MED_EI"})],
     "ilc_peps01": [("arope_rate_pct", {"unit": "PC", "age": "TOTAL", "sex": "T"})],
     "ilc_mddd11": [("material_deprivation_pct", {"unit": "PC", "age": "TOTAL", "sex": "T"})],
+    # ---- cars per capita, purchasing power, high-speed rail (ТЗ additions) ----
+    "road_eqs_carhab": [("cars_per_1000_inhabitants", {"unit": "NR"})],
+    "prc_ppp_ind": [("price_level_index", {"na_item": "PLI_EU27_2020", "ppp_cat": "GDP"}),
+                    ("ppp_factor", {"na_item": "PPP_EU27_2020", "ppp_cat": "GDP"})],
+    "rail_pa_speed": [("rail_high_speed_pkm", {"vehicle": "TRN_HSPD", "unit": "MIO_PKM"})],
 }
 
 

@@ -132,3 +132,44 @@ def test_gap009_coverage_module_imports_without_pyspark():
         == "output/evidence/inventory-live-2026-06-23/railway_ml.parquet"
     )
     assert coverage.DEFAULT_OUT == "output/evidence/spark/"
+
+
+def test_spark_analysis_modules_import_without_pyspark_and_use_existing_defaults():
+    correlations = importlib.import_module("railway_lakehouse.spark_jobs.correlations")
+    regional = importlib.import_module("railway_lakehouse.spark_jobs.regional")
+
+    expected_input = "output/evidence/inventory-live-2026-06-23/railway_ml.parquet"
+    assert correlations.DEFAULT_INPUT == expected_input
+    assert regional.DEFAULT_INPUT == expected_input
+    assert (ROOT / expected_input).is_file()
+
+    assert correlations.DEFAULT_OUT == "output/evidence/spark-correlations/"
+    assert regional.DEFAULT_OUT == "output/evidence/spark-regional/"
+    assert correlations._rank_partition_cols("feat", by_country=False) == ["feat"]
+    assert correlations._rank_partition_cols("feat", by_country=True) == [
+        "geo",
+        "feat",
+    ]
+    assert correlations._output_name(by_country=False, panel=False) == (
+        "correlations_pooled_levels"
+    )
+    assert correlations._output_name(by_country=False, panel=True) == (
+        "correlations_pooled_panel"
+    )
+    assert correlations._output_name(by_country=True, panel=False) == (
+        "correlations_by_country_levels"
+    )
+    assert correlations._output_name(by_country=True, panel=True) == (
+        "correlations_by_country_panel"
+    )
+    assert correlations._manifest_name(by_country=False, panel=False) == (
+        "manifest_pooled_levels.json"
+    )
+    assert correlations._manifest_name(by_country=True, panel=True) == (
+        "manifest_by_country_panel.json"
+    )
+    assert regional._missing_required_columns(["geo", "year"]) == [
+        "geo_level",
+        "rail_electrified_km",
+        "rail_network_length_km",
+    ]

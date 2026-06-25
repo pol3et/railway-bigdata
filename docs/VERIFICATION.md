@@ -268,6 +268,70 @@ Guard behavior:
 - A 0-row input raises `ValueError`; the job does not silently write empty Spark
   evidence.
 
+### Spark Correlation and Regional Analysis Snapshot
+
+PR #27 adds two guarded Spark analysis jobs:
+
+- `railway_lakehouse.spark_jobs.correlations`
+- `railway_lakehouse.spark_jobs.regional`
+
+Committed snapshot artifacts live under:
+
+```text
+output/evidence/analysis-artifacts/
+```
+
+The snapshot contains CSV result tables plus manifest snapshots. The source Gold
+Parquet used for that snapshot is not committed in this PR. Reruns must pass a
+Gold Parquet with rail-investment columns for the correlation job and
+`geo_level == region` rows plus regional network/electrification columns for the
+regional job.
+
+Example rerun commands:
+
+```powershell
+$env:PYTHONPATH='src'
+$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'
+python -m railway_lakehouse.spark_jobs.correlations --input <wide-gold.parquet> --out output/evidence/spark-correlations/ --min-obs 30
+python -m railway_lakehouse.spark_jobs.correlations --input <wide-gold.parquet> --out output/evidence/spark-correlations/ --min-obs 8 --by-country
+python -m railway_lakehouse.spark_jobs.correlations --input <wide-gold.parquet> --out output/evidence/spark-correlations/ --min-obs 8 --by-country --panel
+python -m railway_lakehouse.spark_jobs.regional --input <wide-gold.parquet> --out output/evidence/spark-regional/ --min-regions 3
+```
+
+Guard behavior:
+
+- Defaults now point at the existing committed
+  `output/evidence/inventory-live-2026-06-23/railway_ml.parquet`.
+- That default Gold is the earlier coverage smoke input and does not contain
+  rail investment or regional columns; the analysis jobs fail before writing a
+  passing manifest until passed a wider Gold.
+- Correlation outputs and manifests are mode-specific
+  (`correlations_pooled_levels`, `correlations_pooled_panel`,
+  `correlations_by_country_levels`, `correlations_by_country_panel`,
+  `manifest_pooled_levels.json`, `manifest_by_country_panel.json`) so panel and
+  level runs do not overwrite each other.
+- Per-country Spearman ranking partitions by country and variable.
+- Empty inputs, empty filtered selections, missing required columns, empty
+  correlation results, and insufficient regional investment pairs raise errors
+  instead of publishing `status: passed`.
+
+Observed 2026-06-25 in the PR #27 fix worktree:
+
+```powershell
+$env:PYTHONPATH='src'; python -m pytest -q tests/test_silver_eu_stats_features.py tests/test_spark_stack_pins.py::test_spark_analysis_modules_import_without_pyspark_and_use_existing_defaults
+$env:PYTHONPATH='src'; $env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q tests/test_spark_analysis_jobs.py
+$env:PYTHONPATH='src'; python -m compileall -q src tests
+git diff --check
+```
+
+Results:
+
+- Silver/analysis import focused tests passed: 15 passed.
+- Spark analysis tests: 2 passed, 2 skipped because this Windows worktree has no
+  `HADOOP_HOME` with `bin/winutils.exe`; the non-write guards still ran.
+- Compileall passed.
+- `git diff --check` passed with CRLF normalization warnings only.
+
 ## Evidence Directory
 
 Use:

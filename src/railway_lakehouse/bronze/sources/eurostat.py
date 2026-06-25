@@ -304,6 +304,8 @@ EUROSTAT_CURATED_DATASETS = (
     "ilc_pw01", "ilc_pw05", "ilc_di12", "ilc_li02", "ilc_peps01", "ilc_mddd11",
     # --- urban audit: cities and greater cities (city-level geo) ---
     "urb_cpopstr", "urb_cecfi", "urb_ctran",
+    # --- road (cars per capita) + purchasing power parities / price levels ---
+    "road_eqs_carhab", "prc_ppp_ind",
 )
 
 

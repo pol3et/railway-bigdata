@@ -165,7 +165,7 @@
         <p class="eyebrow">Railway Big-Data Course Project · src/railway_lakehouse</p>
         <h1>Lakehouse <span>Line Status</span></h1>
       </div>
-      <div class="status-pill">FAST TRACK DONE · <b>REPORT DRAFT</b> · 2026-06-24</div>
+      <div class="status-pill">FAST TRACK DONE · <b>ANALYSIS SNAPSHOT</b> · 2026-06-25</div>
     </div>
   </div>
 </header>
@@ -179,7 +179,7 @@
         <div class="stn"><div class="node green">B</div><div class="stn-code">stop 01</div><div class="stn-name">Bronze</div><div class="stn-note">Raw landing works. 4 of 8 sources scheduled.</div></div>
         <div class="stn"><div class="node amber">S</div><div class="stn-code">stop 02</div><div class="stn-name">Silver</div><div class="stn-note">Normalize + Parquet persist; round-trip proven.</div></div>
         <div class="stn"><div class="node amber">G</div><div class="stn-code">stop 03</div><div class="stn-name">Gold</div><div class="stn-note">Real WB stats: 2,968×4 live this session.</div></div>
-        <div class="stn"><div class="node green">S</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Evidence written: 2,968×4 Gold → 2,968×5 coverage.</div></div>
+        <div class="stn"><div class="node green">S</div><div class="stn-code">stop 04</div><div class="stn-name">Spark</div><div class="stn-note">Coverage evidence plus guarded analysis snapshot.</div></div>
         <div class="stn"><span class="here" aria-hidden="true">YOU ARE HERE</span><div class="node green">R</div><div class="stn-code">stop 05</div><div class="stn-name">Report</div><div class="stn-note">Drafts cite evidence and pass link checks.</div></div>
       </div>
     </div>
@@ -191,9 +191,9 @@
       <div class="card green"><div class="big">161</div><div class="cap">tests passing · 1 spark skip</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
-      <div class="card green"><div class="big">1</div><div class="cap">Spark job · evidence</div></div>
+      <div class="card green"><div class="big">3</div><div class="cap">Spark jobs · guarded</div></div>
     </div>
-    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Report drafts now live under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span> with an evidence-link checker. <b>Eurostat is now a 2nd real source (PR #21):</b> live national rail datasets → Silver → Gold <b>1,554 rows × 10 cols</b> (8 mapped rail features incl. passengers, freight, network km, electrified km, locomotives, wagons; 42 geos, 1962–2025) — evidence in <span class="mono">output/evidence/eurostat-silver-gold/</span>. PR #25 broadens the automatic stats net; bounded live evidence landed Eurostat + World Bank together and built <b>3,550×11</b> Gold under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>. Still open: full MinIO/Ollama/news/Spark E2E, cross-source unit normalization (GAP-015), and news LLM.</p>
+    <p class="small muted" style="margin-top:10px;">A live World Bank Bronze→Silver→Gold run wrote <span class="mono">inventory-live-2026-06-23/railway_ml.parquet</span> — <b>2,968 rows × 4 cols</b> (freight + network-km, 151 geos, 1995–2021, AT+HU). Spark 4.1.2 read that real Gold and wrote <span class="mono">output/evidence/spark/</span> — coverage output <b>2,968 rows × 5 cols</b>, one part-file, and <span class="mono">_SUCCESS</span>. PR #27 adds guarded Spark correlation/regional jobs and a committed CSV/manifest snapshot under <span class="mono">output/evidence/analysis-artifacts/</span>; reruns require a wider Gold with rail-investment and regional columns. Silver <span class="mono">StatFact</span> (35,112 rows) persisted and reloaded identically; the live MinIO smoke passed a 32 B s3fs round-trip. Report drafts now live under <span class="mono">output/report/</span> and <span class="mono">output/presentation/</span> with an evidence-link checker. <b>Eurostat is now a 2nd real source (PR #21):</b> live national rail datasets → Silver → Gold <b>1,554 rows × 10 cols</b> (8 mapped rail features incl. passengers, freight, network km, electrified km, locomotives, wagons; 42 geos, 1962–2025) — evidence in <span class="mono">output/evidence/eurostat-silver-gold/</span>. PR #25 broadens the automatic stats net; bounded live evidence landed Eurostat + World Bank together and built <b>3,550×11</b> Gold under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>. Still open: full MinIO/Ollama/news/Spark E2E, cross-source unit normalization (GAP-015), and news LLM.</p>
   </section>
 
   <section>
@@ -424,10 +424,11 @@
         <div class="wave-head"><span class="wave-no">WAVE 2</span><span class="wave-title">Spark fast track</span><span class="wave-par">2 closed · merged</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-009 spark/evidence-job (2,968×4 → evidence)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> PR #27 correlation/regional analysis snapshot</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-007 Gold ← persisted Silver</span>
         </div>
       </div>
-      <div class="contract"><div class="ctitle">✅ Contract B — passed</div><div class="cbody">Spark 4.1.2 reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (version, in/out row+col counts, files); counts match Gold and the job is independently re-runnable (re-run 2,968×4 → 2,968×5 verified). Bonus done: Gold built from persisted Silver via <span class="mono">gold.run</span> (GAP-007).</div></div>
+      <div class="contract"><div class="ctitle">✅ Contract B — passed</div><div class="cbody">Spark 4.1.2 reads the real Gold Parquet and writes <span class="mono">output/evidence/spark/</span> (version, in/out row+col counts, files); counts match Gold and the job is independently re-runnable (re-run 2,968×4 → 2,968×5 verified). PR #27 adds correlation/regional jobs plus a committed analysis snapshot; those jobs fail loudly unless passed a Gold with investment/regional columns. Bonus done: Gold built from persisted Silver via <span class="mono">gold.run</span> (GAP-007).</div></div>
 
       <div class="flow">↓</div>
 
@@ -483,7 +484,7 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…030), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the live MinIO smoke, and the GAP-011 report/presentation drafts. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-24.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…030), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span>, the live MinIO smoke, and the GAP-011 report/presentation drafts. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
 
 </main>
 </body>

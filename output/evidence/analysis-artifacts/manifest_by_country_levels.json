@@ -1,0 +1,577 @@
+{
+  "command": "python -m railway_lakehouse.spark_jobs.correlations",
+  "spark_version": "4.1.2",
+  "ansi_enabled": false,
+  "mode": "levels + deltas | per-country",
+  "by_country": true,
+  "targets": [
+    "rail_investment_pps",
+    "rail_investment_per_capita",
+    "rail_investment_pct_gdp",
+    "rail_investment_per_network_km"
+  ],
+  "country_only": true,
+  "min_obs": 8,
+  "input_path": null,
+  "n_features": 132,
+  "n_rows_reported": 12130,
+  "output_path": null,
+  "csv_path": "output/evidence/analysis-artifacts/correlations_by_country_levels.csv",
+  "top_by_target": {
+    "rail_investment_pct_gdp": [
+      {
+        "geo": "MK",
+        "feature": "health_spend_pct_gdp",
+        "kind": "level",
+        "pearson_r": 0.9724,
+        "p_pearson": 0.0,
+        "spearman_r": 0.6026,
+        "n": 8
+      },
+      {
+        "geo": "BE",
+        "feature": "education_spend_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.9688,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9714,
+        "n": 12
+      },
+      {
+        "geo": "PL",
+        "feature": "homicide_rate",
+        "kind": "level",
+        "pearson_r": 0.9572,
+        "p_pearson": 0.0,
+        "spearman_r": 0.7915,
+        "n": 21
+      },
+      {
+        "geo": "PL",
+        "feature": "infant_mortality_rate",
+        "kind": "delta",
+        "pearson_r": -0.9568,
+        "p_pearson": 0.0,
+        "spearman_r": -0.7836,
+        "n": 24
+      },
+      {
+        "geo": "CZ",
+        "feature": "rail_wagons",
+        "kind": "level",
+        "pearson_r": 0.9522,
+        "p_pearson": 0.0,
+        "spearman_r": 0.743,
+        "n": 30
+      },
+      {
+        "geo": "PL",
+        "feature": "rail_network_length_km",
+        "kind": "level",
+        "pearson_r": 0.951,
+        "p_pearson": 0.0,
+        "spearman_r": 0.8209,
+        "n": 24
+      },
+      {
+        "geo": "CZ",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.947,
+        "p_pearson": 0.0,
+        "spearman_r": -0.6758,
+        "n": 30
+      },
+      {
+        "geo": "CZ",
+        "feature": "rail_locomotives",
+        "kind": "level",
+        "pearson_r": 0.945,
+        "p_pearson": 0.0,
+        "spearman_r": 0.769,
+        "n": 30
+      },
+      {
+        "geo": "CZ",
+        "feature": "infant_mortality_rate",
+        "kind": "level",
+        "pearson_r": 0.9449,
+        "p_pearson": 0.0,
+        "spearman_r": 0.6229,
+        "n": 30
+      },
+      {
+        "geo": "PL",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.9448,
+        "p_pearson": 0.0,
+        "spearman_r": -0.7686,
+        "n": 24
+      },
+      {
+        "geo": "NO",
+        "feature": "rail_passengers",
+        "kind": "level",
+        "pearson_r": -0.9431,
+        "p_pearson": 0.0,
+        "spearman_r": -0.923,
+        "n": 13
+      },
+      {
+        "geo": "CZ",
+        "feature": "rail_track_length_km",
+        "kind": "level",
+        "pearson_r": 0.9412,
+        "p_pearson": 0.0,
+        "spearman_r": 0.6631,
+        "n": 30
+      },
+      {
+        "geo": "DE",
+        "feature": "cars_per_1000_inhabitants",
+        "kind": "delta",
+        "pearson_r": 0.9408,
+        "p_pearson": 0.0,
+        "spearman_r": 0.7314,
+        "n": 17
+      },
+      {
+        "geo": "MK",
+        "feature": "gva_total_meur",
+        "kind": "level",
+        "pearson_r": -0.9336,
+        "p_pearson": 0.0002,
+        "spearman_r": -0.4513,
+        "n": 8
+      },
+      {
+        "geo": "CZ",
+        "feature": "urban_population_pct",
+        "kind": "level",
+        "pearson_r": 0.9329,
+        "p_pearson": 0.0,
+        "spearman_r": 0.7311,
+        "n": 30
+      }
+    ],
+    "rail_investment_per_capita": [
+      {
+        "geo": "CH",
+        "feature": "gni_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.9651,
+        "p_pearson": 0.0,
+        "spearman_r": 0.993,
+        "n": 14
+      },
+      {
+        "geo": "BE",
+        "feature": "education_spend_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.965,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9749,
+        "n": 12
+      },
+      {
+        "geo": "AT",
+        "feature": "urban_population_pct",
+        "kind": "level",
+        "pearson_r": 0.9626,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9116,
+        "n": 15
+      },
+      {
+        "geo": "RS",
+        "feature": "population_total",
+        "kind": "level",
+        "pearson_r": -0.9591,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9487,
+        "n": 12
+      },
+      {
+        "geo": "CH",
+        "feature": "rail_freight_tonne_km",
+        "kind": "level",
+        "pearson_r": -0.9589,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9815,
+        "n": 14
+      },
+      {
+        "geo": "RS",
+        "feature": "ppp_factor",
+        "kind": "level",
+        "pearson_r": 0.9531,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9148,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "compensation_employees_meur",
+        "kind": "level",
+        "pearson_r": 0.9511,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9461,
+        "n": 12
+      },
+      {
+        "geo": "FR",
+        "feature": "net_earnings_eur",
+        "kind": "level",
+        "pearson_r": 0.9505,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9332,
+        "n": 18
+      },
+      {
+        "geo": "CH",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": 0.9504,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9896,
+        "n": 14
+      },
+      {
+        "geo": "RS",
+        "feature": "gdp_per_capita_pps",
+        "kind": "level",
+        "pearson_r": 0.9496,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9338,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "gdp_pps",
+        "kind": "level",
+        "pearson_r": 0.9487,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9441,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "gni_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.9473,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9304,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "gdp_current_meur",
+        "kind": "level",
+        "pearson_r": 0.9472,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9435,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "gdp_per_capita_eur",
+        "kind": "level",
+        "pearson_r": 0.9465,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9443,
+        "n": 12
+      },
+      {
+        "geo": "CZ",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.9463,
+        "p_pearson": 0.0,
+        "spearman_r": -0.6248,
+        "n": 30
+      }
+    ],
+    "rail_investment_per_network_km": [
+      {
+        "geo": "CH",
+        "feature": "gni_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.9751,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9939,
+        "n": 14
+      },
+      {
+        "geo": "AT",
+        "feature": "urban_population_pct",
+        "kind": "level",
+        "pearson_r": 0.9687,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9381,
+        "n": 15
+      },
+      {
+        "geo": "BE",
+        "feature": "education_spend_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.9652,
+        "p_pearson": 0.0,
+        "spearman_r": -0.971,
+        "n": 12
+      },
+      {
+        "geo": "FR",
+        "feature": "net_earnings_eur",
+        "kind": "level",
+        "pearson_r": 0.9614,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9391,
+        "n": 18
+      },
+      {
+        "geo": "CH",
+        "feature": "rail_freight_tonne_km",
+        "kind": "level",
+        "pearson_r": -0.9603,
+        "p_pearson": 0.0,
+        "spearman_r": -0.978,
+        "n": 14
+      },
+      {
+        "geo": "CH",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": 0.9592,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9871,
+        "n": 14
+      },
+      {
+        "geo": "RS",
+        "feature": "population_total",
+        "kind": "level",
+        "pearson_r": -0.9553,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9428,
+        "n": 12
+      },
+      {
+        "geo": "NL",
+        "feature": "co2_per_capita",
+        "kind": "level",
+        "pearson_r": -0.9549,
+        "p_pearson": 0.0,
+        "spearman_r": -0.8743,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "ppp_factor",
+        "kind": "level",
+        "pearson_r": 0.9502,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9311,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "compensation_employees_meur",
+        "kind": "level",
+        "pearson_r": 0.9491,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9524,
+        "n": 12
+      },
+      {
+        "geo": "NL",
+        "feature": "gdp_current_usd",
+        "kind": "level",
+        "pearson_r": 0.9487,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9296,
+        "n": 12
+      },
+      {
+        "geo": "RS",
+        "feature": "gni_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.9471,
+        "p_pearson": 0.0,
+        "spearman_r": 0.932,
+        "n": 12
+      },
+      {
+        "geo": "CH",
+        "feature": "gdp_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.9466,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9835,
+        "n": 14
+      },
+      {
+        "geo": "RS",
+        "feature": "gdp_per_capita_pps",
+        "kind": "level",
+        "pearson_r": 0.9447,
+        "p_pearson": 0.0,
+        "spearman_r": 0.917,
+        "n": 12
+      },
+      {
+        "geo": "CZ",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.9439,
+        "p_pearson": 0.0,
+        "spearman_r": -0.6737,
+        "n": 30
+      }
+    ],
+    "rail_investment_pps": [
+      {
+        "geo": "CH",
+        "feature": "gni_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.977,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9961,
+        "n": 14
+      },
+      {
+        "geo": "AT",
+        "feature": "urban_population_pct",
+        "kind": "level",
+        "pearson_r": 0.9672,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9017,
+        "n": 15
+      },
+      {
+        "geo": "BE",
+        "feature": "education_spend_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.9646,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9902,
+        "n": 12
+      },
+      {
+        "geo": "CH",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": 0.9627,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9885,
+        "n": 14
+      },
+      {
+        "geo": "CH",
+        "feature": "rail_freight_tonne_km",
+        "kind": "level",
+        "pearson_r": -0.9611,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9786,
+        "n": 14
+      },
+      {
+        "geo": "NL",
+        "feature": "co2_per_capita",
+        "kind": "level",
+        "pearson_r": -0.9575,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9653,
+        "n": 12
+      },
+      {
+        "geo": "FR",
+        "feature": "net_earnings_eur",
+        "kind": "level",
+        "pearson_r": 0.9561,
+        "p_pearson": 0.0,
+        "spearman_r": 0.8816,
+        "n": 18
+      },
+      {
+        "geo": "RS",
+        "feature": "population_total",
+        "kind": "level",
+        "pearson_r": -0.9551,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9338,
+        "n": 12
+      },
+      {
+        "geo": "CH",
+        "feature": "gdp_per_capita_usd",
+        "kind": "level",
+        "pearson_r": 0.9526,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9808,
+        "n": 14
+      },
+      {
+        "geo": "RS",
+        "feature": "ppp_factor",
+        "kind": "level",
+        "pearson_r": 0.9499,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9522,
+        "n": 12
+      },
+      {
+        "geo": "NL",
+        "feature": "gdp_current_usd",
+        "kind": "level",
+        "pearson_r": 0.9491,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9465,
+        "n": 12
+      },
+      {
+        "geo": "CH",
+        "feature": "infant_mortality_rate",
+        "kind": "level",
+        "pearson_r": -0.948,
+        "p_pearson": 0.0,
+        "spearman_r": -0.9595,
+        "n": 14
+      },
+      {
+        "geo": "RS",
+        "feature": "compensation_employees_meur",
+        "kind": "level",
+        "pearson_r": 0.9454,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9436,
+        "n": 12
+      },
+      {
+        "geo": "NL",
+        "feature": "compensation_employees_meur",
+        "kind": "level",
+        "pearson_r": 0.9443,
+        "p_pearson": 0.0,
+        "spearman_r": 0.9281,
+        "n": 12
+      },
+      {
+        "geo": "CZ",
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.9441,
+        "p_pearson": 0.0,
+        "spearman_r": -0.7007,
+        "n": 30
+      }
+    ]
+  },
+  "duration_seconds": 18.583,
+  "status": "passed",
+  "started_at_utc": "2026-06-24T23:12:07.707335+00:00",
+  "finished_at_utc": "2026-06-24T23:12:26.291004+00:00",
+  "input_path_committed": false,
+  "input_note": "Original wide Gold source path from the Spark run was output/evidence/bigdata/railway_ml.parquet; the source Parquet is not committed in this PR.",
+  "output_note": "Original Spark Parquet output directory was not committed; csv_path points to the committed evidence copy."
+}

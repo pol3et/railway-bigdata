@@ -1612,3 +1612,41 @@ Next:
 - Run the focused/full verification suite, push the rebased PR #26 branch, and merge after checks pass.
 - Keep GAP-005 open until UIC is scheduled through `src/railway_lakehouse/bronze/run.py`.
 - Add UIC-to-Gold real-data evidence when persisted Silver/Gold runs include UIC rows.
+
+## 2026-06-25 - PR 27 Spark analysis review fixes
+
+Status: done for review fixes.
+
+Changed:
+- `src/railway_lakehouse/gold/build.py`
+- `src/railway_lakehouse/spark_jobs/correlations.py`
+- `src/railway_lakehouse/spark_jobs/regional.py`
+- `tests/test_silver_eu_stats_features.py`
+- `tests/test_spark_stack_pins.py`
+- `tests/test_spark_analysis_jobs.py`
+- `output/evidence/analysis-artifacts/`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `docs/VERIFICATION.md`
+- `.planning/coursework/research/bigdata/pr27-spark-analysis-review-fixes-2026-06-25.md`
+
+Findings:
+- PR #27 originally injected a constant `terrain_complexity` into Gold without a
+  source contract; that fabricated feature was removed.
+- The new Spark jobs now default to the existing committed Gold Parquet and fail
+  loudly when the selected Gold lacks rail-investment or regional columns.
+- Correlation outputs are mode-specific, so panel/level and pooled/by-country
+  runs no longer overwrite each other.
+- Per-country Spearman ranking now partitions by country and variable.
+- The committed analysis snapshot now lives under
+  `output/evidence/analysis-artifacts/`; manifests point to committed CSV copies
+  and mark the original source Gold/Parquet outputs as not committed.
+
+Evidence:
+- `$env:PYTHONPATH='src'; $env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q tests/test_silver_eu_stats_features.py tests/test_spark_stack_pins.py tests/test_spark_analysis_jobs.py` -> 19 passed, 2 skipped because this Windows worktree has no `HADOOP_HOME` with `bin/winutils.exe`.
+- `$env:PYTHONPATH='src'; python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+
+Next:
+- Push PR #27 fixes, wait for GitHub checks, merge PR #27, and remove the
+  temporary PR worktree.
