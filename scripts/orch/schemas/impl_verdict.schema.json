@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["gap_id", "branch", "mergeable", "tests", "dod_met", "blocked"],
+  "required": ["gap_id", "branch", "pr_url", "pr_number", "mergeable", "tests", "dod_met", "dod_unmet", "files_changed", "blocked", "blocker", "notes"],
   "properties": {
     "gap_id": { "type": "string" },
     "branch": { "type": "string" },

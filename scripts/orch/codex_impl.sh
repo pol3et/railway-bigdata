@@ -42,7 +42,10 @@ open(outp,"w",encoding="utf-8").write(
 PY
 
 orch_log "launching Codex implementer for $GAP_ID (branch $BRANCH, worktree $WT)"
-timeout 2400 codex exec --json \
+# Generous cap (2h): an implementer does real work — edit + tests + full suite + commit + push + PR.
+# Parallel fan-out absorbs the wall-clock cost; this only kills a genuinely stuck agent. Raised from
+# 2400 after a green GAP-039 agent was killed at 40m mid-ship (it had finished, just hadn't committed).
+timeout 7200 codex exec --json \
   --dangerously-bypass-approvals-and-sandbox \
   -C "$WT" \
   --output-schema "$HERE/schemas/impl_verdict.schema.json" \

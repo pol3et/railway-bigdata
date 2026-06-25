@@ -115,3 +115,28 @@ and evidence-grounded (Wave 3). Final `main` = `4353806`. Dashboard + docs synce
 
 **Beyond the fast track (Wave 4+, not in scope here):** Contract C — ≥2 stats sources + `news_*` in
 Gold, a live-MinIO end-to-end run, and a scheduled fresh-Bronze run — remains the next milestone.
+
+## 2026-06-25 — Orchestration hardening + first real test run (GAP-039 merged)
+
+Scope: Sessions A+B prep. NOT a full overnight run — a bounded test that hardened the harness, then
+handoff (`docs/HANDOFF_AUTONOMOUS_RUN.md`) for a fresh session to launch the autonomous run.
+
+Harness fixes (the real run had never worked):
+- **DRY always-dry**: `run_night.sh`/`run_wave.sh` set `DRY=0` but consumed it via `${DRY:+…}`, which
+  substitutes for any non-null value → every "real" run forced `--dry-run`. Fixed: `DRY=` when not dry.
+- **Codex output schemas 400'd**: strict structured-output requires `required` to list every property;
+  `impl_verdict`/`review_findings` schemas listed a subset → `invalid_json_schema`. Fixed both.
+- **Codex timeouts raised** (parallel fan-out absorbs the cost): impl/resume 40m→2h, review 20m→1h.
+- **Tiered PR review** (owner policy): load-bearing PR (touches `LOAD_BEARING_PATHS` core paths, per
+  `files_changed`) → Opus `ship-it:ship-reviewer` + park `needs_opus_review`; else codex + auto-merge;
+  fixes always codex. See `scripts/orch/night.config.sh`, `run_wave.sh:pr_is_load_bearing`,
+  `scripts/orch/prompts/opus_review.md`.
+
+Test run — **GAP-039 MERGED** (PR #28, squash `dafcbf8`):
+- impl → 40m-timeout-resume → ship; codex review caught a real P1 (cache not wired into production)
+  + P2 (GDELT passthrough unreachable) + P3 (tone=0 dropped) and the gate correctly refused to merge;
+  codex fix-resume wired it + added regression tests (183 → **187 passed, 3 skipped**); Opus review
+  waived by owner for the test wrap-up; merged. Post-merge contract suite on main: **187 passed, 3 skipped**.
+
+Ledger: GAP-039=merged. Everything else pending for the autonomous run. Other sessions push to main
+concurrently (origin moved 0a84012 → 7761e2e → dafcbf8).

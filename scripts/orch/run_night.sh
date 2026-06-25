@@ -8,7 +8,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/lib.sh"
 source "$HERE/lib_run.sh"
 source "$HERE/night.config.sh"
-DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
+# DRY must be EMPTY (not "0") when not dry-running: it is consumed via ${DRY:+--dry-run}
+# below, and ${VAR:+x} substitutes x whenever VAR is set & non-null — "0" is non-null.
+DRY=; [ "${1:-}" = "--dry-run" ] && DRY=1
 RUNSTATE="$EVID/run_state.json"; runstate_init
 
 preflight() {

@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["verdict", "findings"],
+  "required": ["verdict", "summary", "findings", "contract_items_verified"],
   "properties": {
     "verdict": { "type": "string", "enum": ["approve", "request_changes"] },
     "summary": { "type": "string" },

@@ -37,6 +37,16 @@ declare -gA GAP_CLASS=(
   [GAP-049]=MANUAL   # final report narrative — human judgement
 )
 
+# Reviewer is chosen PER-PR by what the PR changes, NOT by a per-gap label (owner policy 2026-06-25):
+#   * A PR is LOAD-BEARING if it touches any core path below (data contract / numeric merges / LLM
+#     extraction+cache / Gold / Spark analysis). Load-bearing PRs are reviewed by an OPUS subagent
+#     (orchestrator dispatches `ship-it:ship-reviewer`, rubric scripts/orch/prompts/opus_review.md);
+#     the bash runner runs codex review only as ADVISORY and parks the gap `needs_opus_review`.
+#   * Any other PR is reviewed by codex and auto-merged on a clean verdict + approving review.
+#   * FIXES ARE ALWAYS CODEX (Opus only reviews; findings go back via `codex exec … resume`).
+# Evaluated against the impl verdict's files_changed (see pr_is_load_bearing in run_wave.sh).
+LOAD_BEARING_PATHS='src/railway_lakehouse/(pipeline\.py|silver/(persist|schema|run)\.py|silver/news/(extract|cache)\.py|silver/stats/.*merge.*\.py|gold/|spark_jobs/)'
+
 # Ordered gap lists per wave. 6a is a dependency chain (run sequential); the
 # others fan out (run parallel, but LIVE gaps within them are still serialized).
 WAVE_6A="GAP-039 GAP-050 GAP-033"
