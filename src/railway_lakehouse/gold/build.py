@@ -33,6 +33,8 @@ logger = logging.getLogger("gold.build")
 # When the same (geo, year, feature) appears from multiple sources, keep the
 # value from the highest-priority source (most authoritative / rail-specific first).
 SOURCE_PRIORITY = ["eurostat", "uic", "ksh", "statistik_austria", "worldbank"]
+# GAP-034 rows carry a signed XLM-R `sentiment_score`; keep the label map for
+# legacy rows and GDELT passthrough rows that only have a sentiment label.
 _SENTIMENT_MAP = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
 _NUTS_GEO_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{1,3}$")
 CANONICAL_LANGUAGES = ["hu", "de", "en", "fr", "es", "it", "pl", "ro", "sk", "cs"]
@@ -42,9 +44,9 @@ _CONFIDENCE_BIN_COLUMNS = [f"news_confidence_bin_{name}" for name in _CONFIDENCE
 _GKG_TOKEN_FIELDS = ("themes", "persons", "organizations", "locations", "emotions")
 _NEWS_INPUT_COLUMNS = [
     "article_id", "country", "published_date", "is_rail_related", "event_type",
-    "operators", "rail_lines", "sentiment", "monetary_amount_eur", "language",
-    "confidence", "gkg_tone", "gkg_themes", "gkg_persons", "gkg_organizations",
-    "gkg_locations", "gkg_emotions",
+    "operators", "rail_lines", "sentiment", "sentiment_score",
+    "monetary_amount_eur", "language", "confidence", "gkg_tone", "gkg_themes",
+    "gkg_persons", "gkg_organizations", "gkg_locations", "gkg_emotions",
 ]
 _NEWS_TEXT_COLUMNS = {
     "news_language_primary",
@@ -101,6 +103,18 @@ def _news_to_df(news_rows: list) -> pd.DataFrame:
     df["year"] = dates.dt.year.astype("Int64")
     df["month"] = dates.dt.month.astype("Int64")
     return df
+
+
+def _sentiment_scores(df: pd.DataFrame) -> pd.Series:
+    fallback = (
+        df["sentiment"].map(_SENTIMENT_MAP)
+        if "sentiment" in df
+        else pd.Series([pd.NA] * len(df), index=df.index, dtype="Float64")
+    )
+    if "sentiment_score" not in df:
+        return fallback
+    scores = pd.to_numeric(df["sentiment_score"], errors="coerce")
+    return scores.where(scores.notna(), fallback)
 
 
 def _group_keys_for_granularity(granularity: str) -> list[str]:
@@ -405,7 +419,7 @@ def aggregate_news(news_rows: list, *, granularity: str = "year") -> pd.DataFram
         df = df[df["month"].notna()].copy()
     if df.empty:
         return _empty_news_frame(granularity)
-    df["sent_score"] = df["sentiment"].map(_SENTIMENT_MAP)
+    df["sent_score"] = _sentiment_scores(df)
 
     groups = df[group_keys].drop_duplicates().sort_values(group_keys).reset_index(drop=True)
     grp = df.groupby(group_keys)

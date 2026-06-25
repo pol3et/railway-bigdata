@@ -185,6 +185,7 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar)
 - `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints
 - `[x]` GAP-033 `silver/news-llm-extraction-live` — live `qwen3:4b` pass completed on 40 real articles; Silver Parquet, run manifest, empty failure sidecar, news-only Gold traceability, and human manifest committed under `output/evidence/news-extraction-sample/`
+- `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ `[x]` GAP-034 `silver/sentiment-encoder` (pinned XLM-R, CPU-first) ‖ `[P1]` GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[x]` GAP-042 `silver/stataustria-ods-reader` — deterministic Statistik Austria ODS reader registered as `statistik_austria`; freight and rolling-stock ODS fixtures parse to `StatFact`
 - `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[x]` GAP-040 `gold/widen-news-aggregation` — deterministic language/confidence/rail_lines/GKG rollups + year-month option (+GAP-016/022/026)

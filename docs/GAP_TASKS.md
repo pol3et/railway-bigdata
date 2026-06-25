@@ -1484,6 +1484,16 @@ Net effect: the NewsFeature extraction is in production code but is untested und
 
 ### GAP-034 — Deterministic sentiment via XLM-R encoder (replace LLM sentiment)
 
+> Status 2026-06-25: closed by `impl/gap-034`. The implementation follows
+> the refined plan in `.planning/coursework/plans/bigdata/gap-034-sentiment-encoder.md`
+> and the research record in
+> `.planning/coursework/research/bigdata/silver-sentiment-encoder.md`.
+> Spec corrections found during live-code/research review: GAP-050 had already
+> removed sentiment from the LLM prompt/schema; the pinned HF revision is
+> `f2f1202b1bdeb07342385c3f807f9c07cd8f5cf8` rather than `59b7eda`;
+> the model is about 1.04 GiB at that revision; and Hungarian is a multilingual
+> transfer/out-of-domain use case, not one of the sentiment fine-tune languages.
+
 `MID` · level **model-pipeline** · effort **M** · depends on: GAP-031 (silver/wide-newsfeature-contract, unblocks this semantic-extraction slice)
 
 **Build:** Replace the LLM-based sentiment extraction (unstable, uncalibrated confidence, never run live) with a deterministic, pinned multilingual sentiment scorer using the HuggingFace cardiffnlp/twitter-xlm-roberta-base-sentiment model, producing sentiment_label (negative/neutral/positive) + sentiment_score (0–1). Support HU/DE/EN text in one model, pin the exact model revision, cache downloads, skip heavy models in CI, and use CPU-only inference.

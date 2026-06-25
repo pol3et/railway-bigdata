@@ -1728,6 +1728,7 @@ Evidence:
 Next:
 - GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.
 
+## 2026-06-25 - GAP-034 deterministic XLM-R sentiment encoder
 ## 2026-06-25 - GAP-041 UIC Widen And Staging
 
 Status: done
@@ -1765,6 +1766,54 @@ Next:
 Status: done; shipping via PR.
 
 Research:
+- `research-orchestrator` record written at `.planning/coursework/research/bigdata/silver-sentiment-encoder.md`.
+- Local implementation plan written and self-approved at `.planning/coursework/plans/bigdata/gap-034-sentiment-encoder.md`.
+
+Changed:
+- Added lazy, pinned CardiffNLP XLM-R sentiment wrapper with CPU-only inference and optional-dependency failure guards.
+- Moved sentiment/confidence ownership out of the LLM path and into a post-validation encoder pass.
+- Populated both legacy (`sentiment`, `confidence`) and wide (`sentiment_label`, signed `sentiment_score`, `sentiment_confidence`) fields.
+- Included sentiment model id/revision in the news extraction cache digest.
+- Updated Gold to prefer numeric `sentiment_score` while retaining label-map fallback for legacy/GDELT rows.
+- Synced `docs/DATA_CONTRACTS.md`, `docs/GAP_REGISTER.md`, `docs/GAP_TASKS.md`, `docs/TASKS.md`, and `docs/index.html`.
+
+Findings:
+- Draft spec was stale against live code because GAP-050 had already narrowed the LLM prompt away from sentiment.
+- Current HF revision is `f2f1202b1bdeb07342385c3f807f9c07cd8f5cf8`; the draft's `59b7eda` pin was not current.
+- The pinned model artifact is about 1.04 GiB; Hungarian is not in the sentiment fine-tune language set and remains a transfer/evaluation caveat.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_sentiment_encoder.py` -> 7 passed.
+- `python -m pytest -q tests/test_silver_news_parsers.py` -> 7 passed.
+- Targeted GAP-034/import/parser suite -> 15 passed.
+- Affected news/gold slice -> 41 passed.
+- Full suite -> 204 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with line-ending warnings only.
+
+Next:
+- GAP-035 should add deterministic language ID; GAP-043 should evaluate XLM-R sentiment quality on held-out multilingual news, especially HU transfer behavior.
+
+## 2026-06-25 - GAP-034 PR #31 long-text sentiment review fix
+
+Status: done; PR #31 update pending push.
+
+Changed:
+- Added a regression test for articles well over the XLM-R 512-token limit.
+- Updated `SentimentEncoder.encode()` to call the Hugging Face pipeline with `truncation=True` and `max_length=512`.
+- Updated GAP-034 test-evidence rows in `docs/GAP_REGISTER.md`.
+
+Evidence:
+- RED: long-text regression failed before the fix because encode returned `None`.
+- Focused regression: 1 passed.
+- Sentiment encoder unit file: 8 passed.
+- GAP-034/import/parser suite: 16 passed.
+- Affected news/gold slice: 41 passed.
+- Full suite: 205 passed, 6 skipped.
+- Compileall: passed.
+
+Next:
+- Commit and push the PR #31 review fix.
 - `research-orchestrator` record and approved local plan written at `.planning/coursework/research/bigdata/gold-widen-news.md`.
 - Context7 covered pandas groupby/pivot/explode/cut patterns; Firecrawl covered ISO 639 and GDELT GKG docs after Ref returned no credits.
 
