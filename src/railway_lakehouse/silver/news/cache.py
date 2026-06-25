@@ -82,10 +82,12 @@ def model_digest_key() -> str:
     weights. It deliberately reads ``OLLAMA_MODEL`` from the environment at call
     time so changing model tags invalidates cached LLM extractions.
     """
-    from . import extract
+    from . import extract, sentiment_encoder
 
     payload = {
         "ollama_model": os.environ.get("OLLAMA_MODEL", config.OLLAMA_MODEL),
+        "sentiment_model": sentiment_encoder.MODEL_NAME,
+        "sentiment_model_revision": sentiment_encoder.MODEL_REVISION,
         "ollama_timeout": config.OLLAMA_TIMEOUT,
         "ollama_num_ctx": config.OLLAMA_NUM_CTX,
         "ollama_num_batch": config.OLLAMA_NUM_BATCH,

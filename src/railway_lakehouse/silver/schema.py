@@ -50,13 +50,13 @@ class NewsFeature:
     monetary_amount_eur: Optional[float] = None      # normalized if derivable
     monetary_raw: Optional[str] = None                # original money string
     summary_en: Optional[str] = None                  # 1-2 sentence English summary
-    sentiment: Optional[str] = None                   # negative | neutral | positive
-    confidence: Optional[float] = None                # model self-reported [0,1]
+    sentiment: Optional[str] = None                   # XLM-R label: negative | neutral | positive
+    confidence: Optional[float] = None                # XLM-R max softmax [0,1] for GAP-034 rows
     language_detected_code: Optional[str] = None      # deterministic language-id output
     language_confidence: Optional[float] = None
     sentiment_label: Optional[str] = None             # deterministic sentiment model label
-    sentiment_score: Optional[float] = None           # signed score in [-1,1]
-    sentiment_confidence: Optional[float] = None
+    sentiment_score: Optional[float] = None           # signed XLM-R score in [-1,1]
+    sentiment_confidence: Optional[float] = None      # XLM-R max softmax [0,1]
     is_rail_related_confidence: Optional[float] = None
     event_type_confidence: Optional[float] = None
     summary_en_source: Optional[str] = None

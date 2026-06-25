@@ -104,8 +104,40 @@ def test_aggregate_news_counts_events_sentiment_money_and_operators():
     assert row["news_n_investment"] == 1
     assert row["news_n_accident"] == 1
     assert row["news_total_investment_eur"] == 100.0
+    assert row["news_sentiment_mean"] == 0.0
     assert row["news_share_negative"] == 0.5
     assert row["news_op_RailCargo"] == 1
+
+
+def test_aggregate_news_prefers_encoder_sentiment_score_over_label_map():
+    rows = [
+        {
+            "article_id": "n1",
+            "country": "HU",
+            "published_date": "2020-04-01",
+            "is_rail_related": True,
+            "event_type": "investment",
+            "operators": [],
+            "sentiment": "positive",
+            "sentiment_score": 0.25,
+            "monetary_amount_eur": None,
+        },
+        {
+            "article_id": "n2",
+            "country": "HU",
+            "published_date": "2020-05-01",
+            "is_rail_related": True,
+            "event_type": "delay",
+            "operators": [],
+            "sentiment": "negative",
+            "sentiment_score": -0.95,
+            "monetary_amount_eur": None,
+        },
+    ]
+
+    agg = gold_build.aggregate_news(rows)
+
+    assert agg.iloc[0]["news_sentiment_mean"] == pytest.approx(-0.35)
 
 
 def test_build_gold_fills_count_like_news_columns_with_zero():

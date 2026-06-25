@@ -183,7 +183,7 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar)
 - `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints
 - `[x]` GAP-033 `silver/news-llm-extraction-live` — live `qwen3:4b` pass completed on 40 real articles; Silver Parquet, run manifest, empty failure sidecar, news-only Gold traceability, and human manifest committed under `output/evidence/news-extraction-sample/`
-- `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
+- `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ `[x]` GAP-034 `silver/sentiment-encoder` (pinned XLM-R, CPU-first) ‖ `[P1]` GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
 - `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage` ‖ GAP-042 `silver/stataustria-ods-reader`
 - `[P3]` GAP-037 `spark/news-clustering` (separate artifact, not a Gold column — SPARK-21679) ‖ GAP-038 `silver/news-ner` (conditional) ‖ GAP-031-v2 GKG csv.zip history parser

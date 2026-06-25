@@ -31,6 +31,8 @@ logger = logging.getLogger("gold.build")
 # When the same (geo, year, feature) appears from multiple sources, keep the
 # value from the highest-priority source (most authoritative / rail-specific first).
 SOURCE_PRIORITY = ["eurostat", "uic", "ksh", "statistik_austria", "worldbank"]
+# GAP-034 rows carry a signed XLM-R `sentiment_score`; keep the label map for
+# legacy rows and GDELT passthrough rows that only have a sentiment label.
 _SENTIMENT_MAP = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
 _NUTS_GEO_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{1,3}$")
 
@@ -79,6 +81,18 @@ def _news_to_df(news_rows: list) -> pd.DataFrame:
     return df
 
 
+def _sentiment_scores(df: pd.DataFrame) -> pd.Series:
+    fallback = (
+        df["sentiment"].map(_SENTIMENT_MAP)
+        if "sentiment" in df
+        else pd.Series([pd.NA] * len(df), index=df.index, dtype="Float64")
+    )
+    if "sentiment_score" not in df:
+        return fallback
+    scores = pd.to_numeric(df["sentiment_score"], errors="coerce")
+    return scores.where(scores.notna(), fallback)
+
+
 def aggregate_news(news_rows: list) -> pd.DataFrame:
     """NewsFeature rows -> per-(country, year) aggregate features.
     Only rail-related rows with a known country (HU/AT) and a year are counted."""
@@ -90,7 +104,7 @@ def aggregate_news(news_rows: list) -> pd.DataFrame:
             & df["year"].notna()].copy()
     if df.empty:
         return pd.DataFrame(columns=["geo", "year"])
-    df["sent_score"] = df["sentiment"].map(_SENTIMENT_MAP)
+    df["sent_score"] = _sentiment_scores(df)
 
     grp = df.groupby(["country", "year"])
     agg = grp.agg(

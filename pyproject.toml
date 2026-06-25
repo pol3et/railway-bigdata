@@ -19,6 +19,7 @@ dependencies = [
   "aiobotocore==2.13.1",
   "botocore==1.34.131",
   "schedule>=1.2,<2",
+  "transformers>=4.40,<5",
 ]
 
 [project.optional-dependencies]

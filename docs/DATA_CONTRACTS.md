@@ -59,7 +59,7 @@ Provided by Bronze / article lineage:
 3. `url`
 4. `published_date`
 
-Legacy LLM/generative fields retained for backward compatibility:
+LLM/generative fields plus legacy compatibility fields:
 
 5. `language`
 6. `is_rail_related`
@@ -70,16 +70,21 @@ Legacy LLM/generative fields retained for backward compatibility:
 11. `monetary_amount_eur`
 12. `monetary_raw`
 13. `summary_en`
-14. `sentiment`
-15. `confidence`
+14. `sentiment` - GAP-034 deterministic XLM-R label
+    (`negative`/`neutral`/`positive`) for `extract_article(...)` rows;
+    GDELT passthrough rows may still use their deterministic tone heuristic.
+15. `confidence` - GAP-034 XLM-R max softmax probability in `[0, 1]`
+    when sentiment is populated by the encoder; null when the encoder is
+    unavailable or the row came from a path without classifier confidence.
 
-Reserved model-extracted fields for the GAP-031...038 passes:
+Reserved / populated model-extracted fields for the GAP-031...038 passes:
 
 16. `language_detected_code`
 17. `language_confidence`
-18. `sentiment_label`
-19. `sentiment_score`
-20. `sentiment_confidence`
+18. `sentiment_label` - mirrors the XLM-R sentiment label for GAP-034 rows.
+19. `sentiment_score` - signed deterministic sentiment score in `[-1, 1]`;
+    Gold prefers this value and falls back to label mapping for legacy rows.
+20. `sentiment_confidence` - XLM-R max softmax probability for GAP-034 rows.
 21. `is_rail_related_confidence`
 22. `event_type_confidence`
 23. `summary_en_source`
@@ -116,13 +121,17 @@ Caching/audit fields:
 Rules:
 
 - LLM output is untrusted until validated by `validate_news_feature(...)`.
-- The current GAP-039 implementation reserves the wide model fields but does not
-  populate language detection, XLM-R sentiment, NER, embeddings, clustering, or
-  deterministic monetary parsing; those are owned by GAP-031...038.
+- GAP-034 populates deterministic XLM-R sentiment fields after LLM validation:
+  `sentiment`, `confidence`, `sentiment_label`, `sentiment_score`, and
+  `sentiment_confidence`. The LLM prompt/schema does not own sentiment or
+  confidence.
+- The remaining wide model fields still reserved for later passes are language
+  detection, NER, embeddings, clustering, and deterministic monetary parsing;
+  those are owned by GAP-031...038.
 - `monetary_raw` is explicitly part of the Silver news contract.
-- `sentiment` and `confidence` are the legacy fields consumed by current Gold.
-  `sentiment_label`/`sentiment_score` and per-field confidences are the forward
-  contract for later deterministic model passes.
+- `sentiment` and `confidence` remain the legacy fields consumed by current
+  consumers. New Gold sentiment aggregation prefers `sentiment_score` and only
+  uses label mapping when a row lacks the deterministic signed score.
 
 ### Content-hash cache contract
 

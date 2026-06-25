@@ -5,6 +5,8 @@ GAP-050 turns the old per-row prompt call into a small extraction runner:
 cache-skip first, sequential batch processing for the single local Ollama,
 bounded retries, typed failures, optional model lifecycle hooks, and a run
 manifest. `generate_json` remains the mocked seam; CI never needs Ollama.
+GAP-034 keeps sentiment out of the LLM path and fills it with a pinned,
+deterministic XLM-R encoder post-pass when that local model is available.
 """
 from __future__ import annotations
 
@@ -14,7 +16,7 @@ import os
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -31,11 +33,20 @@ from .cache import (
     model_digest_key,
 )
 from .failures import ExtractionFailure, utc_now
+from . import sentiment_encoder
 
 logger = logging.getLogger("silver.news.extract")
 
 PROMPT_VERSION = config.NEWS_EXTRACTION_PROMPT_VERSION
 GDELT_PASSTHROUGH_DIGEST = "gdelt_gkg_passthrough"
+_SENTIMENT_SIGN = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
+_LLM_SENTIMENT_FIELDS = {
+    "sentiment",
+    "sentiment_label",
+    "sentiment_score",
+    "sentiment_confidence",
+    "confidence",
+}
 
 _SYSTEM = (
     "You are a precise railway-news information extraction engine for Hungary "
@@ -56,7 +67,6 @@ _FEW_SHOT_EXAMPLES = [
             "monetary_amount_eur": None,
             "monetary_raw": "12 milliard forint",
             "summary_en": "MAV announced a railway track renewal funded in Hungarian forints.",
-            "confidence": 0.84,
         },
     },
     {
@@ -69,7 +79,6 @@ _FEW_SHOT_EXAMPLES = [
             "monetary_amount_eur": None,
             "monetary_raw": None,
             "summary_en": "OBB train services were cancelled after overhead line damage.",
-            "confidence": 0.86,
         },
     },
     {
@@ -82,7 +91,6 @@ _FEW_SHOT_EXAMPLES = [
             "monetary_amount_eur": None,
             "monetary_raw": None,
             "summary_en": "The story is about a cafe and not rail transport.",
-            "confidence": 0.9,
         },
     },
 ]
@@ -97,7 +105,6 @@ _JSON_SCHEMA = {
         "monetary_amount_eur": {"type": ["number", "null"]},
         "monetary_raw": {"type": ["string", "null"]},
         "summary_en": {"type": "string"},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "is_rail_related_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "event_type_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "monetary_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
@@ -109,7 +116,6 @@ _JSON_SCHEMA = {
         "monetary_amount_eur",
         "monetary_raw",
         "summary_en",
-        "confidence",
     ],
 }
 
@@ -296,6 +302,36 @@ def _tone_to_sentiment(gkg_tone: Optional[float]) -> Optional[str]:
     return "positive" if gkg_tone > 1 else "negative" if gkg_tone < -1 else "neutral"
 
 
+def _strip_llm_sentiment(raw: dict) -> dict:
+    """Remove legacy fields the LLM no longer owns."""
+    return {key: value for key, value in raw.items() if key not in _LLM_SENTIMENT_FIELDS}
+
+
+def _signed_sentiment_score(label: str, confidence: float) -> float:
+    return _SENTIMENT_SIGN[label] * confidence
+
+
+def _add_sentiment_and_confidence(
+    feature: NewsFeature,
+    *,
+    title: str,
+    body: str,
+) -> NewsFeature:
+    encoded = sentiment_encoder.get_encoder().encode(f"{title}\n\n{body or ''}")
+    if encoded is None:
+        return feature
+    label = encoded["label"]
+    confidence = float(encoded["score"])
+    return replace(
+        feature,
+        sentiment=label,
+        confidence=confidence,
+        sentiment_label=label,
+        sentiment_score=_signed_sentiment_score(label, confidence),
+        sentiment_confidence=confidence,
+    )
+
+
 def _country_from_gkg(gkg: dict) -> Optional[str]:
     source_country = str(gkg.get("sourcecountry") or gkg.get("source_country") or "").upper()
     if source_country in {"HU", "HUN"}:
@@ -335,6 +371,7 @@ def _call_llm_once(article: dict, digest: str) -> tuple[Optional[NewsFeature], O
     if raw is None or not isinstance(raw, dict):
         return None, _failure(article, "model returned no valid JSON object", digest, raw)
 
+    raw = _strip_llm_sentiment(raw)
     raw.setdefault("extraction_timestamp_utc", utc_now())
     raw["extraction_model_digest"] = digest
     raw.setdefault("summary_en_source", "ollama")
@@ -346,6 +383,11 @@ def _call_llm_once(article: dict, digest: str) -> tuple[Optional[NewsFeature], O
         published_date=article.get("published_date"),
         event_types=NEWS_EVENT_TYPES,
         operators_allowed=KNOWN_OPERATORS,
+    )
+    feature = _add_sentiment_and_confidence(
+        feature,
+        title=str(article.get("title") or ""),
+        body=str(article.get("body") or ""),
     )
     return feature, None
 
