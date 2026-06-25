@@ -194,7 +194,7 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 
 The closing arc. Full plan + Contracts E/F: `docs/ROADMAP_NEWS_TO_REPORT.md`. **Strictly EDA-first: hypotheses are formed FROM the artifacts (GAP-048), never pre-listed.** Embedder default `multilingual-e5-base` (config knob). Investment X = Eurostat `rail_investment` (dense), news money secondary.
 
-- `[P2]` GAP-045 `add-macro-indicators` — `IS.VEH.PCAR.P3` + `PA.NUS.PPP` (only new-data ticket; 9/12 teammate correlates already collected). *(Session B — widens the matrix before EDA.)*
+- `[x]` GAP-045 `add-macro-indicators` — closed 2026-06-25: `IS.VEH.PCAR.P3` + `PA.NUS.PPP` are in World Bank Bronze collection and deterministic Silver/Gold mapping. Evidence `output/evidence/macro-indicators-gap045/` proves `ppp_conversion_factor` for AT/HU; `cars_per_1000` is wired but current WB API has 0 AT/HU non-null rows, so H17 must report coverage.
 - `[P1]` GAP-046 `spark-eda-harness` — iterative Spark EDA → artifacts only (all-pairs corr + YoY deltas + lag + panels + coverage + top-correlations) → `output/evidence/eda/`
 - `[P1]` GAP-047 `analysis-integration` — `analysis_artifacts/` inbox + Spark `verify_analyses` (teammate claims recompute vs current Gold → confirmed/drifted/broken) + empty `docs/HYPOTHESES.md`
 - `[P1]` GAP-048 `hypothesis-analyses-spark` — **form hypotheses from EDA**, then Spark analyses (corr/lag/panel/clustering; AT-vs-HU; investment↔everything+deltas)

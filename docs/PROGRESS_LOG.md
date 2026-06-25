@@ -1908,3 +1908,37 @@ Evidence:
 
 Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
+
+## 2026-06-25 - GAP-045 World Bank macro indicators
+
+Status: done; shipping via PR.
+
+Changed:
+- `src/railway_lakehouse/bronze/sources/worldbank.py`
+- `src/railway_lakehouse/silver/config.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `tests/test_macro_indicators.py`
+- `.planning/coursework/research/bigdata/macro-indicators-gap045.md`
+- `.planning/coursework/plans/bigdata/macro-indicators-gap045-plan.md`
+- `output/evidence/macro-indicators-gap045/`
+- `README.md`, `docs/STATE_AND_ROADMAP.md`, `docs/GAP_REGISTER.md`, `docs/GAP_TASKS.md`, `docs/TASKS.md`, `docs/index.html`
+
+Findings:
+- `PA.NUS.PPP` is active in the live World Bank V2 API and reaches Gold for AT/HU with 36 non-null rows per country (1990-2025).
+- `IS.VEH.PCAR.P3` is now collected and mapped to `cars_per_1000`, but current World Bank API data has 0 AT/HU non-null rows; evidence records this as an upstream coverage caveat, not a data claim.
+- `IS.VEH.NVEH.P3` was not added.
+
+Evidence:
+- RED before implementation: `python -m pytest -q tests/test_macro_indicators.py` -> 2 failed for missing mappings.
+- GREEN after implementation: `python -m pytest -q tests/test_macro_indicators.py` -> 2 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources worldbank --out output/evidence/macro-indicators-gap045 --max-artifacts 12 --timeout-seconds 90` -> 13 artifacts, 49,874,290 bytes.
+- `python -m railway_lakehouse.pipeline --bronze-root output/evidence/macro-indicators-gap045/bronze --skip-news-extraction --news 0 --out output/evidence/macro-indicators-gap045/railway_ml.parquet --crosswalk-path output/evidence/macro-indicators-gap045/crosswalk_cache.json --counts-out output/evidence/macro-indicators-gap045/counts.json` -> 14,903 rows x 12 columns.
+- `output/evidence/macro-indicators-gap045/gap045_feature_coverage.json` -> `ppp_conversion_factor` AT/HU 36 rows each; `cars_per_1000` AT/HU 0 rows.
+- `python -m pytest -q -m unit` plus the GAP-045 indicator assertion command -> 172 passed, 31 deselected.
+- `python -m pytest -q -m integration` -> 24 passed, 179 deselected.
+- `python -m pytest -q` -> 197 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- Use the GAP-045 evidence caveat in EDA/reporting: PPP is available for AT/HU; World Bank car ownership must be treated as not covered for AT/HU unless a later source supplies it.

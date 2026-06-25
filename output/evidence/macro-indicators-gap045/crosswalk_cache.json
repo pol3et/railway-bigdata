@@ -1,0 +1,14 @@
+{
+  "cars_per_1000": "cars_per_1000",
+  "gdp_current_usd": "gdp_current_usd",
+  "gdp_growth_pct": "gdp_growth_pct",
+  "gdp_per_capita_usd": "gdp_per_capita_usd",
+  "gni_per_capita_usd": "gni_per_capita_usd",
+  "ppp_conversion_factor": "ppp_conversion_factor",
+  "rail_freight_tonne_km": "rail_freight_tonne_km",
+  "rail_network_length_km": "rail_network_length_km",
+  "rail_passenger_km": "rail_passenger_km",
+  "worldbank_unmapped:IS.AIR.GOOD.MT.K1": "unmapped",
+  "worldbank_unmapped:IS.AIR.PSGR": "unmapped",
+  "worldbank_unmapped:IS.ROD.PAVE.ZS": "unmapped"
+}
