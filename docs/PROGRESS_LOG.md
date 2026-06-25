@@ -1943,6 +1943,38 @@ Evidence:
 Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
 
+## 2026-06-25 - GAP-041 UIC Widen And Staging
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/persist.py`
+- `tests/test_silver_stats_uic_pdf.py`
+- `docs/DATA_CONTRACTS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/silver-uic-pdf-widen-and-stage.md`
+- `.planning/coursework/plans/GAP-041-uic-widen-and-stage.md`
+- `output/evidence/uic-proof-of-widen-2026-06-25/`
+
+Findings:
+- UIC Silver parsing no longer has an AT/HU-only geo gate; the live Synopsis PDF now parses to 738 golden rows across 80 geos while Traffic Trends remains 0 golden rows because it has no country-level synopsis table.
+- UIC staging preserves table/header/unmapped rows plus text chunks. Live staging evidence wrote 747 rows, including 476 text chunks across the two public UIC PDFs.
+- Ref MCP was unavailable due credits; Context7 plus Firecrawl/Tavily routed the pdfplumber, pycountry, and ISO-3166 research fallback sources.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py` -> 10 passed.
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py::test_uic_staging_roundtrip_persists_and_reloads -v` -> 1 passed.
+- `python -m pytest -q` -> 199 passed, 6 skipped.
+- `python -m compileall -q src tests` -> clean.
+- `python -m html.parser docs/index.html` -> clean.
+- `python -m railway_lakehouse.bronze.live_check --sources uic --out output/evidence/uic-proof-of-widen-2026-06-25 --max-artifacts 2 --timeout-seconds 30` -> artifact_count=2, byte_count=2109240, UIC passed.
+- `output/evidence/uic-proof-of-widen-2026-06-25/uic_staging_summary.json` records the staging/golden counts.
+
+Next:
+- Open the PR for `impl/gap-041` and wait for review/merge.
 ## 2026-06-25 - GAP-040 widened Gold news aggregation
 ## 2026-06-25 - GAP-045 World Bank macro indicators
 ## 2026-06-25 - GAP-035 deterministic Silver language ID

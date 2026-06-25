@@ -207,6 +207,8 @@
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord → NewsFeature sample</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live partial (429 on AT)</span></td><td><span class="sig amber"><span class="dot amber"></span>NewsFeature sample · quality caveat</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
+          <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
+          <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact + staging</span></td></tr>
           <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>DONE — ODS → StatFact</span></td></tr>
           <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG missing</span></td></tr>
@@ -280,11 +282,12 @@
       <div class="pcard">
         <div class="pcard-top"><span class="src">uic</span>
           <div class="plevels"><span class="lvl green" title="Bronze: live-validated">B</span><span class="lvl green" title="Silver: PDF table reader">S</span><span class="lvl red" title="Gold: not rerun with UIC">G</span></div></div>
-        <div class="lvlnote">UIC RAILISA. Bronze lands public PDFs (live-validated); the Synopsis country/operator table now parses to StatFact rows. Traffic Trends has no country-level synopsis table and is skipped.</div>
+        <div class="lvlnote">UIC RAILISA. Bronze lands public PDFs (live-validated); Synopsis parses to StatFact rows without the old AT/HU-only parser gate. Traffic Trends has no country-level synopsis table, so its text is staged for audit/future parsing.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw PDF · bronze/stats/uic/&lt;pub&gt;/ingest_date=…/&lt;pub&gt;.pdf</div>
           <div class="sl"><span class="c">     2 public RAILISA PDFs · 2,109,240 B · %PDF- validated</span></div>
-          <div class="sl"><span class="k">S</span> StatFact · 39 rows · AT/HU · 9 mapped features</div>
+          <div class="sl"><span class="k">S</span> StatFact · PR #26 live proof: 39 rows · AT/HU · 9 mapped features</div>
+          <div class="sl"><span class="k">S</span> staging · silver/uic_staging · table rows + text chunks</div>
           <div class="sl"><span class="x">G</span> — Gold rerun with UIC pending</div>
         </div>
       </div>
@@ -380,6 +383,7 @@
       <div class="ucol silver">
         <h3>Silver</h3>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-043/GAP-040</b> add news quality evaluation and widen Gold aggregation before report-grade use.</span></div>
+        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS remains; KSH XLSX, UIC PDF, and GAP-041 UIC staging are done.</span></div>
         <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>parsers-extra</b> KSH XLSX, StatAustria ODS, and UIC PDF → StatFact readers done.</span></div>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-043</b> add news quality evaluation before report-grade use; GAP-040 widening is closed.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS / UIC PDF → StatFact; KSH XLSX reader done.</span></div>
@@ -460,6 +464,7 @@
       <div class="wave defer">
         <div class="wave-head"><span class="wave-no">WAVE 5</span><span class="wave-title">Coverage · volume · polish</span><span class="wave-par">parallel · deferrable</span></div>
         <div class="wbatch">
+          <span class="wtask"><span class="u mid">MID</span> StatAustria ODS + GAP-005 scheduler; KSH/UIC readers done</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="sig green"><span class="dot green"></span>done</span> KSH/AT/UIC Silver readers; GAP-005 scheduler pending</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
@@ -471,11 +476,12 @@
       <div class="flow">↓</div>
 
       <div class="wave full">
-        <div class="wave-head"><span class="wave-no">WAVE 6</span><span class="wave-title">News &amp; model preprocessing</span><span class="wave-par">GAP-031…044 · MVP-first · single-box sequential</span></div>
+        <div class="wave-head"><span class="wave-no">WAVE 6</span><span class="wave-title">News &amp; model preprocessing</span><span class="wave-par">4 closed · GAP-031…044 · MVP-first</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-039 43-field NewsFeature contract + digest cache</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-050 LLM pipeline engineered + production entrypoints wired (prompt+cache+retries+lifecycle+manifest)</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-033 live qwen3:4b extraction evidence → first real news Gold traceability row</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-033 live qwen3:4b extraction evidence → first real news Gold traceability row</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-041 UIC widen+stage → all table rows + Traffic Trends text chunks</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u mid">P1</span> GAP-035 lang-id ‖ GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
@@ -486,6 +492,7 @@
           <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness ‖ GAP-044 parser audit</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
+          <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
         </div>

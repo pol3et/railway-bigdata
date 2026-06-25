@@ -44,6 +44,52 @@ Target row: `StatFact` from `src/railway_lakehouse/silver/schema.py`.
 
 Rule: numeric values must be parsed and merged deterministically. LLM use is limited to label mapping where needed.
 
+## Silver UIC Staging Contract
+
+Producer: `src/railway_lakehouse/silver/stats/load.py`.
+
+Consumer: audit/reparse workflows; Gold does not aggregate this table yet.
+
+Purpose: preserve every extracted UIC PDF table row plus text chunks from
+text-only UIC publications so parser mappings can expand without fetching or
+re-parsing Bronze bytes.
+
+Frozen local path contract:
+
+```text
+silver/uic_staging/ingest_date=YYYY-MM-DD/uic_staging.parquet
+```
+
+Schema:
+
+| Field | Meaning |
+|---|---|
+| `table_name` | Constant `uic_staging`. |
+| `dataset_id` | Bronze UIC dataset id, such as `uic_synopsis` or `uic_traffic_trends_2024`. |
+| `table_id` | Stable grouping key: `dataset_id + "_" + table_idx + "_" + row_type`. |
+| `table_idx` | Ordinal position from `pdfplumber` table extraction; `-1` for text chunks. |
+| `row_type` | `header`, `data_row`, or `text_chunk`. |
+| `row_idx` | Row ordinal inside the table, or text-chunk ordinal for `text_chunk`. |
+| `parse_status` | `success`, `geo_unmapped`, `year_missing`, `value_unparseable`, `table_mismatch`, or `text_only`. |
+| `geo` | Parsed ISO-like project geo where available; null for headers, text chunks, and unmapped rows. |
+| `year` | Parsed observation year where available. |
+| `source_dataset` | Same value as `dataset_id`, retained for source lineage parity. |
+| `source_system` | Constant `uic`. |
+| `raw_geo_cell` | Original unparsed country-code cell. |
+| `raw_year_cell` | Original unparsed railway-company/year cell. |
+| `raw_value_cells` | Original unparsed cells from mapped value columns, as `list<string>`. |
+| `text_chunk` | Extracted text line for `text_chunk` rows; empty for table rows. |
+| `created_at` | UTC ISO timestamp when the row was staged. |
+
+Rules:
+
+- Bronze PDF bytes remain immutable; staging is a Silver audit output.
+- Numeric values that feed `StatFact` remain deterministic parser output. UIC
+  staging rows are not LLM-rewritten and do not feed Gold until a later task
+  explicitly wires them.
+- The Traffic Trends PDF has extractable text but no country-level synopsis
+  table; it is represented as `text_chunk` rows with `parse_status="text_only"`.
+
 ## Silver News Contract
 
 Target row: `NewsFeature` from `src/railway_lakehouse/silver/schema.py`.

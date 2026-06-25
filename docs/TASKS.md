@@ -76,7 +76,8 @@ develop against it independently with no schema collisions.
 | `silver/eurostat-to-gold` | Eurostat: resilient Bronze + dataset-aware SDMX → canonical features → Gold | done (PR #21) — 6 national rail datasets → Silver 9,744 rows → Gold **1,554×10** (8 mapped features, 42 geos, 1962–2025); evidence `output/evidence/eurostat-silver-gold/` | GAP-023 · 2nd real source |
 | `bronze/broad-stats-pipeline` | Broaden production Eurostat + World Bank stats collection without drifting from live checks | done (PR #25) — production and bounded live-check selectors are shared; Eurostat has curated+transport bounds and size caps; World Bank pulls curated EU-stats indicators plus discovered rail IDs; review evidence produced 14 Bronze stats artifacts, 152,054 counted observations, and a stats-only 3,550×11 Gold smoke under `output/evidence/pr25-bigdata-live-*` | GAP-010 · stats volume |
 | `silver/stats-ksh-xlsx-reader` | KSH XLSX → Silver `StatFact` | done — deterministic `openpyxl` reader registered as `ksh`; live KSH Bronze probe parsed all six current XLSX artifacts; `tests/test_silver_stats_ksh.py` passed 9 tests; full suite passed 136 tests, 1 skipped | GAP-006 · extra stats parser 1/3 |
-| `silver/stats-uic-pdf-reader` | UIC PDF → Silver `StatFact` | done — deterministic `pdfplumber` table reader registered as `uic`; current UIC synopsis PDF parsed to 39 unified rows across AT/HU and 9 mapped features; traffic-trends PDF skipped because it has no country-level synopsis table; evidence `output/evidence/pr26-uic-pdf-silver-probe/manifest.json` | GAP-006 · extra stats parser 2/3 |
+| `silver/stats-uic-pdf-reader` | UIC PDF → Silver `StatFact` | done — deterministic `pdfplumber` table reader registered as `uic`; original PR #26 evidence parsed the current UIC synopsis PDF to 39 unified rows across AT/HU and 9 mapped features; GAP-041 removes the parser's AT/HU-only geo gate and adds a staging audit trail while keeping the golden stats path deterministic | GAP-006 · extra stats parser 2/3 |
+| `silver/uic-pdf-widen-and-stage` | UIC PDF: widen geo + stage all rows + traffic-trends text | done — UIC parser now recognizes EU/adjacent ISO alpha-2/alpha-3 codes beyond AT/HU, stages table/header/unmapped rows and Traffic Trends text chunks to `silver/uic_staging`, and has Parquet round-trip coverage | GAP-041 · stats volume + audit trail |
 | `spark/analysis-artifact-snapshot` | Spark correlation + regional analysis snapshot | done — rerunnable jobs added under `src/railway_lakehouse/spark_jobs/`; committed CSV/manifest snapshot moved to `output/evidence/analysis-artifacts/`; default committed Gold path now exists, and the jobs fail loudly until passed a wider Gold with rail-investment/regional columns | GAP-009 extension |
 
 ## Now — active path
@@ -100,6 +101,7 @@ develop against it independently with no schema collisions.
 |---|---|---|---|---|---|
 | `bronze/gdelt-history-backfill` | Бэкафилл истории GDELT до 100k+ статей (объём) | 4 | `infra/minio-storage` | later | volume track |
 | `silver/gdelt-gkg-parser` | Парсер GKG csv.zip → ArticleRecord (подключить `gdelt_passthrough`) | 4 | `bronze/gdelt-history-backfill` | later | volume track |
+| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | in_progress — KSH XLSX and UIC PDF done; UIC widen+staging audit trail done; Statistik Austria ODS pending | GAP-006 (extra) |
 | `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | done — KSH XLSX, UIC PDF, and Statistik Austria ODS readers are registered and tested | GAP-006 (extra) |
 | `bronze/scheduler-wiring` | Завести KSH/StatAustria/UIC в `bronze/run.py` (автообновления) | 4 | — | later | GAP-005 |
 
@@ -190,6 +192,8 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[x]` GAP-035 `silver/language-id` — pinned Lingua EN/DE/HU detector populates `language` before the LLM; prompt/schema no longer include language
 - `[P1]` GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
+- `[x]` GAP-041 `silver/uic-pdf-widen-and-stage` — UIC geo gate widened beyond AT/HU; UIC table/text staging contract and Parquet round-trip added
+- `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-042 `silver/stataustria-ods-reader`
 - `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage`
 - `[P3]` GAP-037 `spark/news-clustering` (separate artifact, not a Gold column — SPARK-21679) ‖ GAP-038 `silver/news-ner` (conditional) ‖ GAP-031-v2 GKG csv.zip history parser
 
