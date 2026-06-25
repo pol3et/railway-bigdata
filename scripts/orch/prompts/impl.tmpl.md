@@ -6,7 +6,10 @@ data — use `tmp_path`/fixtures; keep the live dashboard in sync).
 
 ## Your task: {{GAP_ID}}
 
-Implement it EXACTLY as written below. Do not widen scope.
+The spec below was drafted by a Claude research subagent. **First review and improve it**:
+sanity-check it against the live code, and refine it (via `$ship-it` + research MCPs) ONLY where
+it is wrong, stale, or thin — **do not widen scope**. Then implement strictly against the
+(possibly-refined) spec.
 
 {{GAP_SPEC}}
 

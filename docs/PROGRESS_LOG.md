@@ -1479,7 +1479,6 @@ Evidence:
 Next:
 - Merge PR; rebase GAP-019's PR over the shared GAP_REGISTER/dashboard rows.
 
-
 ## 2026-06-24 - KSH XLSX Silver Stats Reader
 
 Status: done for `silver/stats-ksh-xlsx-reader`.
@@ -1578,6 +1577,66 @@ Evidence:
 Next:
 - Push PR #25 fixes, wait for GitHub checks, merge PR #25, and remove the temporary PR worktree.
 
+## 2026-06-24 - PR #21 Eurostat pipeline review
+
+Status: done.
+
+Changed:
+- `.ship/pr/21/report.md`
+- `.ship/pr/21/mode.json`
+- `.ship/pr/21/sources.json`
+- `.planning/coursework/research/bigdata/pr21-eurostat-pipeline-review-2026-06-24.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- PR #21 hardens Eurostat Bronze collection and adds dataset-aware Silver parsing, but the default bounded Eurostat live-check seeds are `tran_r_rago` and `tran_r_rapa`; a live probe against the PR worktree showed both fetchable datasets produce zero Silver rows under `read_eurostat_tsv`.
+- The new Eurostat Silver tests call `build_crosswalk()` without isolating `CROSSWALK_PATH`, which created a repo-local `silver/crosswalk_cache.json` during targeted verification.
+- The PR changes parser/source state without updating `docs/TASKS.md` and `docs/index.html`, matching the existing dashboard-sync reminder comment on the PR.
+- The deterministic new test modules are not marked `pytest.mark.unit`, so `-m unit` selected only the existing Eurostat live-check test.
+
+Evidence:
+- Review report: `.ship/pr/21/report.md`.
+- Posted PR comment: https://github.com/pol3et/railway-bigdata/pull/21#issuecomment-4789471429.
+- `python -m pytest -q tests/test_eurostat_hardening.py tests/test_eurostat_silver_reader.py tests/test_bronze_live_check.py -k eurostat` -> 14 passed, 10 deselected.
+- `python -m pytest -q` -> 121 passed, 1 skipped.
+- `python -m pytest -q -m unit tests/test_eurostat_hardening.py tests/test_eurostat_silver_reader.py tests/test_bronze_live_check.py -k eurostat` -> 1 passed, 23 deselected.
+- Live Eurostat probe with `PYTHONPATH` pinned to `Halo-Skills-pr-21`: bounded codes `tran_r_rago`, `tran_r_rapa`; both `silver_rows=0`.
+
+Next:
+- PR author should either choose bounded seeds that exercise mapped Eurostat features, or add rules/tests for `tran_r_rago` and `tran_r_rapa`; isolate the test crosswalk cache; and update `docs/TASKS.md` / `docs/index.html` if the PR changes Eurostat status.
+
+## 2026-06-24 - PR #26 UIC PDF reader ship-pr review
+
+Status: done for read-only review; no PR comments posted.
+
+Changed:
+- `.ship/pr/26/report.md`
+- `.ship/pr/26/mode.json`
+- `.ship/pr/26/sources.json`
+- `.planning/coursework/research/bigdata/pr26-uic-pdf-reader-review-2026-06-24.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Findings:
+- PR #26 is open but conflicting with `origin/main`; merge-tree reports conflicts in docs, `pyproject.toml`, `src/railway_lakehouse/silver/stats/load.py`, and `tests/test_silver_stats_ksh.py`.
+- The two existing real UIC PDF artifacts from `output/evidence/uic-live-check-2026-06-22/bronze` produced zero rows through `load_uic_frame()` and zero unified rows through `build_silver_stats()`.
+- The UIC unit tests monkeypatch fake extracted text and do not exercise real `pdfplumber` extraction or UIC `build_silver_stats`.
+- Additional survived findings: bare `at` can become `geo=AT`, decimal-comma values parse incorrectly, dashboard/constraints are stale, and UIC `source_column` loses original provenance.
+
+Evidence:
+- Review report: `.ship/pr/26/report.md`.
+- Research note: `.planning/coursework/research/bigdata/pr26-uic-pdf-reader-review-2026-06-24.md`.
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py` -> 4 passed.
+- Focused suite -> 14 passed.
+- `python -m pytest -q` in PR worktree -> 135 passed, 1 skipped.
+- Real UIC PDF parse probe -> both PDFs `silver_rows=0`; `build_silver_stats` rows=0.
+- `git merge-tree --write-tree origin/main HEAD` -> exit 1 with conflicts.
+- External research: Context7 pdfplumber/Camelot docs; Tavily PDF extraction synthesis; Ref attempted but unavailable due credits.
+
+Next:
+- Rebase PR #26 over current `main`, split or settle KSH branch state, and replace the line-regex UIC parser with a table-aware parser tested against a realistic UIC PDF fixture before marking UIC done.
+
 ## 2026-06-24 - PR 26 UIC PDF reader review fixes
 
 Status: done for review fixes.
@@ -1609,7 +1668,6 @@ Evidence:
 - External reference used through Context7: `pdfplumber` `Page.extract_tables()` docs at https://github.com/jsvine/pdfplumber/blob/stable/README.md.
 
 Next:
-- Run the focused/full verification suite, push the rebased PR #26 branch, and merge after checks pass.
 - Keep GAP-005 open until UIC is scheduled through `src/railway_lakehouse/bronze/run.py`.
 - Add UIC-to-Gold real-data evidence when persisted Silver/Gold runs include UIC rows.
 
@@ -1650,3 +1708,43 @@ Evidence:
 Next:
 - Push PR #27 fixes, wait for GitHub checks, merge PR #27, and remove the
   temporary PR worktree.
+
+## 2026-06-25 - News multi-model preprocessing spec + 14-task pack + adversarial review
+
+Status: done for design/planning (docs only; git left to the owner).
+
+Changed:
+- `docs/SPEC_NEWS_PREPROCESSING.md` (new) — design + eval strategy + single-box (Ryzen 1600 / GTX 1060 6GB) sequential-pass compute plan + 8 must-fix review blockers + MVP build order + open decisions.
+- `docs/GAP_TASKS.md` — appended 14 pick-up-cold specs (GAP-031…044).
+- `docs/GAP_REGISTER.md` — GAP-031…044 rows. `docs/TASKS.md` — Wave 6. `docs/index.html` — WAVE 6 chips + footer + snapshot 2026-06-25.
+- `.planning/coursework/research/bigdata/news-model-spec-task-pack-2026-06-25.md` (research record).
+
+Findings:
+- Method: dynamic workflow (1 spec author + 14 task-spec authors + 5 independent reviewers + 1 synthesis = 21 agents); `research-orchestrator` routed (Tavily/Exa/Context7/Ref/WebFetch).
+- Owner decisions: UIC PDF = capture-all/map-deliberately (GAP-041); single box, sequential model passes (6 GB VRAM), torch CPU-only on Py3.14 (Ollama uses GPU).
+- Must-fix review blockers recorded in the spec: torch CPU-only on Py3.14; GDELT/RSS = snippets; GKG absent for live DOC rows; LaBSE→e5/bge-m3; Spark KMeans non-deterministic; NER ids were base LMs; cache-key/identity unsound; golden-set statistics.
+
+Evidence:
+- No source edits, tests, or live runs. Spec claims grounded in agent file:line reads; review claims cite source URLs (PyTorch #169929, SPARK-21679, MMTEB 2502.13595, HF model cards).
+
+Next:
+- Owner resolves the spec's open decisions; build MVP-first: GAP-039 → GAP-033 → P1 encoders/Gold/eval.
+
+## 2026-06-25 - Full roadmap + compute/embedder/feature research + GAP-045…050
+
+Status: done for planning (docs only; git left to the owner).
+
+Changed:
+- `docs/ROADMAP_NEWS_TO_REPORT.md` (new) — Sessions A/B/C, Waves 6-7, Contracts D/E/F; EDA-first (hypotheses formed FROM artifacts in GAP-048, not pre-listed); single-box compute plan; all-data-local note; investment finding.
+- `docs/GAP_TASKS.md` — appended GAP-045…050 specs. `docs/GAP_REGISTER.md` — GAP-045…050 rows. `docs/TASKS.md` — Wave 7 + GAP-050. `docs/index.html` — WAVE 7 + GAP-050 chips + footer (GAP-001…050). `docs/SPEC_NEWS_PREPROCESSING.md` — embedder/sidecar decision. Research note `roadmap-compute-eda-2026-06-25.md`.
+
+Findings / owner decisions:
+- Embedder DEFAULT = `multilingual-e5-base` (short snippets; dedup is algorithm-dominated; config knob, bge-m3 swappable). torch via Py3.12+cu126 GPU sidecar (Pascal sm_61; cu128+ drops it) or CPU; sequential passes; kill idle MCP servers.
+- Investment = Eurostat `rail_investment` (dense) primary, news money secondary; 9/12 teammate correlates already collected; new WB codes IS.VEH.PCAR.P3 + PA.NUS.PPP (GAP-045); terrain/coords-speeds deferred.
+- GAP-050 = LLM prompt-engineering design (prompt-master + research-orchestrator), precedes GAP-033. All data local (MinIO volume + output/).
+
+Evidence:
+- No source edits, tests, or live runs. Sources cited: PyTorch #169929, uv #14742 (sm_61/cu126), WB indicator pages, Eurostat, MMTEB 2502.13595.
+
+Next:
+- Orchestrate Wave 6a (GAP-039 → GAP-050 → GAP-033) via `scripts/orch/codex_impl.sh` once the owner gives go.

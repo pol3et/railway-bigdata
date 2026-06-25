@@ -9,15 +9,27 @@ Feasibility was verified live (Codex 0.142, ChatGPT auth): `codex exec --json` l
 headless, emits `thread.started{thread_id}` → `turn.completed`, captures the final message
 via `--output-last-message`, and resumes via `codex exec resume <thread_id>`.
 
-## Roles
+## Roles (division of labor — locked 2026-06-25)
+
+**Claude does research + spec; Codex reviews/improves the spec + implements + tests.**
+
 - **Claude = orchestrator (thin).** Holds the wave plan + contracts + decisions only. Never
   implements; never reads full diffs/test logs into its own context (that's what keeps one
   long session alive under auto-compaction).
-- **Codex `exec` = implementer**, one per gap, **full access**
+- **Claude research+spec subagent**, one per gap, dispatched by the orchestrator (Agent/Task
+  tool) **before** Codex. It runs **`/research-orchestrator`** (+ task-relevant skills, e.g.
+  `prompt-master`/`senior-prompt-engineer` for LLM gaps, `senior-data-engineer` for Spark)
+  against the live code + the `docs/GAP_TASKS.md` spec, freshens/sharpens that spec with
+  current research (cited URLs), and writes the **finalized per-gap spec** to
+  `output/evidence/orch/<gap>/spec.md` (+ the research record under
+  `.planning/coursework/research/bigdata/<gap-slug>.md`). This is the only research/spec author.
+- **Codex `exec` = spec-improver + implementer + tester**, one per gap, **full access / yolo**
   (`--dangerously-bypass-approvals-and-sandbox`), in its **own git worktree**. Driven by its
-  `$ship-it` workflow with **no Linear** — all context is the repo's code + docs. It first
-  writes **one plan, self-reviews/approves it**, then implements against it. Returns a
-  structured verdict (`schemas/impl_verdict.schema.json`).
+  `$ship-it` workflow with **no Linear**. It **first reviews and improves the handed spec**
+  (sanity-checks it against the live code; refines via `$ship-it` + research MCPs only where the
+  spec is wrong/thin), then **self-reviews/approves** its plan and **implements + writes & runs
+  tests** against it, auto-approving its own steps (yolo). Returns a structured verdict
+  (`schemas/impl_verdict.schema.json`).
 - **Reviewers**: Codex (`$ship-it` review / `codex_review.sh`, independent read-only pass) +
   a `ship-it:ship-reviewer` Claude subagent for hard PRs + an orchestrator eyeball.
 
@@ -44,12 +56,14 @@ via `--output-last-message`, and resumes via `codex exec resume <thread_id>`.
 For each wave in `docs/TASKS.md` (Wave 1 → 2 → 3 = fast track):
 
 1. **Prep**: `docker compose up -d`; `gh auth switch pol3et`; `git -C . fetch origin main`.
-2. **Fan out** (tasks in the wave run in parallel — each its own worktree/branch/PR):
+2. **Research + spec (Claude), then fan out (Codex)** — tasks in the wave run in parallel, each its own worktree/branch/PR:
+   - **2a. Claude research+spec subagent per gap** (Agent/Task): runs `/research-orchestrator` (+ task skills like `prompt-master` for LLM gaps), refreshes the `docs/GAP_TASKS.md` spec against the live code, and **writes `output/evidence/orch/<gap>/spec.md`** (the finalized spec Codex will use) + the research record. Dispatch these in parallel; read only the one-line "spec ready" back.
+   - **2b. Codex implementers** (use the Claude-written spec.md if present; else `gap_spec` falls back to GAP_TASKS):
    ```bash
    scripts/orch/codex_impl.sh GAP-012      # ‖
    scripts/orch/codex_impl.sh GAP-017      # ‖   (launch in background; watch with Monitor)
    ```
-   Each writes `output/evidence/orch/<gap>/{run.jsonl,verdict.json,thread_id.txt}`.
+   Each Codex first reviews/improves the spec, then implements + tests (yolo, self-approve), and writes `output/evidence/orch/<gap>/{run.jsonl,verdict.json,thread_id.txt}`.
 3. **Collect**: read each `verdict.json`. If `blocked` or tests failing, resume the SAME
    Codex session to fix:
    ```bash

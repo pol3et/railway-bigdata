@@ -25,7 +25,13 @@ else
     || { orch_log "worktree add failed (see $OUT/wt.log)"; exit 1; }
 fi
 
-gap_spec "$GAP_ID" > "$OUT/spec.md"
+# Prefer a Claude research+spec subagent's finalized spec if it pre-wrote one (new division of
+# labor, docs/ORCHESTRATION.md); else fall back to extracting the static GAP_TASKS spec.
+if [ -s "$OUT/spec.md" ]; then
+  orch_log "using existing Claude-authored spec $OUT/spec.md"
+else
+  gap_spec "$GAP_ID" > "$OUT/spec.md"
+fi
 python - "$HERE/prompts/impl.tmpl.md" "$OUT/spec.md" "$GAP_ID" "$GAP_LC" "$OUT/prompt.md" <<'PY'
 import sys
 tmpl=open(sys.argv[1],encoding="utf-8").read()

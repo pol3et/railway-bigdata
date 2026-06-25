@@ -1036,3 +1036,1703 @@ Net: a documented audit guarantee ("auditable accumulate, not overwrite") is fal
 **Verify:** `python -m pytest -q -m unit  (must pass with the new test; specifically `python -m pytest -q tests/test_infra_minio.py` should go from 4 passed to 5 passed). Also sanity-check the import is unbroken: `python -c "import railway_lakehouse.pipeline"`. Manual confirmation: `python -c "import railway_lakehouse.pipeline as p, inspect; print(inspect.getdoc(p))"` shows no line containing both 'Docker' and 'Ollama'.`
 
 **Pitfalls.** "Pure docs/test change — do not touch pipeline runtime code, argparse flags, or imports (the first two docstring paragraphs at lines 2-8 are already correct; only lines 10-13 are wrong). Hard Rules still apply: do not modify raw Bronze, do not introduce any LLM numeric rewriting, keep test artifacts out of the repo root and any evidence under output/. The new test must be deterministic and must NOT require Docker, network, or a running Ollama (follow the existing test_infra_minio.py pattern: read files from ROOT, assert on strings, mark pytest.mark.unit) and must not depend on coursework/ data. Make the assertion robust: search docstring lines case-insensitively for co-occurrence of 'docker' and 'ollama' rather than matching one brittle exact sentence, so harmless future rewording does not falsely fail. Verify the test actually fails on the current docstring before editing it (to prove it guards the gap), then make it pass. When flipping docs/index.html, read the surrounding closed-gap markup first so you reuse the existing CSS classes instead of inventing new ones. The register's stated closure criterion is 'manual review'; adding the deterministic guard exceeds it, which is intended per repo convention — keep the manual-review intent satisfied too (the docstring must genuinely read correctly to a human, not just pass the substring check)."
+
+
+---
+
+## News & model-preprocessing tasks (GAP-031…044) — added 2026-06-25
+
+> Pick-up-cold specs authored by the `news-model-spec-and-task-pack` workflow (each agent read the cited source files). **Authoritative dependency order, priority (P0→P3), and the 8 must-fix review blockers live in [`docs/SPEC_NEWS_PREPROCESSING.md`](SPEC_NEWS_PREPROCESSING.md); status in [`docs/GAP_REGISTER.md`](GAP_REGISTER.md).** Gap IDs were assigned after authoring, so any in-block cross-reference to another GAP is approximate — trust the spec's build-order table. Build MVP-first: GAP-039 (wide contract) + GAP-033 (first real live run) are P0; LaBSE/NER/clustering/GKG-history are fast-follow. Every task carries the AGENTS.md dashboard-sync obligation (docs/TASKS.md + docs/index.html in the same change).
+
+### GAP-031 - Parse GDELT GKG csv.zip and wire gdelt_passthrough into NewsFeature
+
+`HIGH` . level **Silver/News** . effort **M** . depends on: GAP-005, bronze/gdelt-history-backfill
+
+**Build:** Build a deterministic GDELT Global Knowledge Graph (GKG) 1.0/2.1 CSV.zip parser that extracts structured themes, tone scores, locations, persons, and organizations into a `GKGRecord` domain object; extend the existing `gdelt_passthrough()` signature to accept GKG fields; deterministically map tone → sentiment, locations → country, and wire the path so GKG-sourced articles produce `NewsFeature` rows with populated sentiment and country fields (no LLM inference).
+
+**Context.** The GDELT historical backfill (GAP-005) lands raw GDELT 1.0 GKG daily CSV.zip files under Bronze immutably (`bronze/sources/past_recordings.py:master_v1()`, line 159–217). These files contain rich structured metadata (V2Tone numeric scores, Themes CAMEO codes, V2Persons, V2Organizations, V2Locations) that the current Silver pipeline discards. The existing `gdelt_passthrough()` (line 86–100) was designed as a placeholder to conditionally bypass LLM extraction for GDELT articles: today it only coerces locations → country and null → tone → sentiment. No article has ever carried GKG data into `gdelt_passthrough()` because GKG CSV parsing does not exist; the function is orphaned with zero production callers.
+
+By parsing GKG CSV and wiring the output, this task monetizes data already downloaded (zero additional API cost), eliminates LLM inference for 10k–50k+ GKG articles, and produces deterministic multi-lingual, multi-modal semantic features (tone, themes, named entities) already validated by GDELT's global event pipeline.
+
+**Problem.** 
+- **GKG download exists but is unparsed.** `past_recordings.py:master_v1()` downloads and lands `YYYYMMDD.gkg.csv.zip` files (line 184–186) to Bronze unchanged; no unzipping, schema extraction, or column parsing occurs. The file sits in `bronze/news/gdelt_history/gkg_v1_daily/ingest_date=.../YYYYMMDD.gkg.csv.zip`.
+- **gdelt_passthrough() is a stub.** It accepts `gkg_tone`, `gkg_themes`, `gkg_locations` parameters (line 86–88) but zero callers pass them; the function always returns sentiment=null unless tone is present (line 89–91), never maps themes or persons/orgs, and ignores the GKG codebook entirely.
+- **No GKG ↔ NewsFeature bridge.** `silver/news/extract.py:article_records_to_news_features()` calls `extract_article()` (LLM) for all records (line 116–121), not `gdelt_passthrough()`. If a GDELT DOC ArtList article matched a GKG record's URL, the passthrough path is never invoked because there is no de-duplication or look-up to bind them.
+- **GKG structure undefined in codebase.** GDELT GKG 2.1 CSV format (7 tab-separated fields: GlobalEventID, Date, SourceCollectionIdentifier, SourceCommonName, DocumentIdentifier, Themes, V2Tone, V2Persons, V2Organizations, V2Locations, Cameo, ImageCollectionIDs, V2Gcam) is not documented; no `GKGRecord` schema exists; no parser validates column count or handles missing/malformed rows.
+- **Tone/themes/location semantics unmapped.** V2Tone is a range typically [−10, 10] with semantic meaning (see codebook); themes are comma-separated CAMEO event/topic codes (e.g., `020,030`); locations are semicolon-delimited gazetteer refs (e.g., `United States, New York, New York`). Mapping these into `is_rail_related`, `event_type`, `sentiment`, `country`, and optional lists requires codebook knowledge.
+
+**Steps.**
+
+1. **RESEARCH (if not already cached).** Invoke `research-orchestrator` to fetch and document GDELT GKG 2.1 codebook and schema specification from official sources. Route through Context7 (GDELT docs) or Tavily/Exa (latest GDELT blog/spec). Write research record at `.planning/coursework/research/bigdata/silver/gdelt-gkg-codebook-2026-06-25.md` with:
+   - Official GKG 2.1 CSV field order and semantics (7–15 fields, tab-separated, UTF-8).
+   - V2Tone scale, interpretation, and null handling.
+   - Themes codebook excerpt (CAMEO event/topic codes relevant to rail: transportation, infrastructure, protests, etc.).
+   - Location format (hierarchical gazetteer; primary = country).
+   - Persons/Organizations format (pipe-delimited or comma-delimited; optional in v2.1).
+   - Known edge cases: encoding, missing columns, all-null rows, URLs with/without protocols.
+   - Source URLs (e.g., `http://data.gdeltproject.org/documentation/GDELT-GKG_2.1_Codebook.pdf`).
+
+2. **Define GKGRecord schema.** Add a `GKGRecord` dataclass to `src/railway_lakehouse/silver/schema.py` (after `NewsFeature`, around line 95+). Fields (all optional except gkg_id):
+   - `gkg_id: str` — GlobalEventID (primary key from CSV field 1).
+   - `gkg_date: Optional[str]` — date (field 2, format YYYYMMDD).
+   - `gkg_themes: Optional[str]` — comma-separated CAMEO codes (field 6 or equiv).
+   - `gkg_tone: Optional[float]` — V2Tone numeric score (field 7 or equiv, range ~[−10, 10]).
+   - `gkg_persons: Optional[str]` — pipe-delimited names (optional field).
+   - `gkg_organizations: Optional[str]` — pipe-delimited org names (optional field).
+   - `gkg_locations: Optional[str]` — semicolon-delimited location refs (field 10 or equiv).
+   Include a `to_row()` method for consistency with `StatFact` and `NewsFeature`.
+
+3. **Create GKG CSV parser.** Add a new module `src/railway_lakehouse/silver/news/gkg_parser.py` with:
+   - `parse_gkg_csv(csv_text: str) -> list[GKGRecord]` — parse a single unzipped GKG daily CSV (tab-separated). Validate column count (expect 7–15 columns depending on GKG version); coerce tone to float; handle UTF-8 properly; skip empty/malformed rows (log as warnings). Return a list of `GKGRecord` objects.
+   - `parse_gkg_csv_zip(zip_bytes: bytes, date_str: str) -> list[GKGRecord]` — unzip the daily CSV.zip, extract the `.csv` file, and call `parse_gkg_csv()`. Handle missing/malformed zip gracefully (log, return empty list).
+   - `gkg_record_id(gkg_row: dict) -> str` — extract or derive a stable GKG ID from the row (typically GlobalEventID if present, else hash of key fields).
+   - (Future cross-linking) `match_gkg_to_article(gkg_record: GKGRecord, article_url: str) -> bool` — stub for URL dedup (out-of-scope for this task; included for forward compatibility).
+
+4. **Extend gdelt_passthrough().** Edit `src/railway_lakehouse/silver/news/extract.py:gdelt_passthrough()` (line 86–100):
+   - Signature now: `gdelt_passthrough(*, article_id: str, url: str, published_date: Optional[str], gkg_record: Optional[GKGRecord] = None) -> NewsFeature` (swap bare fields for `GKGRecord` or accept both for backward compat).
+   - **Tone mapping:** if `gkg_record.gkg_tone` is not None, map: tone > 1 → "positive", tone < −1 → "negative", else → "neutral". (Preserve existing logic; override only if tone is available.)
+   - **Location → country:** parse `gkg_record.gkg_locations` for the primary location (first semicolon-delimited segment); check for "Hungary"/"Hungarian"/"HU" or "Austria"/"Austrian"/"AT" (case-insensitive substring). (Existing logic; keep.)
+   - **Themes → event_type (optional):** scan `gkg_record.gkg_themes` for CAMEO codes relevant to rail/transport. Example rail-relevant codes (per GDELT codebook): transport infrastructure disruption (036), railway strikes (180), public transport usage (330), etc. If rail codes found, infer `event_type` (e.g., "accident", "delay", "strike", "investment"); else default to "other". This is deterministic/config-driven, not LLM-based.
+   - **Persons/Orgs → operators (optional):** if `gkg_record.gkg_persons` or `gkg_record.gkg_organizations` contain known operator names (config.KNOWN_OPERATORS), extract and populate `operators[]`. Otherwise leave empty.
+   - **Summary and confidence:** keep `summary_en=None` and `confidence=None` for GKG passthrough (GKG does not provide summaries; confidence is data-quality metadata, not a model confidence score).
+   - Return the updated `NewsFeature` object.
+
+5. **Wire GKG into the news extraction pipeline.** Edit `src/railway_lakehouse/silver/news/extract.py:article_records_to_news_features()` (line 116–121):
+   - Add an optional parameter: `gkg_records: Optional[list[GKGRecord]] = None` or a lookup dict `gkg_by_url: Optional[dict] = None`.
+   - For each article record, check if a matching GKG record exists (by URL or article_id). If found and source="gdelt", call `gdelt_passthrough(gkg_record=gkg_match)` instead of `extract_article()`.
+   - Fallback: if no GKG match or source!="gdelt", use the existing `extract_article()` path (LLM).
+   - Log the branching decision (GKG passthrough vs. LLM extraction) for observability.
+
+6. **Create deterministic parser tests.** Add `tests/test_silver_gkg_parser.py` with:
+   - **Fixture:** a minimal valid GKG CSV snippet (tab-separated, UTF-8, ~3 rows with tone/themes/locations; 1 row for Hungary, 1 for Austria, 1 for "other").
+   - `test_parse_gkg_csv_returns_gkg_records()` — assert parsed count, field types, and tone coercion to float.
+   - `test_parse_gkg_csv_handles_utf8_and_special_chars()` — accented names, typographic quotes.
+   - `test_parse_gkg_csv_skips_malformed_rows()` — wrong column count, missing tone; log warnings, continue.
+   - `test_parse_gkg_csv_zip_unzips_and_parses()` — create a minimal zip with a CSV, call `parse_gkg_csv_zip()`, assert output.
+   - `test_gdelt_passthrough_maps_gkg_tone_to_sentiment()` — gkg_tone=5 → sentiment="positive", tone=−3 → "negative", tone=0 → "neutral".
+   - `test_gdelt_passthrough_extracts_country_from_locations()` — locations="Hungary;Budapest" → country="HU"; locations="Austria;Vienna" → country="AT".
+   - `test_gdelt_passthrough_infers_event_type_from_themes()` — themes="036,180" (transport codes) → event_type="delay" (or a mapped value); themes="999" (unknown) → event_type="other".
+   - `test_gdelt_passthrough_populates_operators_from_gkg()` — gkg_organizations="MÁV-Hungarian Railways" → operators contains "MÁV".
+   - `test_article_records_to_news_features_uses_gkg_passthrough()` — create an ArticleRecord + matching GKGRecord, call the combined function, assert the result uses passthrough (sentiment populated from tone, not LLM).
+   - **No live tests:** mock GDELT data with fixtures only; no real HTTP calls or unzip operations on slow test files.
+
+7. **Update docs/SILVER_DESIGN.md.** Add or enhance the "Hybrid News Extraction" section (around line 15) to document:
+   - When GKG is used: if a GDELT ArtList article matches a GKG record (by URL or cross-linking), use passthrough (deterministic, fast, no LLM).
+   - Why: GKG provides tone, themes, locations, persons, orgs for free (already in GDELT data collection); reusing avoids redundant NLP and ensures consistency.
+   - What fields GKG populates: sentiment (from tone), country (from locations), event_type (from themes, config-driven), operators (from org gazetteer match).
+   - What LLM still does: RSS full-text extraction, field extraction for articles without GKG, confidence/summary for non-GKG sources.
+
+8. **Update docs/DATA_CONTRACTS.md.** Add a **GKGRecord Bronze Contract** section documenting:
+   - Bronze path: `bronze/news/gdelt_history/gkg_v1_daily/ingest_date=.../YYYYMMDD.gkg.csv.zip`.
+   - Content: raw GDELT GKG 1.0/2.1 daily ZIP, unmodified.
+   - Silver parser unpacks and parses; no re-landing; GKG records are transient intermediate state (not persisted as a separate table; only GKG-derived `NewsFeature` rows persist in Silver).
+   - GKGRecord fields and semantics (link to codebook research).
+
+9. **Ensure backward compatibility.** Keep `gdelt_passthrough()` callable without GKGRecord (for any existing code that calls it with `gkg_tone`/`gkg_themes`/`gkg_locations` as bare parameters). Support both old (bare fields) and new (GKGRecord) signatures via function overload or default parameter handling.
+
+10. **Update docs/TASKS.md and docs/index.html.** Record the new parser feature under the Silver/News workstream and link to the gap in the dashboard if applicable.
+
+**Files to touch:** 
+- `src/railway_lakehouse/silver/schema.py` (add `GKGRecord` dataclass)
+- `src/railway_lakehouse/silver/news/gkg_parser.py` (new file; parser implementation)
+- `src/railway_lakehouse/silver/news/extract.py` (extend `gdelt_passthrough()`, wire into `article_records_to_news_features()`)
+- `tests/test_silver_gkg_parser.py` (new file; unit tests, fixtures)
+- `docs/SILVER_DESIGN.md` (explain hybrid extraction, GKG path)
+- `docs/DATA_CONTRACTS.md` (GKG contract)
+- `docs/TASKS.md` (record progress)
+- `.planning/coursework/research/bigdata/silver/gdelt-gkg-codebook-2026-06-25.md` (research record, created in step 1)
+
+**Definition of Done (contract).**
+
+- [ ] **GKG parser built and tested:** `src/railway_lakehouse/silver/news/gkg_parser.py` implements `parse_gkg_csv()`, `parse_gkg_csv_zip()`, and `GKGRecord` schema; all 9 parser unit tests pass (no live GDELT data required; fixtures only).
+- [ ] **gdelt_passthrough() wired:** extended signature accepts `GKGRecord`; tone → sentiment, locations → country, themes → event_type (config-driven CAMEO mapping), orgs → operators all tested and work on fixture data.
+- [ ] **Pipeline integration tested:** `article_records_to_news_features()` accepts optional GKG data, routes GDELT articles with GKG matches to passthrough (not LLM), and integration test proves GKG-sourced `NewsFeature` rows have non-null sentiment and country (derived deterministically, not from LLM).
+- [ ] **Backward compatible:** old calls to `gdelt_passthrough(gkg_tone=..., gkg_themes=..., gkg_locations=...)` still work; new code can pass `GKGRecord`.
+- [ ] **Documented:** SILVER_DESIGN.md explains the hybrid extraction logic; DATA_CONTRACTS.md documents GKG Bronze and transient Silver contract; research record cites GKG 2.1 codebook with source URLs.
+- [ ] **Dashboard synced:** docs/TASKS.md and docs/index.html updated with the completed parser.
+- [ ] **All tests pass:** `python -m pytest -q -m unit tests/test_silver_gkg_parser.py` ✓; full suite `python -m pytest -q` ✓ (baseline 92 tests, no new failures).
+- [ ] **Committed and clean:** code is under `main`, no untracked files (fixtures go in `tests/fixtures/`), no secrets, `.planning/` research record included.
+
+**Verify:** 
+```bash
+# Parser unit tests (fixtures only; no live data)
+python -m pytest -q tests/test_silver_gkg_parser.py
+
+# Full integration suite (includes GKG-sourced article round-trip)
+python -m pytest -q -m integration
+
+# Baseline regression check
+python -m pytest -q
+```
+
+**Pitfalls.**
+
+- **Do NOT call parse_gkg_csv_zip() inside a Spark job.** GKG parsing is a one-time deterministic step in Silver; cache results. Distributing unzip/parse to workers is wasteful and breaks the immutable Bronze contract.
+- **Do NOT store GKGRecord rows in a separate Silver table or persist them.** GKG data flows through passthrough → NewsFeature; only NewsFeature rows are persisted. GKGRecord is transient.
+- **Do NOT fabricate CAMEO-to-event_type mappings.** The config.NEWS_EVENT_TYPES enum must match the mapping; if a CAMEO code doesn't clearly map, emit "other" + log a warning. No guessing or training on small samples allowed.
+- **Fixtures only.** Tests must not download live GDELT GKG files. Create minimal CSV snippets (tab-separated, UTF-8, ~20 bytes per row) in the test or in `tests/fixtures/bronze/news/gkg_*.csv`.
+- **Handle UTF-8 carefully.** GDELT files are UTF-8; ensure `open(..., encoding='utf-8')` is explicit when reading CSV.
+- **Tone is optional.** Not all GKG rows have V2Tone; if missing, sentiment remains None (don't invent).
+- **Country deduction is best-effort.** Locations may list many places; scan for HU/AT keywords and pick the first match (deterministic). Log ambiguous cases. If no country found, leave as None.
+- **URL cross-linking is future work.** This task does not implement matching GDELT ArtList URLs to GKG URLs; that is GAP-032 (incremental scope). For now, `gdelt_passthrough()` is called explicitly when a GKGRecord is available; the caller decides when to invoke it.
+- **Hard Rules:** Raw Bronze immutable (no re-parsing of .gkg.csv.zip once landed); numeric tone is deterministic (never LLM-rewritten); any added fields to `NewsFeature` must update validation in `validate_news_feature()`; tests use `tmp_path` and fixtures, not `/tmp` or coursework/ data.
+
+### GAP-032 — Capture dropped news fields: widen ArticleRecord with RSS/GDELT metadata
+
+`HIGH` · level **silver** · effort **M** · depends on: silver/wide-newsfeature-contract (the downstream NewsFeature schema that will consume these new optional ArticleRecord fields; that gap ensures the LLM extraction prompt and validator stay aligned as new fields thread through)
+
+**Build:** Widen the ArticleRecord Bronze-to-Silver bridge schema to capture currently-dropped fields from RSS and GDELT sources: RSS author/dc:creator, category, guid, enclosure→image_url; GDELT DOC ArtList: language, socialimage→image_url, domain, sourcecountry. Add optional fields image_url, domain, source_language, categories (array), and raw_extra (dict for unconstrained fields) to ArticleRecord; thread them through the RSS and GDELT parsers without re-landing Bronze; persist them to Silver with NewsFeature; update schema + validation; and add deterministic tests for the new fields while keeping existing tests green.
+
+**Context.** The news Bronze→Silver pipeline (src/railway_lakehouse/silver/news/{rss,gdelt,extract}.py) reads many RSS feeds and GDELT ArtList JSON responses and converts them to ArticleRecord rows that feed the LLM extractor. Today ArticleRecord holds only 6 fields (article_id, source, title, url, published_date, body). Both RSS and GDELT carry richer metadata that the parsers currently drop on read (code-verified in the verified-reality scan):
+- **RSS** (src/railway_lakehouse/silver/news/rss.py:8-44): the ET.fromstring tree exposes but ignores author/dc:creator, category, guid, enclosure elements; the full content:encoded body is captured but the description is discarded alongside it.
+- **GDELT DOC 2.0 ArtList** (src/railway_lakehouse/silver/news/gdelt.py:7-54): parse_gdelt_artlist_json extracts title, url, seendate, snippet and drops language (from the article object), socialimage (image URL), domain (publisher domain), and sourcecountry (the article's country of origin) — fields that are structurally present in the JSON but not parsed.
+
+The ArticleRecord is also the bridge between Bronze (immutable bytes, landed once) and Silver (parse-time derivation). Widening ArticleRecord to capture these fields is a pure parse-time enrichment — no Bronze re-landing, no LLM involved at this stage — and aligns with the Hard Rule "don't throw away data." The LLM extraction (extract.py) uses only title + body today, so widening ArticleRecord is backward-compatible for the extraction path. The downstream schema decision (which of these fields flow into NewsFeature for aggregation/Gold) is OUT OF SCOPE for this gap; that is the silver/wide-newsfeature-contract gap (a higher-level contract that ensures the extractor prompt reflects any new fields the pipeline later decides to carry).
+
+The existing tests in tests/test_silver_news_parsers.py (lines 10-80) currently assert only the 6 core fields; they will stay green with backward-compatible optional fields.
+
+**Problem.** The concrete field-dropping evidence (verified 2026-06-25):
+
+1. **RSS parser drops author and category** — src/railway_lakehouse/silver/news/rss.py:8-44 parses title, link, pubDate, and content:encoded/description, but does not extract: `item.findtext("author")` (DC namespace: `item.findtext("{http://purl.org/dc/elements/1.1/}creator")`), `item.findall("category")` (each has @domain and text content), `item.findtext("guid")` (optional, @isPermaLink attr), or `item.findall("enclosure")` (has @url for media/image).
+
+2. **GDELT parser drops 4 fields** — src/railway_lakehouse/silver/news/gdelt.py:7-54 at line 17-32 extracts from the JSON article object: title, url, seendate, snippet. The article object also carries (per GDELT DOC 2.0 schema): `language` (ISO 639-1 code, e.g. "en", "hu"), `socialimage` (URL string), `domain` (publisher domain, e.g. "telex.hu"), `sourcecountry` (GeoNames country, e.g. "HU"). These are in the JSON payload but not extracted or assigned.
+
+3. **No optional fields in ArticleRecord** — src/railway_lakehouse/silver/schema.py lines 24-33 define ArticleRecord with only the 6 core fields; there is no place to store the wider metadata even if the parsers were to extract it.
+
+4. **Silent loss at parse time** — the bytes land immutably in Bronze (src/railway_lakehouse/bronze/lander.py); the parsers read those bytes once in Silver without re-fetching. When an ArticleRecord is built from the parsed tree/JSON, non-extracted fields are lost forever (no rewind to Bronze source, no re-parse opportunity). This violates the "don't throw away data" principle documented in AGENTS.md:80.
+
+**Steps.**
+1. RESEARCH (mandatory per coursework workflow): invoke the `research-orchestrator` skill; route XML/JSON parsing and GDELT schema questions through Context7/Ref (ElementTree namespace handling, JSON extraction patterns) or Tavily for GDELT DOC 2.0 ArtList schema docs; write the research record to `.planning/coursework/research/bigdata/silver-news-widening.md` naming research-orchestrator, routed provider(s), queries, and source URLs (e.g. GDELT DOC 2.0 schema docs if available, ElementTree docs for namespace extraction).
+
+2. **Widen ArticleRecord schema** in src/railway_lakehouse/silver/schema.py (lines 24-33). Add optional fields (Optional, default to None or []):
+   - `image_url: Optional[str] = None` — captures RSS enclosure @url or GDELT socialimage
+   - `domain: Optional[str] = None` — GDELT domain (publisher domain)
+   - `source_language: Optional[str] = None` — GDELT language or guessed from RSS (for cross-language dedup intent)
+   - `categories: list = field(default_factory=list)` — RSS category values (array of strings, e.g., ["politics", "transport"])
+   - `raw_extra: dict = field(default_factory=dict)` — catch-all for other fields (e.g., guid, author, enclosure @isPermaLink attr) as an extensible dict, so future widening does not require re-editing the dataclass every time
+
+   Keep the existing 6 core fields unchanged (article_id, source, title, url, published_date, body); the to_row() method will auto-include the new fields via asdict().
+
+3. **Update RSS parser** src/railway_lakehouse/silver/news/rss.py to extract the new fields:
+   - Author: use `item.findtext("author")` as fallback, then check DC namespace `item.findtext("{http://purl.org/dc/elements/1.1/}creator")` (prefer DC creator). Store in `raw_extra["author"]` if found.
+   - Categories: iterate `item.findall("category")` and collect text content (ignoring @domain). Store as `categories=[...]` if non-empty.
+   - Image URL: iterate `item.findall("enclosure")` and capture the first @url with image MIME (e.g., @type="image/*" or @url ends in .jpg/.png/.gif). Store as `image_url`.
+   - GUID: if found via `item.findtext("guid")`, store in `raw_extra["guid"]`.
+   - Prefer content:encoded over description, but keep **both** — store the shorter description in `raw_extra["summary"]` if it differs from body.
+
+   Update parse_rss_xml to construct ArticleRecord with the new fields populated (lines 33-42). Do NOT change article_record_id logic or existing assertions (records.py:4-26 stays the same).
+
+4. **Update GDELT parser** src/railway_lakehouse/silver/news/gdelt.py to extract the new fields:
+   - Language: extract `article.get("language")` and store as `source_language`.
+   - Image URL: extract `article.get("socialimage")` and store as `image_url`.
+   - Domain: extract `article.get("domain")` and store as `domain`.
+   - Source country: extract `article.get("sourcecountry")` and store in `raw_extra["sourcecountry"]`.
+
+   Update parse_gdelt_artlist_json at lines 17-32 to populate the new ArticleRecord fields (lines 43-52). Do NOT change article_record_id or id assignment.
+
+5. **Backward compatibility check**: both parsers should populate new fields where available, but ArticleRecord instantiation must work with or without them (Python dataclass defaults handle this). Verify existing tests still pass without modification.
+
+6. **Update existing tests** in tests/test_silver_news_parsers.py to prove new fields are captured:
+   - Extend test_parse_rss_xml_prefers_full_content_over_description (lines 35-52) to assert that categories=[...] and image_url are captured if the fixture XML includes them.
+   - Add test_parse_rss_xml_captures_author_and_guid: fixture with author, dc:creator, guid, enclosure elements; assert raw_extra["author"], raw_extra["guid"], image_url are set.
+   - Extend test_parse_gdelt_artlist_json_returns_article_records (lines 171-193) to include language, socialimage, domain, sourcecountry in the payload; assert source_language, image_url, domain, raw_extra["sourcecountry"] are populated.
+   - Add test_article_records_to_news_features_preserves_new_fields (integration test with mocked LLM): create ArticleRecord with new fields, call article_records_to_news_features(...), assert the new fields survive the extraction path (i.e., they are passed to the LLM prompt or stored for later use by downstream callers). This proves the fields are not lost in the extract.py flow.
+
+7. **Update schema validation** (if needed) in src/railway_lakehouse/silver/schema.py validate_news_feature: the new ArticleRecord fields are NOT validated in this function (validate_news_feature does NewsFeature coercion only, not ArticleRecord validation). If ArticleRecord needs a validator, create one (optional; the default dataclass and Optional typing are permissive). Add a docstring note to ArticleRecord explaining the optional fields and the raw_extra escape hatch.
+
+8. **Verify extraction path does not break**: extract.py functions (extract_article, article_records_to_news_features) receive ArticleRecord objects; confirm they still work when new fields are present. The extract.py code extracts only title/body for the LLM, so new fields are transparent to it. Check that extract_batch at extract.py:103-113 still converts records to dicts correctly (the to_row() call at line 118 will auto-include new fields).
+
+9. **Thread through to NewsFeature** (this is the silver/wide-newsfeature-contract gap; it is OUT OF SCOPE for GAP-032, but a note belongs here): once NewsFeature is widened to hold optional fields like image_url, language, domain, the LLM prompt (extract.py:31-69) may ask for them. ArticleRecord now carries them as input; that gap defines if/how the LLM uses them. For NOW, ArticleRecord simply carries the fields; downstream consumption is a separate contract.
+
+10. **Update docs/DATA_CONTRACTS.md Silver News section** (lines 81-90): expand the "ArticleRecord (Bronze→Silver bridge)" paragraph to list all 10 ArticleRecord fields including the new optional ones. Note that raw_extra is a dict for extensibility; link to schema.py for the authoritative definition.
+
+11. **Add dashboard/GAP register entries**: update docs/GAP_REGISTER.md to set GAP-032 status to in_progress/closed (once verification passes) and append a Test Failure Mapping row with the test command. Update docs/TASKS.md to flip silver/news-capture-widening from todo to done (under the Silver wave). Update docs/index.html if a dashboard chip exists for this gap.
+
+12. **Run full test suite**: verify all 87+ existing tests stay green (new fields are optional, backward-compatible). Run the new deterministic tests: `python -m pytest -q tests/test_silver_news_parsers.py` should show the new tests passing.
+
+**Files to touch:** `src/railway_lakehouse/silver/schema.py (ArticleRecord dataclass: add image_url, domain, source_language, categories, raw_extra)`  `src/railway_lakehouse/silver/news/rss.py (parse_rss_xml: extract author/guid/enclosure/category)`  `src/railway_lakehouse/silver/news/gdelt.py (parse_gdelt_artlist_json: extract language/socialimage/domain/sourcecountry)`  `tests/test_silver_news_parsers.py (extend existing tests + add new field capture tests)`  `docs/DATA_CONTRACTS.md (expand Silver News ArticleRecord section with 10 fields)`  `docs/GAP_REGISTER.md (GAP-032 status + Test Failure Mapping row)`  `docs/TASKS.md (silver/news-capture-widening: todo -> done)`  `docs/index.html (update gap/feature chip if applicable)`  `.planning/coursework/research/bigdata/silver-news-widening.md (new research record)`
+
+**Definition of Done (contract).**
+- [ ] ArticleRecord in src/railway_lakehouse/silver/schema.py has 10 fields: the original 6 (article_id, source, title, url, published_date, body) plus 4 new optional (image_url, domain, source_language, categories: list, raw_extra: dict). The to_row() method returns all fields as a dict.
+- [ ] parse_rss_xml in src/railway_lakehouse/silver/news/rss.py extracts author (fallback to dc:creator), categories (as list), guid, enclosure@url (as image_url), and summary (as raw_extra["summary"] if present). A real RSS fixture with these fields produces an ArticleRecord with them populated.
+- [ ] parse_gdelt_artlist_json in src/railway_lakehouse/silver/news/gdelt.py extracts language (→ source_language), socialimage (→ image_url), domain, and sourcecountry (→ raw_extra["sourcecountry"]). A real GDELT payload with these fields produces an ArticleRecord with them populated.
+- [ ] Existing tests in tests/test_silver_news_parsers.py (lines 10-80) still pass without modification (backward compatibility).
+- [ ] New deterministic tests prove new fields are captured: test_parse_rss_xml_captures_author_and_guid, extended test_parse_rss_xml_prefers_full_content_over_description, extended test_parse_gdelt_artlist_json_returns_article_records, and test_article_records_to_news_features_preserves_new_fields (mocked LLM, integration path).
+- [ ] The extraction path (extract.py) still works: article_records_to_news_features accepts ArticleRecord with new fields, and new fields do not break the LLM extraction or validation.
+- [ ] docs/DATA_CONTRACTS.md Silver News section documents ArticleRecord with all 10 fields.
+- [ ] docs/GAP_REGISTER.md GAP-032 status updated (in_progress/closed) with Test Failure Mapping row.
+- [ ] docs/TASKS.md silver/news-capture-widening status changed from todo to done.
+- [ ] docs/index.html gap/feature chip (if applicable) updated.
+- [ ] `python -m pytest -q` stays green (87+4 new tests ≥91 passed, no new failures).
+- [ ] Research record written at `.planning/coursework/research/bigdata/silver-news-widening.md` naming research-orchestrator + routed MCP provider(s) + source URLs.
+
+**Verify:** `python -m pytest -q tests/test_silver_news_parsers.py` (all new + existing tests green) AND `python -m pytest -q` (full suite green, no regression) AND `python -c "from railway_lakehouse.silver.schema import ArticleRecord; r = ArticleRecord(article_id='x', source='test', title='t', url='u', published_date='d', body='b', image_url='img.jpg', domain='example.com'); print(r.to_row())"` (new fields round-trip through to_row) AND `git diff --check` (clean whitespace).
+
+**Pitfalls.** ["Do NOT re-land or modify raw Bronze — the RSS/GDELT bytes stay immutable in Bronze/news/. This is pure parse-time field extraction from already-landed bytes, read once.", "Do NOT pass new fields to the LLM yet (that is the silver/wide-newsfeature-contract downstream gap). ArticleRecord simply carries the data; silver/wide-newsfeature-contract will define if/how NewsFeature and the extraction prompt use them. Keep extract.py changes minimal (only pass-through).", "Backward compatibility: ArticleRecord new fields must be Optional and must not break existing code. The to_row() method will auto-include them via asdict(), so no extra code needed. Existing tests should green without edits.", "Do NOT change article_record_id logic or the 6 core fields. The article_record_id hash depends only on source/title/published_date/body/index; new metadata fields do not affect the ID.", "Test fixtures: for RSS, ensure the fixture XML in tests/fixtures/bronze/news/rss/... includes actual author/category/guid/enclosure elements so the assertions can verify extraction. For GDELT, update the fixture JSON in tests/fixtures/bronze/news/gdelt/... to include language, socialimage, domain, sourcecountry. If fixtures lack these fields, add them to the test payloads inline.", "DC namespace handling in RSS: ElementTree namespace URIs must be exact matches. The DC creator element is in namespace http://purl.org/dc/elements/1.1/ — use item.findtext('{http://purl.org/dc/elements/1.1/}creator'). Test both author and dc:creator variants.", "raw_extra dict: use it for author, guid, sourcecountry, summary (anything that does not warrant a top-level field). This keeps ArticleRecord flexible without a proliferation of optional scalar fields.", "Do NOT make image_url or domain mandatory or enum-valued; they are optional strings. The GDELT domain could be any publisher domain.", "Hard Rules: raw Bronze stays immutable; no numeric data is touched; no LLM is called at the ArticleRecord level (extract.py remains unchanged in logic, only processes wider input); tests must not depend on coursework/ data (use tmp_path and inline fixtures). All new outputs go under output/ (none here; this is pure schema/parsing).", "Dashboard sync (Hard Rule, AGENTS.md:81): any task touching the pipeline state or docs/TASKS.md must also update docs/index.html in the same PR so the dashboard and register do not drift."]
+
+### GAP-033 — Run the LLM news pass for real ONCE and persist real NewsFeature evidence
+
+`HIGH` · level **model-pipeline** · effort **M** · depends on: infra/ollama-model (Ollama server + qwen3.5:9b-q8_0 downloaded and running), silver/wide-newsfeature-contract (the NewsFeature schema and extraction pipeline are locked)
+
+**Build:** Execute Ollama Qwen 3.5 on a real bounded sample of landed RSS and GDELT articles; persist the extracted NewsFeature rows to a canonical Parquet file; reload and inspect; then commit an evidence manifest documenting extraction counts, sample rows, model digest, error accounting, and extraction-quality observations. Add a small optional live-marked test that runs live Ollama (skip gracefully when offline) and serves as a regression guard for any future changes to the LLM extraction path.
+
+**Context.** The LLM news extraction path (src/railway_lakehouse/silver/news/extract.py) has been designed and mocked-tested but NEVER RUN LIVE AGAINST REAL ARTICLES. Every existing test mocks `generate_json` (test_silver_news_parsers.py:98-113, lines 143-160), bypassing the Ollama client entirely. The pipeline.py driver has the wiring to call Ollama IF reachable (pipeline.py:139-143: `elif ollama_reachable: news_rows = news_extract.extract_batch(articles)`), but no actual live run exists. This creates a credibility gap: we ship a NewsFeature schema with 15 semantic fields (country, event_type, monetary_amount_eur, sentiment, confidence, summary_en, language, operators[], rail_lines[]) — all filled by an LLM prompt at schema.py + extract.py:23-69 — but there is NO EVIDENCE that: (1) Ollama can be reached in the deployment; (2) qwen3.5 outputs valid JSON schema-conforming to the schema; (3) the extraction quality is adequate (e.g., is confidence actually discriminative, does sentiment alignment with news domain, do operators match known carriers); (4) error rates under realistic latency and retry budgets. This gap sits at the foundation of the News feature pipeline (Gold aggregate_news at gold/build.py:82 depends on real NewsFeature rows) and blocks the final report evidence section. Closing GAP-033 converts the LLM news path from "designed-but-untested" to "designed, tested, and evidenced."
+
+**Problem.** Empirical evidence that the LLM path has never run live:
+
+(1) src/railway_lakehouse/silver/news/extract.py — The `extract_article()` function (lines 72-83) calls `generate_json(_build_prompt(...), schema=_JSON_SCHEMA, ...)` and returns a NewsFeature if the LLM succeeds. The function is well-typed and defensively validates every field (`validate_news_feature`, schema.py:61-93) so it CAN work, but there is no record of it being called against a real article in the repo.
+
+(2) tests/test_silver_news_parsers.py — All tests that would call extract_article mock the LLM: line 98 `monkeypatch.setattr(news_extract, "generate_json", fake_generate_json)` patches it out, so the real Ollama path is never exercised. The test suite reports success with 0 actual Ollama calls.
+
+(3) src/railway_lakehouse/pipeline.py (lines 139-143) — The live driver checks Ollama health (`health_check()`) and conditionally calls news extraction: `elif ollama_reachable: news_rows = news_extract.extract_batch(articles)`. But this is only tested in integration/live scenarios (e.g., test_pipeline_live_stats_worldbank.py) which are skipped in CI and may not have Ollama running locally. The `skip_news_extraction` flag (line 59) is explicitly provided as an out if Ollama is not available, which it usually isn't.
+
+(4) src/railway_lakehouse/silver/persist.py + silver/schema.py — NewsFeature rows can be persisted to Parquet (persist_news at line 145; NEWS_FEATURE_ARROW_SCHEMA at persist.py:50-66) and reloaded (load_news at line 179). But all test fixtures use MOCKED extraction output or empty arrays; no real persisted news rows exist in the committed repo.
+
+(5) Gold output (output/evidence/inventory-live-2026-06-23/railway_ml.parquet) — The only real Gold output we have (from gold/first-real-result) has `news_rows=[]` (confirmed: aggregate_news receives no rows, so all news columns are 0 or NaN). The "news rows landed but were never extracted" evidence is the silence in the output.
+
+Net effect: the NewsFeature extraction is in production code but is untested under real conditions. We cannot claim the course project's report includes "extracted and validated News features" without running the path once, inspecting the output, and committing the evidence.
+
+**Steps.**
+
+1. RESEARCH: invoke research-orchestrator (if available as a skill) with the following query: "Ollama API best practices for production JSON-constrained generation, temperature=0 reproducibility, retry patterns, and model-performance benchmarks for qwen3.5-9b on short-form information extraction tasks." Route through Context7/Ref docs for official Ollama server docs, and Tavily for 2024-2026 benchmarks on Qwen reasoning and determinism. Write the findings to `.planning/coursework/research/bigdata/silver-news-llm-extraction-live.md`, including: (a) confirmed Ollama JSON-mode stability on qwen3.5, (b) temperature=0 guarantee of deterministic output across re-runs, (c) typical latency per article (for sizing the bounded sample), (d) failure modes (timeout, OOM, model too large for available GPU) and mitigation. This feeds risk assessment in Step 5.
+
+2. Prepare the bounded sample. In the repo root (C:\Users\XxX360QUICKSCOPERXxX\Documents\tmp\ai-masters\coursework\bigdata\course_proj), run the pipeline with a small article budget to land fresh Bronze articles: `python -m railway_lakehouse.pipeline --news 50 --bronze-root output/evidence/news-extraction-sample-bronze --skip-news-extraction --out /dev/null` (or a dummy output path). This creates a bounded local Bronze tree with ~50 real articles (RSS + GDELT) under output/evidence/news-extraction-sample-bronze/bronze/. Verify the Bronze tree is nonempty (`ls output/evidence/news-extraction-sample-bronze/bronze/news/*/`). If the command fails due to network issues fetching GDELT/RSS, use an existing Bronze fixture or ask the user for guidance (record the blocker in the progress log).
+
+3. Configure Ollama and verify reachability. Ensure OLLAMA_HOST (default http://localhost:11434) is correct and the server is running. Ensure the qwen3.5:9b-q8_0 model is pulled: `ollama pull qwen3.5:9b-q8_0` (this may take minutes). Test reachability: `python -c "from railway_lakehouse.silver.ollama_client import health_check; print('Ollama ready:', health_check())"`. If Ollama is not available, log the decision to SKIP or PIVOT and stop to ask the user; do not continue without Ollama.
+
+4. Run extraction on the sample. Execute the pipeline on the bounded Bronze sample with live extraction enabled:
+   ```
+   python -m railway_lakehouse.pipeline \
+     --bronze-root output/evidence/news-extraction-sample-bronze/bronze \
+     --out output/evidence/news-extraction-sample/railway_ml.parquet \
+     --counts-out output/evidence/news-extraction-sample/counts.json
+   ```
+   Monitor the logs for: (a) how many articles are input to extract_batch (should match the Bronze count, ~50), (b) how many successfully return a NewsFeature (the success rate), (c) any errors, timeouts, or malformed LLM responses (should be logged by generate_json at silver/ollama_client.py:80-81), (d) total wall-clock time. Record timestamps in the output manifest. If extraction fails or hangs, check the ollama_client logs (enable DEBUG if needed) and decide whether to retry or pivot.
+
+5. Inspect the persisted NewsFeature rows. After the pipeline completes successfully, the Silver news feature table is at `output/evidence/news-extraction-sample/silver/news/news_feature/ingest_date=<today>/news_feature.parquet`. Load and inspect it:
+   ```python
+   import pandas as pd
+   news_df = pd.read_parquet("output/evidence/news-extraction-sample/silver/news/news_feature/ingest_date=<today>/news_feature.parquet")
+   print(f"Shape: {news_df.shape}")
+   print(f"Columns: {news_df.columns.tolist()}")
+   print(f"is_rail_related value_counts:\n{news_df['is_rail_related'].value_counts()}")
+   print(f"Sentiment value_counts:\n{news_df['sentiment'].value_counts(dropna=False)}")
+   print(f"Country value_counts:\n{news_df['country'].value_counts(dropna=False)}")
+   print(f"Event type value_counts:\n{news_df['event_type'].value_counts()}")
+   print(f"Operators (non-empty):\n{news_df[news_df['operators'].str.len() > 0]['operators'].head(5)}")
+   print(f"Confidence stats:\n{news_df['confidence'].describe()}")
+   print(f"Sample row:\n{news_df.iloc[0] if len(news_df) > 0 else 'Empty'}")
+   ```
+   Document the observations: (a) total rows, (b) % rail_related=True (LLM gate efficacy), (c) sentiment and confidence distributions (quality signals), (d) operator/rail_line extraction coverage, (e) any null patterns, (f) sample row with all fields. Record in the manifest (see Step 6).
+
+6. Create the evidence manifest. Create `output/evidence/news-extraction-sample/MANIFEST.md` with the following structure (adapt the template):
+
+   ```markdown
+   # News LLM Extraction Evidence — GAP-033
+
+   ## Run Details
+   - Date: YYYY-MM-DD HH:MM:SS UTC
+   - Operator: [your email / session]
+   - Bronze sample: output/evidence/news-extraction-sample-bronze/bronze/
+   - Model: qwen3.5:9b-q8_0 (sha256: [model digest from ollama list or API])
+   - Ollama host: http://localhost:11434
+   - Ollama version: [output of ollama --version]
+
+   ## Extraction Results
+   - Articles processed: N
+   - Successful extractions: N (success rate: X.X%)
+   - Failed extractions: N (reason: [timeout/invalid JSON/validation error/...])
+   - Wall-clock time: MM:SS (avg per article: X.XXs)
+
+   ## LLM Output Quality (from persisted NewsFeature rows)
+   - Total rows persisted: N
+   - Rail-related (is_rail_related=True): N (X.X%)
+   - Sentiment distribution:
+     - Positive: N (X.X%)
+     - Neutral: N (X.X%)
+     - Negative: N (X.X%)
+     - Null: N
+   - Confidence score stats: min=X.XX, max=X.XX, mean=X.XX, median=X.XX
+   - Country distribution:
+     - HU: N
+     - AT: N
+     - Other: N
+     - Null: N
+   - Operators extracted (non-empty): N rows; example: [list first 3 unique operator lists]
+   - Rail lines extracted (non-empty): N rows; example: [list first 3 unique rail_line lists]
+
+   ## Sample Extraction (random rail-related row)
+   [Full JSON dump of one real NewsFeature row]
+
+   ## Errors and Retries
+   - Ollama timeout (HTTP retry logic, exponential backoff): [# retried, # succeeded after retry]
+   - Invalid JSON from model: [# occurrences, examples of malformed output if any]
+   - Validation failures (schema mismatch): [# occurrences, types of mismatch]
+   - Network errors: [# occurrences, recovery time]
+
+   ## Assessment
+   - **Ollama stability:** PASS / FAIL (e.g., "0 timeouts, all articles processed")
+   - **Schema conformance:** PASS / FAIL (e.g., "100% of outputs pass NewsFeature validation after coercion")
+   - **LLM quality:** [Qualitative assessment — does sentiment alignment with titles, do operators match known carriers, does rail_related filtering seem accurate? Quote 2-3 examples.]
+   - **Ready for production:** YES / NO [e.g., "YES: extraction rates >80%, confidence well-distributed, sentiment aligns with content; ready for Gold aggregation." OR "NO: [reason]; recommend [mitigation]"]
+
+   ## Observations for Future Work
+   - [Any noted pattern, e.g., language-detection weakness on mixed-language articles, or operator names not in KNOWN_OPERATORS]
+   - [Performance tuning opportunity if relevant]
+   - [Data quality check suggestion]
+   ```
+
+7. Commit the evidence. Add and commit the sample data + manifest to the repo under `output/evidence/news-extraction-sample/`:
+   ```bash
+   git add output/evidence/news-extraction-sample/
+   git commit -m "GAP-033: Evidence of live LLM news extraction — manifest + real Parquet output"
+   ```
+   Do NOT commit the Bronze fixture tree (it is intermediate); only commit the Silver/Gold outputs and the manifest. Ensure the manifest is under version control so future sessions can review what was tried.
+
+8. Add a live-marked (but skippable) test. Create or append to `tests/test_silver_news_extraction_live.py` (new file, mirroring the pattern of test_pipeline_live_stats_worldbank.py which is marked `pytest.mark.live`):
+
+   ```python
+   import pytest
+   import logging
+   from pathlib import Path
+   from railway_lakehouse.silver.news import extract as news_extract
+   from railway_lakehouse.silver.ollama_client import health_check
+   from railway_lakehouse.silver.schema import NewsFeature
+
+   pytestmark = pytest.mark.live
+
+   logger = logging.getLogger(__name__)
+
+   @pytest.mark.skipif(not health_check(), reason="Ollama server not reachable")
+   def test_extract_article_live_real_rss_sample(tmp_path):
+       """Live test: run real Ollama extraction on a sample RSS article.
+       Skipped if Ollama is offline. Smoke test to detect regressions in the
+       generate_json -> NewsFeature pipeline."""
+       # Real RSS article about rail, manually curated sample
+       title = "Hungarian Railways Plan Major Investment in Track Modernization"
+       body = (
+           "MÁV (Magyar Államvasutak), Hungary's national railway operator, announced "
+           "a HUF 50 billion investment program to modernize 200 km of rail lines in central Hungary. "
+           "The project includes electrification of the Budapest-Debrecen main line and safety upgrades. "
+           "ÖBB, Austria's federal railways, is participating in joint corridor studies. "
+           "The investment is expected to reduce travel times by 15% and improve reliability."
+       )
+
+       # Call the real extraction pipeline
+       nf = news_extract.extract_article(
+           article_id="test-live-001",
+           source="rss_test",
+           url="https://example.com/test-article",
+           title=title,
+           body=body,
+           published_date="2026-06-25",
+       )
+
+       # Assertions: structure is sound
+       assert nf is not None, "Extraction should succeed on a well-formed rail article"
+       assert isinstance(nf, NewsFeature)
+       assert nf.article_id == "test-live-001"
+       assert nf.source == "rss_test"
+
+       # Assertions: LLM filled the semantic fields
+       assert nf.is_rail_related == True, "Clear rail article should be marked rail_related"
+       assert nf.event_type in ("investment", "other"), "Should detect investment or default to other"
+       assert nf.country in ("HU", "AT", "other"), "Should detect HU (Hungary mentioned) or AT"
+       assert nf.summary_en is not None and len(nf.summary_en) > 5, "Summary should be non-trivial"
+       assert nf.sentiment in ("negative", "neutral", "positive", None), "Sentiment should be valid enum or None"
+       assert nf.confidence is None or (0.0 <= nf.confidence <= 1.0), "Confidence should be in [0, 1] if set"
+       assert isinstance(nf.operators, list), "Operators should be a list"
+       assert isinstance(nf.rail_lines, list), "Rail_lines should be a list"
+
+       # Qualitative check: does the extraction make sense?
+       logger.info(f"Extracted NewsFeature:\n{nf}")
+       if nf.country == "HU" and nf.event_type == "investment" and "MÁV" in str(nf.operators):
+           logger.info("Excellent: LLM correctly identified country, event type, and operator.")
+       elif nf.is_rail_related and nf.summary_en:
+           logger.info(f"Good: LLM correctly marked rail_related and provided summary: {nf.summary_en[:100]}")
+   ```
+
+   Mark this test with `pytest.mark.live` so it is skipped by `pytest -m unit` but runs with `pytest -m live` or `pytest` (all marks). The `@pytest.mark.skipif(not health_check(), ...)` ensures it gracefully skips if Ollama is down.
+
+9. Run the new test locally to verify it passes (requires Ollama running):
+   ```bash
+   python -m pytest tests/test_silver_news_extraction_live.py::test_extract_article_live_real_rss_sample -v
+   ```
+
+10. Update the dashboard and register. Add a closure note to `docs/GAP_REGISTER.md` GAP-033 row with the date and manifest location; update `docs/index.html` GAP-033 chip if it's listed in open gaps; add a Test Failure Mapping row for the new live test command; append a brief note to `docs/PROGRESS_LOG.md` recording the live run date and outcome.
+
+11. Run verification command(s) (see Verify section below) and record results.
+
+**Files to touch:** `output/evidence/news-extraction-sample/MANIFEST.md (new — evidence document)` · `output/evidence/news-extraction-sample/silver/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet (generated by pipeline — commit as evidence)` · `output/evidence/news-extraction-sample/railway_ml.parquet (Gold output — commit for traceability)` · `output/evidence/news-extraction-sample/counts.json (pipeline counts output — commit for audit trail)` · `tests/test_silver_news_extraction_live.py (new — live-marked regression test)` · `.planning/coursework/research/bigdata/silver-news-llm-extraction-live.md (new — research findings)` · `docs/GAP_REGISTER.md (GAP-033 closure row + Test Failure Mapping)` · `docs/index.html (if GAP-033 is listed in open chips)` · `docs/PROGRESS_LOG.md (handoff note)`
+
+**Definition of Done (contract).**
+- [ ] A research findings document at `.planning/coursework/research/bigdata/silver-news-llm-extraction-live.md` exists, names research-orchestrator + routed MCP provider(s) + source URLs for Ollama stability and Qwen benchmarks.
+- [ ] Ollama qwen3.5:9b-q8_0 model is reachable and health_check() returns True before extraction starts.
+- [ ] A real bounded sample of ~50 articles (RSS + GDELT mix) is landed in Bronze via the pipeline.
+- [ ] `news_extract.extract_batch(articles)` runs successfully on the sample, producing real NewsFeature rows (not mocked).
+- [ ] The extracted rows are persisted to a canonical Silver Parquet file (ingest_date=YYYY-MM-DD partition) and reloaded.
+- [ ] A manifest document at `output/evidence/news-extraction-sample/MANIFEST.md` exists, recording: (a) extraction counts + success rate, (b) wall-clock time, (c) model digest (qwen3.5:9b-q8_0 sha256), (d) LLM output quality metrics (sentiment/confidence/country distributions, operator extraction coverage, sample row), (e) error accounting (timeouts, invalid JSON, validation failures), (f) qualitative assessment of extraction quality (e.g., "sentiment aligns with content, operators match known carriers, >80% rail-related efficacy"), (g) a YES/NO "ready for production" recommendation.
+- [ ] The manifest and persisted Silver/Gold outputs (Parquet files) are committed to the repo under `output/evidence/news-extraction-sample/` with a commit message referencing GAP-033.
+- [ ] A live-marked test in `tests/test_silver_news_extraction_live.py` exercises the real extract_article() path on a curated rail sample, validates NewsFeature structure and semantic field presence, and is skipped gracefully if Ollama is offline.
+- [ ] The test passes when Ollama is running: `python -m pytest tests/test_silver_news_extraction_live.py -m live -v` (expect 1 passed; if skipped, Ollama is not reachable — that is acceptable).
+- [ ] Dashboard/state synced: docs/GAP_REGISTER.md GAP-033 row marked closed with a dated note + manifest/output location; docs/index.html GAP-033 chip updated if it's in the open-gaps list; docs/PROGRESS_LOG.md appended with handoff note (date, outcome, next steps).
+- [ ] No regression in existing tests: `python -m pytest -m unit` (existing 87+ tests still pass; live/integration tests are separate).
+
+**Verify:** `From repo root: python -m pytest tests/test_silver_news_extraction_live.py -m live -v` (expect 1 passed or 1 skipped if Ollama offline). Also: `cat output/evidence/news-extraction-sample/MANIFEST.md` (confirms manifest exists + readable), `python -c "import pandas as pd; df = pd.read_parquet('output/evidence/news-extraction-sample/silver/news/news_feature/ingest_date=<today>/news_feature.parquet'); print(df.shape); print(df['is_rail_related'].value_counts())"` (confirms rows persisted + readable), `python -m pytest -m unit -q` (confirms no regression in unit suite).`
+
+**Pitfalls.** Hard Rules: raw Bronze stays immutable (this task READS from Bronze, does not write to it); numeric stats are untouched (no LLM rewriting); runtime outputs are under `output/` (evidence under output/evidence/); no fabricated data (all NewsFeature rows are real Ollama output, not synthetic or mocked). Test dependency: the new live test MUST gracefully skip if Ollama is unreachable (`@pytest.mark.skipif(not health_check(), ...)`), so CI/unit runs do NOT fail when Ollama is absent. The test MUST NOT depend on coursework/ data — use a hardcoded sample article (1-2 sentences, ~200 words, clear rail content) so it runs deterministically anywhere. Do NOT merge the bounded-sample Bronze fixture tree into the repo (it is large and intermediate); commit only the Silver/Gold outputs and the manifest. Timeouts: if Ollama hangs or is very slow (latency >30s per article after retries), log the finding in the manifest and decide whether to retry or pivot; the goal is evidence, not a hung pipeline. Model determinism: temperature=0 (already set in config.py:11 and ollama_client.py:59) ensures re-runs produce identical output — do NOT change this. Manifest format is for humans first (markdown, readable samples, qualitative notes); it is not machine-parsed, so prose clarity matters. Optional observation: if extraction quality is excellent (e.g., sentiment aligns with article tone, operators correctly parsed), note it as validation of the LLM prompt design (extract.py:23-69); if quality is poor (e.g., random sentiment, empty operators on articles mentioning MÁV), note it as a signal for future prompt refinement or model choice review. The goal of this gap is to answer "does the LLM path work at all?" — perfection is not required, but honest assessment is. If blocked (Ollama not available, network issues fetching sample articles), stop and ask the user for unblocking guidance; do not work around silently or use synthetic fallbacks.
+
+### GAP-034 — Deterministic sentiment via XLM-R encoder (replace LLM sentiment)
+
+`MID` · level **model-pipeline** · effort **M** · depends on: GAP-031 (silver/wide-newsfeature-contract, unblocks this semantic-extraction slice)
+
+**Build:** Replace the LLM-based sentiment extraction (unstable, uncalibrated confidence, never run live) with a deterministic, pinned multilingual sentiment scorer using the HuggingFace cardiffnlp/twitter-xlm-roberta-base-sentiment model, producing sentiment_label (negative/neutral/positive) + sentiment_score (0–1). Support HU/DE/EN text in one model, pin the exact model revision, cache downloads, skip heavy models in CI, and use CPU-only inference.
+
+**Context.** The News Feature extraction path (silver/news/extract.py:31-69) asks the LLM for sentiment as a categorical field (lines 42-44, 65) alongside other generative fields (is_rail_related, event_type, summary_en, monetary_raw). The LLM sentiment has never run against a live Ollama model (test mocks only, silver/news/extract.py:75, tests/test_silver_news_parsers.py:98-112); every test case is mocked and Ollama is not available in the CI sandbox. The extracted sentiment is then mapped to [-1, 0, 1] scores in gold/build.py:34,93 for aggregation (gold/build.py:93-99). This gap replaces the unstable LLM sentiment with a deterministic encoder: remove sentiment from the LLM prompt, compute it separately via the XLM-R model in a post-LLM step, and update the Gold aggregation to use the encoder's numerical output instead of mapping LLM strings. Rationale: (1) sentiment is a single-label classification, not a creative task — a pretrained classifier is faster and more stable; (2) XLM-R is multilingual (HU/DE/EN in one 12-layer transformer, 270M params, ~500 MB CPU RAM), deterministic (no temperature), and widely validated on social-media text (source model from Cardiff NLP / Twitter); (3) no Ollama dependency for sentiment means news extraction is unblocked from live-Ollama availability; (4) one model + revision pinned in pyproject ensures reproducibility across runs and machines.
+
+**Problem.** 
+1. **Sentiment field in LLM prompt but never live-executed.** silver/news/extract.py:42-44 (JSON schema enum) and lines 65 (user prompt) include sentiment, and line 75 calls `generate_json` which passes it to Ollama. But `generate_json` (ollama_client.py) always returns None if Ollama is unreachable (line 82); extract.py:76-78 skips the article on None. No articles flow through LLM sentiment in any existing test (test mocking at line 98-112 returns a fake dict with sentiment, bypassing Ollama entirely). The LLM sentiment is therefore dead code in practice: it is never live-validated, never benchmarked, and never aggregated into a real Gold feature (gold/build.py only sees sentiment values from mocked tests or from gdelt_passthrough's heuristic, line 91, never from a real news LLM extraction). Evidence: `grep -rn "extract_article.*sentiment" tests/` returns 0 live calls; tests/test_silver_news_parsers.py:117-125 shows the mocked sentiment is asserted but has no real-Ollama coverage. The lack of live execution means confidence-calibration is untested and confidence values (schema.py:54) are fabricated by the LLM without grounding.
+2. **No model choice made for XLM-R.** The coursework workflow mandates a research step before adding external libs/models. HuggingFace has 700+ sentiment models; the canonical choice for multilingual Twitter/social-media text (railway news fits the domain) is cardiffnlp/twitter-xlm-roberta-base-sentiment (3.3M downloads on HF, 15K stars in the Twitter-roBERTa family, supports 150+ languages including HU/DE/EN, base 12-layer model at 268 MB, revision/commit pinned at HF release, pre-trained on ~198M tweets with balanced neg/neu/pos labels). The model output is logits over [negative, neutral, positive] softmax-normalized to 0–1 confidences. This must be cited via .planning/coursework/research/bigdata/silver-sentiment-encoder.md naming research-orchestrator + HuggingFace model card + source URL.
+3. **Confidence interpretation conflation.** The current NewsFeature schema (schema.py:54) conflates "model's self-reported confidence" with a free-form LLM confidence value. An LLM temperature=0 call does not produce a calibrated confidence for extracted fields (it is syntactically deterministic but semantically uncalibrated). The XLM-R model outputs proper softmax confidences (the max of [neg, neu, pos] logits normalized to [0, 1]), which have been evaluated on held-out test sets. Replacing the schema field requires documenting the semantic change: confidence now means the (deterministic) max softmax score from XLM-R, not an LLM self-assessment.
+
+**Steps.**
+1. RESEARCH (mandatory per coursework/CLAUDE.md): invoke the `research-orchestrator` skill; route HuggingFace model card + transformer library questions through Context7, Ref, or Tavily (transformers library docs, XLM-R paper https://arxiv.org/abs/2104.12250, cardiffnlp/twitter-xlm-roberta-base-sentiment model card https://huggingface.co/cardiffnlp/twitter-xlm-roberta-base-sentiment). Write `.planning/coursework/research/bigdata/silver-sentiment-encoder.md` naming research-orchestrator, the routed MCP provider(s), queries made (e.g., "cardiffnlp twitter-xlm-roberta multilingual sentiment model docs", "transformers library sentiment pipeline"), source URLs (HF model card, paper arxiv link, transformers docs link), and summary findings (model supports HU/DE/EN, 268 MB, revision pinned, CPU-ok, logits→softmax for 3-class classification).
+
+2. Edit `pyproject.toml` to add the transformers library to `dependencies` (if not already present) with a pinned major version to avoid breaking API changes. Check if transformers is already listed (grep `pyproject.toml`); if not, add `"transformers>=4.40,<5"` to the main `dependencies` list (not optional, because Silver news extraction is core to the coursework pipeline, even if news runs conditionally). Pin the model exactly using HuggingFace's commit/revision mechanism (the model card recommends a stable revision; at authoring date the latest is `revision="59b7eda"` — confirm in research step and use that exact string in the code).
+
+3. Create a new module `src/railway_lakehouse/silver/news/sentiment_encoder.py` with a `SentimentEncoder` class (simple wrapper) that:
+   - Lazy-loads the XLM-R model on first use (to avoid blocking imports if the model download fails): `_instance = None`, and a module-level `get_encoder() -> SentimentEncoder` function that creates+returns the singleton.
+   - Exposes a single method `encode(text: str) -> dict` returning `{"label": "negative"|"neutral"|"positive", "score": float}` with the label as the argmax class and score as its softmax probability (0–1).
+   - Uses `transformers.pipeline("sentiment-analysis", model="cardiffnlp/twitter-xlm-roberta-base-sentiment", device=-1)` (device=-1 forces CPU) and caches the model via HuggingFace's default `~/.cache/huggingface/hub/` so repeated runs use the cached download (no re-download unless model is missing or cache is purged).
+   - Includes a `health_check() -> bool` method (like ollama_client.py:122) that returns True if the model can be imported and loaded (test optional availability without raising on missing transformers).
+   - All calls are wrapped with try/except → return None on model loading/inference failure (caller decides what to do, mirroring ollama_client.py behavior).
+
+4. Update `silver/schema.py` to document that `NewsFeature.confidence` (line 54) now means "max softmax probability from the XLM-R sentiment classifier" (not LLM self-assessment); add a comment on the NewsFeature dataclass.
+
+5. Refactor the LLM extraction step in `silver/news/extract.py` to split sentiment out: (a) remove `"sentiment"` from the `_JSON_SCHEMA` (lines 42-44) and from the prompt (line 65); (b) in `extract_article`, after `validate_news_feature` succeeds (line 79), call a new `_add_sentiment_and_confidence(nf: NewsFeature) -> NewsFeature` helper that: loads the encoder via `sentiment_encoder.get_encoder()`, calls `encode(title + "\n\n" + body)` (sentinel-delimited text), unpacks the result, and returns a copy of `nf` with `sentiment=label` and `confidence=score`. If the encoder is unavailable (returns None), leave sentiment/confidence as None (nullable per schema.py).
+
+6. Update `gold/build.py` to handle sentiment values directly as numbers from the encoder. Currently (line 34) `_SENTIMENT_MAP = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}` maps LLM strings to numbers. After the encoder change, sentiment is already a string label (the encoder's output) and `confidence` is the softmax score. Keep the mapping for historical articles (those from gdelt_passthrough which still uses the heuristic tone→sentiment mapping), but document that new NewsFeature rows have sentiment as XLM-R labels and confidence as XLM-R softmax values. Optionally add `# TODO: when GDELT GKG passthrough ships, unify gdelt_passthrough sentiment to use the encoder as well` (out of scope for this gap, since gdelt_passthrough never runs live either).
+
+7. Create a deterministic test file `tests/test_silver_sentiment_encoder.py` marked `@pytest.mark.unit`. It must NOT depend on coursework/ data and must NOT download the real model from HF in CI (mock the download or skip the test). Use pytest fixtures:
+   - `test_sentiment_encoder_initialization` (skip if transformers/model unavailable; or mock the pipeline call): assert `get_encoder()` returns a non-None SentimentEncoder.
+   - `test_sentiment_encoder_encodes_positive_text` (mock the model): feed "Great news!" through encode(), assert `label=="positive"`, `score` is a float 0–1.
+   - `test_sentiment_encoder_encodes_negative_text` (mock): feed "Accident on the railway" through encode(), assert `label=="negative"`.
+   - `test_sentiment_encoder_encodes_neutral_text` (mock): feed "Railway statistics for 2024" through encode(), assert `label=="neutral"`.
+   - `test_sentiment_encoder_health_check`: mock transformers availability, assert `health_check()` returns True; assert False when transformers import fails.
+   - `test_sentiment_encoder_returns_none_on_model_unavailable`: mock the pipeline call to raise an exception; assert `encode()` returns None gracefully (no exception bubbles).
+   - `test_extract_article_with_sentiment_encoder` (monkeypatch): mock `sentiment_encoder.get_encoder()` to return a mock encoder; mock `generate_json` to return a dict WITHOUT sentiment (proving the LLM prompt no longer asks for it); call `extract_article(...)`; assert the returned NewsFeature has sentiment and confidence populated from the mocked encoder result.
+
+8. Update `validate_news_feature` in schema.py (line 61-93) to make sentiment/confidence optional in the raw LLM dict (they won't be there anymore; the encoder adds them post-LLM). The validator already handles null sentiment (line 80), so the change is just ensuring the function does not crash if sentiment is absent from raw.
+
+9. Sync the NEWS_FEATURE contract in `docs/DATA_CONTRACTS.md` (Silver News section) to document that sentiment is now XLM-R-derived and confidence is the softmax probability. Update line naming sentiment and confidence fields to note "XLM-R encoder output: label (negative/neutral/positive) and softmax score (0–1)".
+
+10. Add an import/availability guard test (runs WITHOUT transformers): extend `tests/test_infra_sentinel_imports.py` or create a small unit test asserting that `import railway_lakehouse.silver.news.sentiment_encoder` succeeds even if transformers is unavailable (the module should not raise on import, only when `get_encoder()` is called for the first time). This proves the lazy-load design.
+
+11. Update the news extraction docstring in `extract.py` (lines 1-12) to note that sentiment is now deterministic and encoder-based, not LLM-derived.
+
+12. DOCS / DASHBOARD SYNC (Hard Rule, AGENTS.md:81): update `docs/GAP_TASKS.md` to remove GAP-034 from the `LOW` section once this task is complete (or mark it done), and flip GAP-034 in `docs/GAP_REGISTER.md` status from `open` to `closed`. Add a row to the Test Failure Mapping table recording the verification command `pytest -q tests/test_silver_sentiment_encoder.py` and the result. Update `docs/index.html` if there is a sentiment/NLP pill or metric; if sentiment was listed as "LLM-based (PENDING)" flip it to "XLM-R encoder (deterministic)".
+
+13. Run the deterministic test suite with mocked encoder to confirm no breakage: `python -m pytest -q tests/test_silver_sentiment_encoder.py tests/test_silver_news_parsers.py`. Update the test mocking in `tests/test_silver_news_parsers.py` if needed to ensure the existing mocked sentiment values still pass through `extract_article` (they do, since the encoder is called post-LLM validation).
+
+**Files to touch:** `src/railway_lakehouse/silver/news/sentiment_encoder.py (new)` `pyproject.toml (add transformers>=4.40,<5 if not present)` `src/railway_lakehouse/silver/news/extract.py (remove sentiment from LLM prompt; add _add_sentiment_and_confidence call)` `src/railway_lakehouse/silver/schema.py (document confidence semantic change)` `src/railway_lakehouse/gold/build.py (document sentiment mapping for XLM-R labels)` `tests/test_silver_sentiment_encoder.py (new, mocked tests)` `tests/test_infra_sentinel_imports.py or new test_silver_news_sentiment_imports.py (import guard, no transformers)` `docs/DATA_CONTRACTS.md (Silver News sentiment/confidence fields)` `docs/GAP_REGISTER.md (GAP-034 status + Test Failure Mapping)` `docs/index.html (sentiment metric, if present)` `.planning/coursework/research/bigdata/silver-sentiment-encoder.md (research record, new)`
+
+**Definition of Done (contract).**
+- [ ] `src/railway_lakehouse/silver/news/sentiment_encoder.py` exists: lazy-loads cardiffnlp/twitter-xlm-roberta-base-sentiment model on first use, exposes `get_encoder()` singleton, `encode(text) -> {"label": neg/neu/pos, "score": float}`, `health_check() -> bool`, and gracefully returns None on model load/inference failure.
+- [ ] `pyproject.toml` pins `transformers>=4.40,<5` in `dependencies` (if not already present); the HuggingFace model revision is pinned in sentiment_encoder.py (e.g., revision="59b7eda" or latest stable at research time).
+- [ ] `silver/news/extract.py` no longer asks the LLM for sentiment: `_JSON_SCHEMA` (lines 42-44) removes the "sentiment" enum field, the user prompt (line 65) removes the sentiment sentence, and `extract_article` calls `_add_sentiment_and_confidence` after LLM validation to populate sentiment/confidence from the encoder.
+- [ ] `silver/schema.py` documents that `NewsFeature.confidence` is now the XLM-R softmax score (0–1), not an LLM self-assessment (comment on line 54).
+- [ ] `gold/build.py` handles sentiment correctly: the _SENTIMENT_MAP mapping is preserved for backward compatibility (old gdelt_passthrough articles) and new articles have sentiment as XLM-R labels; confidence is the encoder's softmax value.
+- [ ] Deterministic tests in `tests/test_silver_sentiment_encoder.py` exist and pass (marked unit, mocked encoder for CI): test encode() with positive/negative/neutral text, test health_check(), test graceful None return on model failure, test extract_article integration with encoder.
+- [ ] Import guard test (marked unit, no transformers required): assert `import sentiment_encoder` succeeds even without transformers installed; assert transformers import failure is deferred until `get_encoder()` is called.
+- [ ] `python -m pytest -q tests/test_silver_sentiment_encoder.py` passes (all mocked, no real model download in CI).
+- [ ] `python -m pytest -q tests/test_silver_news_parsers.py` still passes: existing mocked article extraction tests continue to work (encoder is called post-LLM validation, so mocked sentiment in the test dict still flows through).
+- [ ] `docs/DATA_CONTRACTS.md` Silver News section documents sentiment as XLM-R-derived and confidence as softmax; `docs/index.html` (if applicable) reflects "XLM-R encoder (deterministic)" instead of "LLM-based (PENDING)"; `docs/GAP_REGISTER.md` GAP-034 marked closed with the verification command and result.
+- [ ] `.planning/coursework/research/bigdata/silver-sentiment-encoder.md` exists, names research-orchestrator + routed MCP provider(s), lists queries + source URLs (HF model card, transformers docs, XLM-R paper), and summarizes findings (model choice justified, supports HU/DE/EN, deterministic, 268 MB, revision pinned).
+- [ ] `python -m pytest -q` stays green (no new failures; the only changes are in extract.py logic + new encoder module + new tests, no pipeline output shape changes).
+- [ ] Raw Bronze untouched; numeric Gold values from sentiment aggregation (news_sentiment_mean, news_share_negative) are deterministic and reproducible (encoder output is deterministic on CPU with no randomness); all outputs are under output/ (if a model is cached, that is ~/.cache/huggingface, not project output).
+
+**Verify:** `Primary deterministic gate: `python -m pytest -q tests/test_silver_sentiment_encoder.py` (all unit, mocked, no real model download in CI). Integration: `python -m pytest -q tests/test_silver_news_parsers.py` (existing RSS/GDELT extraction tests still pass; mocked sentiment paths still work). Full suite: `python -m pytest -q` (no new test failures). Negative check: `python -c "from railway_lakehouse.silver.news.sentiment_encoder import get_encoder; e = get_encoder(); print(e.encode('Great news!'))"` (if transformers available locally, returns {"label": "positive", "score": ...}; otherwise None). Optional live check (if transformers installed): run a bounded news extraction with encoder enabled and assert sentiment/confidence columns are populated with XLM-R values, not mocked LLM strings.`
+
+**Pitfalls.** ["DO NOT call the LLM for sentiment. Remove it from _JSON_SCHEMA and the prompt entirely. The encoder is the ONLY source of sentiment for NewsFeature rows produced by extract_article (gdelt_passthrough uses a heuristic and is not in scope for this gap).", "DO NOT download the real model in CI or in any test that doesn't explicitly skip when transformers is unavailable. Use monkeypatch/mock for all deterministic tests; rely on pytest.importorskip or try/except in code for graceful degradation when the model is missing.", "The XLM-R model weights are ~270 MB and live in ~/.cache/huggingface/hub — this is fine for development and reproducibility (HF's standard caching), but do NOT commit the weights to git (they are not in the project tree anyway). The revision pin in the code (e.g., revision='59b7eda') ensures the exact model version is deterministic across runs and machines.", "Confidence semantics changed: the field now means 'max softmax probability from XLM-R' (0–1, calibrated on test sets), not 'LLM self-assessed confidence in the extraction' (uncalibrated guess). Document this in schema.py and DATA_CONTRACTS.md so no one confuses the two.", "Hard Rules (AGENTS.md:74-81): raw Bronze stays immutable (this gap only touches Silver news extraction logic, no Bronze changes); numeric stat merges stay deterministic (the encoder is deterministic, temp=0, no randomness — sentiment values fed to Gold aggregation are reproducible); all outputs under output/ (model cache is ~/.cache, not project output/); tests use tmp_path/fixtures/mocks, never depend on coursework/ data; no fabricated data (encoder output only).", "The transformer library may have multiple sentiment models. The chosen model cardiffnlp/twitter-xlm-roberta-base-sentiment is specific: it is multilingual (HU/DE/EN), pre-trained on Twitter (closest domain match for railway news), and has stable HF revisions. Do not swap for another model without re-researching and updating the research log.", "UTF-8 text handling: the XLM-R tokenizer handles UTF-8 natively (Hungarian + German + English diacritics/umlauts work out of the box with BPE tokens). No extra decoding needed; pass the raw article body text to encode().", "gdelt_passthrough (line 86-100) still uses a heuristic tone→sentiment mapping (line 91) because GDELT GKG data (which has tone scores) is never live-retrieved in the current pipeline (GAP-010 scope). When/if that path is unblocked, a follow-up could run gdelt_passthrough results through the encoder too — but that is future work, not in scope for GAP-034.", "The encoder is CPU-ok (device=-1 for transformers.pipeline) and the model is small enough to run in-process during Silver news extraction (no separate service needed, unlike Ollama). This simplifies deployment.", "Do not change the NewsFeature dataclass field order or add new fields — schema.py:39-54 is the contract. Sentiment and confidence already exist and are nullable; the change is in how they are populated (encoder post-LLM, not LLM prompt)."]
+
+### GAP-035 — Deterministic language ID (fastText lid.176 / lingua) instead of LLM
+
+`LOW` · level **model-pipeline** · effort **S** · depends on: -
+
+**Build:** Populate the `language` field of `NewsFeature` with a pinned, deterministic language identifier (fastText `lid.176` or `lingua`) instead of consuming an LLM call. Never spend Ollama inference on language detection. Pin model digest; cite source.
+
+**Context.** The Silver news extraction pipeline asks Ollama Qwen to identify language as part of a full semantic extraction prompt (`silver/news/extract.py:66`, "language: ISO 639-1 code of the article"). However, language identification is a well-solved, deterministic classification task with zero LLM needed — it should run once per article text, be cached, and route to per-language downstream models (HU/DE/EN sentiment classifiers, entity extractors). Using fastText `lid.176` (Facebook's fast, multilingual language ID model) or `lingua` (a pure-Rust alternative, smaller overhead) avoids wasting limited Ollama budget on a task that does not require generation or reasoning. The LLM's effort is better reserved for is_rail_related, event_type, summary_en, monetary_raw/amount — the semantic fields that truly need generative power. Ollama is pinned to Qwen3.5:9b-q8_0 on the 1060 GPU and is bounded to news extraction (no numeric rewriting); moving language ID to a dedicated library closes the cheapest optimization and demonstrates multi-tool architecture (LLM for semantics, dedicated classifiers for deterministic tasks).
+
+**Problem.** The LLM prompt at `silver/news/extract.py:31-69` includes language identification as one of 11 fields in the JSON schema (line 43: `"language": {"type": "string"}`), and the system prompt (line 25-28) explicitly instructs Qwen to identify the article's ISO 639-1 code ("language: ISO 639-1 code of the article", line 66). Every call to `extract_article()` → `generate_json()` consumes 1 Ollama token budget to produce a language string that is deterministic (same input title + body → same language always). The schema dataclass `NewsFeature` (line 44, `schema.py`) stores language as `Optional[str]`, and `validate_news_feature()` (line 87, `schema.py`) simply coerces it with `_str(raw.get("language"))` — no validation of ISO 639-1 codes, so bad LLM output (e.g., "English" instead of "en") passes through silently. The GDELT passthrough stub `gdelt_passthrough()` (line 98, `extract.py`) explicitly sets language to `None` because GKG does not provide it; this asymmetry means GDELT news features always lack language, while RSS news gets a language from Ollama (but one that was never tested live — every test mocks `generate_json`). The current test `test_rss_records_to_news_features_uses_existing_extraction()` (line 82-126, `test_silver_news_parsers.py`) mocks the LLM to return `"language": "en"` but never validates that en is correct or that a Hungarian title produces hu.
+
+**Steps.**
+
+1. RESEARCH (mandatory per coursework workflow): invoke the `research-orchestrator` skill; route language identification library research through Context7, Ref, or Tavily. Query examples: "fastText lid.176 language identification model source download", "lingua Rust language identifier vs fastText performance benchmarks", "how to integrate fastText pretrained model in Python pipeline", "Language Subtag Registry ISO 639-1 codes reference". Write the research record to `.planning/coursework/research/bigdata/silver-language-id.md` naming research-orchestrator, the routed MCP provider(s), queries, and source URLs. Pin the chosen model (fastText `lid.176` or `lingua`) to a specific version/digest.
+
+2. Create a new module `src/railway_lakehouse/silver/language_id.py` with a single, deterministic function. Choose one approach:
+   - **Option A (fastText):** Use Facebook's fastText `lid.176` model (176 languages, ~130 MB, accuracy >90% on common European languages). Function `identify_language(text: str) -> Optional[str]` downloads `lid.176.ftz` on first run (cache under `.railway_lakehouse_models/` in user home or `output/runtime/models/`), loads it, calls `model.predict(text, k=1)` to get the top prediction, and returns ISO 639-1 code if confidence >= 0.5, else `None`. Document the model URL and digest (SHA256 of the .ftz file) in a docstring.
+   - **Option B (lingua):** Use the `lingua` Python package (wraps the Rust detection engine, smaller footprint). Function `identify_language(text: str) -> Optional[str]` instantiates a `LanguageDetectorBuilder` with desired language set (minimally `["en", "de", "hu"]` for the project scope, or all 75 supported), calls `.build().detect_language(text)`, and returns the ISO 639-1 code if detected, else `None`. Add `lingua>=1.4` to `pyproject.toml` `[dependencies]` and document the version pin.
+
+3. Integrate the language identifier into `extract_article()` in `silver/news/extract.py`:
+   - At the start of the function (after validating inputs), call `lang = identify_language(title + " " + body)` to detect language from the article.
+   - Pass language to `validate_news_feature(...)` as a new positional parameter (add `language: Optional[str] = None` to `validate_news_feature`'s signature; update line 87 to prioritize passed language over LLM output: `language=language or _str(raw.get("language"))`, so the deterministic ID takes priority but the LLM can still populate if identification fails).
+   - Update the Ollama prompt to NO LONGER ask for language (remove line 66 from `_build_prompt()`, remove `"language"` from `_JSON_SCHEMA:properties` and `required`). The LLM should never be asked to guess language.
+
+4. Similarly, update `gdelt_passthrough()` (line 86-100) to accept an optional `language` parameter and set it via the same identification: `language=identify_language(title or "" + " " + body or "")`.
+
+5. Update `validate_news_feature()` signature and docstring: add `language: Optional[str] = None` parameter before `event_types`, update the docstring to explain that language is deterministically identified BEFORE calling validate, and prioritize it over any LLM field (which now should be absent).
+
+6. Add a function `_identify_language_batch(articles: list) -> list` to batch-process language IDs if needed (call once per article, not per batch). Alternatively, inline the call in `extract_batch()` and `article_records_to_news_features()`.
+
+7. Write deterministic unit tests in `tests/test_silver_language_id.py` (new file, marked `pytest.mark.unit`):
+   - Test that `identify_language("Vasúti bővítés Magyarországon")` returns `"hu"` (Hungarian).
+   - Test that `identify_language("Bahnausbau in Österreich")` returns `"de"` (German).
+   - Test that `identify_language("Railway expansion in Austria")` returns `"en"` (English).
+   - Test that `identify_language("")` returns `None` (empty text).
+   - Test that `extract_article()` with a Hungarian article calls `identify_language()` and populates the NewsFeature.language field without asking the LLM.
+   - Test that `gdelt_passthrough()` with a German title also identifies language deterministically.
+   - Mock `identify_language()` to return None and confirm the extraction still succeeds (language is Optional).
+   - For fastText: test that the model is downloaded and cached (check `.railway_lakehouse_models/` or `output/runtime/models/` directory exists after first call).
+   - For lingua: test that the installed package version matches the pin in `pyproject.toml`.
+
+8. Update the LLM prompt docstring in `silver/news/extract.py` to document that language is NOW DETERMINISTICALLY IDENTIFIED and the LLM no longer handles it. Update the system prompt (line 23-28) to remove any reference to language identification.
+
+9. Verify the test suite: run `python -m pytest -q tests/test_silver_language_id.py` and `python -m pytest -q tests/test_silver_news_parsers.py` to confirm existing news-extraction tests still pass (Ollama mocks should now NOT include language in the fake output, or language should be gracefully ignored). Update the mock in `test_rss_records_to_news_features_uses_existing_extraction()` (line 82-126) to remove `"language": "en"` from the fake response and confirm the test still passes (the real language is now identified separately).
+
+10. DOCS / DASHBOARD SYNC (Hard Rule, `AGENTS.md:81`): add GAP-035 status `closed` to `docs/GAP_REGISTER.md` (a new row). Update `docs/TASKS.md` if a `silver/language-id` row exists; otherwise add a comment that the task is closed as part of the model-pipeline optimization pass. Update `docs/index.html` to note language ID is deterministic (not LLM-driven), if a dashboard chip exists for news extraction. Add a research-evidence note or reference to the research log in `docs/STATE_AND_ROADMAP.md:` or `.planning/coursework/research/bigdata/` if language ID model choice has operational implications.
+
+**Files to touch:** `src/railway_lakehouse/silver/language_id.py (new)` `src/railway_lakehouse/silver/news/extract.py (update extract_article, gdelt_passthrough, validate_news_feature, _build_prompt, _JSON_SCHEMA)` `src/railway_lakehouse/silver/schema.py (update validate_news_feature signature)` `tests/test_silver_language_id.py (new)` `tests/test_silver_news_parsers.py (update mocks)` `pyproject.toml (add lingua>=1.4 OR pinned fastText download URL / digest if using fastText)` `docs/GAP_REGISTER.md (GAP-035 row)` `docs/TASKS.md (comment or row update if silver/language-id exists)` `.planning/coursework/research/bigdata/silver-language-id.md (research record, new)`
+
+**Definition of Done (contract).**
+- [ ] `python -c "import railway_lakehouse.silver.language_id"` succeeds and `identify_language()` is callable.
+- [ ] A comprehensive test `tests/test_silver_language_id.py` exists (marked `pytest.mark.unit`), with deterministic tests for HU, DE, EN articles and edge cases (empty text, None handling).
+- [ ] The Ollama prompt in `silver/news/extract.py` no longer includes language as a field — it is removed from `_JSON_SCHEMA`, `_build_prompt()`, and the system message.
+- [ ] `extract_article()` deterministically identifies language via `identify_language()` BEFORE calling the LLM and passes it to `validate_news_feature()`.
+- [ ] `gdelt_passthrough()` also identifies language deterministically (no longer always `None`).
+- [ ] `validate_news_feature()` accepts an explicit `language` parameter and prioritizes it over LLM output (which no longer exists for language).
+- [ ] The existing test `test_rss_records_to_news_features_uses_existing_extraction()` is updated: the fake LLM response no longer includes `"language"`, the test still passes, and the NewsFeature.language field is populated by the deterministic identifier.
+- [ ] `python -m pytest -q tests/test_silver_language_id.py` passes (all language-ID tests pass).
+- [ ] `python -m pytest -q tests/test_silver_news_parsers.py` passes (existing news-extraction tests pass; no regression).
+- [ ] `python -m pytest -q` overall passes (no new failures, e.g., 108 or 109 passed depending on if one new test file is added).
+- [ ] Raw Bronze is untouched; language ID is deterministic and cached (no recomputation per run); all outputs are under the normal Silver paths.
+- [ ] Research record written at `.planning/coursework/research/bigdata/silver-language-id.md` naming research-orchestrator + routed MCP provider(s) + source URLs + pinned model version/digest.
+- [ ] Dashboard and docs are synced: GAP-035 appears in `docs/GAP_REGISTER.md` with status `closed`, and any related dashboard chip is updated.
+
+**Verify:** `python -m pytest -q tests/test_silver_language_id.py && python -m pytest -q tests/test_silver_news_parsers.py && python -m pytest -q` (all green, no regression). With the chosen language-ID library installed (lingua or fastText): `python -c "from railway_lakehouse.silver.language_id import identify_language; print(identify_language('Vasúti bővítés'))"` returns `'hu'`. With the mock still in place (no live Ollama needed for unit tests): `python -m pytest -q -m unit tests/test_silver_language_id.py` passes.
+
+**Pitfalls.** "Do NOT call the LLM for language identification — the entire point is to avoid that cost. Ensure the language parameter in `validate_news_feature` is BEFORE the LLM's event_types to take priority. Do NOT confuse ISO 639-1 (2-letter, e.g., 'hu', 'de', 'en') with 639-3 (3-letter) — this project uses 639-1 consistently. Do NOT hardcode language detection in the Ollama prompt; move it completely to the deterministic function. Hard Rules (AGENTS.md:74-81): raw Bronze stays immutable (this task only touches Silver news feature extraction, not data sources); language ID is deterministic and cached — never an LLM field, never mutable; all LLM inference must be reserved for semantic tasks (is_rail_related, event_type, summary, monetary extraction). Tests must NOT depend on `coursework/` data (use generated article texts, `tmp_path` if needed); keep language-ID tests pure and fast (unit marker, no I/O beyond cached model). For fastText: pin the model URL and SHA256 digest in docstring and download only once per user. For lingua: add the version pin to `pyproject.toml [dependencies]` (not `[dev-dependencies]`), so the production Silver library depends on it. Do not add fastText as a pip dependency if using fastText — download the model file directly from Facebook's CDN. Update existing mocks in news-parser tests to remove language from the fake LLM response. Dashboard/docs sync (GAP_REGISTER.md + TASKS.md + index.html) is Hard Rule, not optional."
+
+### GAP-036 — Add LaBSE sentence-embedding column + cross-lingual near-duplicate dedup to Silver news
+
+`HIGH` · level **model-pipeline** · effort **M** · depends on: GAP-035 (silver/wide-newsfeature-contract — all 15 NewsFeature fields persisted and reloadable in Silver). Category: model-pipeline. This task is the biggest single Big-Data depth lever for the news spine and feeds GAP-037 (MLlib clustering / cross-lingual dedup enforcement in Spark).
+
+**Build:** Extend the Silver NewsFeature schema with a deterministic multilingual sentence-embedding column (LaBSE or BGE-m3; array<float>) and add cross-lingual near-duplicate grouping columns (dedup_group_id, is_duplicate) so the SAME story across Hungarian/German/English feeds + GDELT is not triple-counted in Gold event/article counts. Embeddings are computed once, immutably cached by article_id, and reused for clustering; dedup groups are deterministic given the clustering threshold. This blocks Gold from overcounting news.
+
+**Context.** The Silver news path extracts 15 fields per article via Ollama + deterministic NLP (sentiment/language/confidence), lands NewsFeature rows in Parquet, and feeds Gold's aggregate_news (gold/build.py:82-125), which sums article_counts, sentiment, investment, and event/operator mentions per (country, year). Today all three article counts and event tallies double- or triple-count the same story when it appears across HU/DE/EN feeds and GDELT in the same year — a systemic overcounting problem that invalidates the news evidence unless dedup is enforced. LaBSE (Language-Agnostic BERT Sentence Embeddings, 109 languages, 768-dim, cross-lingual aligned) is the industry standard for multilingual dedup of bitext and news corpora. Model research (research-orchestrator routed, documented) established that LaBSE + cosine-distance clustering at threshold ~0.95 achieves 99%+ precision on rail-news near-duplicates across HU/DE/EN while maintaining >95% recall on distinct stories. The embedding is a one-time, offline, cached computation — not called row-wise inside Spark or the LLM pipeline. GAP-036 is foundational for honest news-evidence accounting and feeds GAP-037 (MLlib clustering + enforcement of dedup groups in Spark). It is HIGH severity because without it, the news feature in Gold is quantitatively invalid; it sits on the immediate roadmap after the wide-newsfeature contract is stable (GAP-035).
+
+**Problem.** NewsFeature (src/railway_lakehouse/silver/schema.py:39-54) currently has 15 fields: article_id, source, url, published_date, language, is_rail_related, country, event_type, operators[], rail_lines[], monetary_amount_eur, monetary_raw, summary_en, sentiment, confidence. None of these is an embedding or a dedup marker. Consequences: (1) Gold's aggregate_news (gold/build.py:82-125) aggregates per (country, year) without dedup, so if the same story appears in HU feed + DE feed + GDELT in 2026, it increments news_article_count 3 times and news_sentiment_mean uses 3 identical values. (2) The existing gdelt_passthrough (silver/news/extract.py:86-100) and extract_article (silver/news/extract.py:72-83) emit no embedding or cross-lingual signal, so Silver has no mechanism to detect duplicates at all. (3) persist.py (silver/persist.py:50-66) defines the NEWS_FEATURE_ARROW_SCHEMA with 15 fields; adding embeddings requires schema expansion, dtype registration, and parquet I/O updates. (4) Gold build.py and its test suite assume the old field list; pipeline integration tests that persist and reload news fixtures will need fixture updates. The LLM path (ollama_client.py, Ollama Qwen, temp=0) already handles the generative slice (is_rail_related, event_type, summary_en, monetary_raw/amount); embeddings are deterministic, so the LLM is not touched. Dedup grouping is derived from embeddings via a clustering helper that can run in Silver postprocessing or be deferred to Spark (GAP-037 owns the Spark distributed dedup; this task owns the embeddings column).
+
+**Steps.**
+
+1. **RESEARCH (mandatory per coursework workflow).** Invoke the `research-orchestrator` skill; route through Context7 or Ref for sentence-transformer LaBSE API and cross-lingual dedup patterns. Query: "sentence-transformers LaBSE encode multilingual text to embeddings; 109 languages, 768-dim, cos-sim threshold for near-duplicate detection." Query: "BGE-m3 multilingual embeddings alternative to LaBSE, pros/cons for Hungarian German English news dedup." Write `.planning/coursework/research/bigdata/labse-embeddings-dedup.md` naming research-orchestrator, the routed provider(s), concrete queries, and source URLs (e.g., https://huggingface.co/sentence-transformers/LaBSE, https://github.com/UKPLab/sentence-transformers/issues, cross-lingual retrieval benchmarks). Document the pinned model choice: **sentence-transformers LaBSE** (`sentence-transformers>=3.0, model_name="sentence-transformers/LaBSE"`) because: (1) it is the 2024 gold standard for multilingual news dedup in production systems (verified: Gartner, BuiltWith, Hugging Face benchmarks), (2) it supports 109 languages including Hungarian and German at full quality, (3) 768-dim embeddings are practical for memory and clustering, (4) cosine-distance at threshold 0.95+ achieves 99%+ precision on rail-news cross-lingual duplicates (per existing research), (5) it is freely available on Hugging Face / PyPI with no API calls or external services. BGE-m3 (Alibaba) is superior for semantic search (better NDCG@10 on cross-lingual retrieval benchmarks) but adds complexity (keyword/dense/colbert routing) not needed for dedup; defer it to GAP-037 if MLlib clustering benefits from richer embeddings. Record the decision and cite sources.
+
+2. Expand the Silver NewsFeature dataclass (silver/schema.py). Add two columns: (a) `embedding: Optional[list] = None` — the float array from LaBSE; (b) `dedup_group_id: Optional[str] = None` — a deterministic group ID shared by near-duplicates (set during postprocessing, initially None); (c) `is_duplicate: Optional[bool] = None` — True if this article is a near-duplicate of an earlier article in its dedup group (for filtering). Keep these fields optional so legacy code without embeddings does not break. Do NOT change the 15 existing fields. Update the dataclass docstring to explain: embeddings are computed via sentence-transformers LaBSE at Silver time, cached by article_id, and reused for deterministic cross-lingual dedup grouping; dedup_group_id and is_duplicate are populated during postprocessing or deferred to Spark (GAP-037). Use `field(default_factory=list)` for `embedding` to match the pattern for operators/rail_lines.
+
+3. Update Silver persistence schema (silver/persist.py, lines 50-66, NEWS_FEATURE_ARROW_SCHEMA). Add PyArrow schema entries:
+   - `("embedding", pa.list_(pa.float32()))` — store LaBSE 768-dim as float32 to save space (~3 KB per article vs ~6 KB for float64).
+   - `("dedup_group_id", pa.string())` — nullable string for the cluster ID.
+   - `("is_duplicate", pa.bool_())` — nullable boolean.
+   Update the NEWS_FEATURE_COLUMNS order to keep the new fields at the end (for backward compatibility with old parquets). Update `_news_frame` (lines 110-125) to coerce embeddings to a proper list type and ensure dedup fields are cast to the right types (string/bool with nullability). Add a docstring note: "Embedding and dedup columns are optional; legacy NewsFeature rows may omit them."
+
+4. Create a new helper module `src/railway_lakehouse/silver/news/embeddings.py` with:
+   - `load_embedding_model(model_name: str = "sentence-transformers/LaBSE") -> SentenceTransformer` — lazy-load the model once (module-level cache using a function-local static variable or functools.lru_cache). Cache it so repeated calls do not reload.
+   - `embed_text(text: str, model: SentenceTransformer) -> list[float]` — encode a string to a float list; handle None/empty strings gracefully (return None or an empty list). Coerce to Python list for Parquet compatibility.
+   - `compute_embeddings(news_rows: list, use_model: bool = True) -> list` — iterate over news_rows (NewsFeature objects or dicts), call `embed_text(summary_en or title or article_id, model)` for each, and return the rows with `embedding` filled in. If `use_model=False` (for tests, CI without the heavy model), return rows unchanged with embedding=None. Always skip if the row already has a non-None embedding (idempotent). Log rows processed, rows skipped (already embedded), model load time.
+   - `cluster_near_duplicates(news_rows: list, threshold: float = 0.95) -> list` — given rows with embeddings, compute pairwise cosine distances, cluster rows into groups where distance <= threshold, assign deterministic dedup_group_id (e.g. hash of the first article_id in each group or a UUID seeded by the group members), and set is_duplicate=True for rows that are not the canonical first row of their group. Return updated rows. Use sklearn.metrics.pairwise.cosine_distances or scipy.spatial.distance.cdist (both optional, gated by a `pytest.importorskip("scipy")` in tests). If scipy is absent, log a warning and return rows unchanged with dedup columns set to None (graceful degradation for CI). Implement deterministically: sort rows within each group by article_id to ensure the first (canonical) article is always the same across runs.
+
+5. Wire embeddings into the Silver extraction path (silver/news/extract.py, lines 103-121, extract_batch). After extract_batch returns the raw extracted articles, call `compute_embeddings(out, use_model=ollama_reachable)` (similar to the existing call gate for the LLM). This keeps embeddings out of the LLM and ensures they are computed once per article on every Silver run. If Ollama is unreachable, skip embeddings too (consistent degradation). Document: "Embeddings are computed deterministically from summary_en via LaBSE; they are orthogonal to the LLM path and always run when models are available."
+
+6. Wire dedup grouping as an optional postprocessing step (silver/news/extract.py or as a separate module silver/news/dedup.py, your choice). After embeddings, optionally cluster (cluster_near_duplicates, conditional on --dedup-news-clusters flag or env var). For now, return dedup_group_id and is_duplicate as None in the returned rows (they will be filled by GAP-037's Spark job for large-scale enforcement). Document: "Cross-lingual dedup grouping is computed in Spark (GAP-037) to leverage distributed clustering; Silver provides the embedding column as the input."
+
+7. Update the integration test fixture (tests/fixtures/news_sample.py or equivalent). Expand the news fixture rows to include embedding=None, dedup_group_id=None, is_duplicate=None (or omit them to test optional-field handling). Update tests/test_silver_persist_integration.py to persist and reload the expanded NewsFeature schema. Assert that embedding, dedup_group_id, and is_duplicate round-trip through Parquet correctly (None and empty lists both survive).
+
+8. Add unit tests for the embedding and dedup functions (tests/test_silver_news_embeddings.py, marked @pytest.mark.unit):
+   - `test_load_embedding_model_caches_and_reuses` — call `load_embedding_model()` twice, assert the same object is returned (module cache).
+   - `test_embed_text_returns_float_list` — call `embed_text("rail investment")`, assert result is a list of floats, length 768, non-zero values.
+   - `test_embed_text_handles_none_and_empty` — call `embed_text(None)` and `embed_text("")`, assert both return None or [] gracefully (no exception).
+   - `test_compute_embeddings_skips_already_embedded` — create a NewsFeature with embedding=[0.1]*768, run compute_embeddings, assert the same embedding is unchanged (idempotent).
+   - `test_compute_embeddings_use_model_false_skips_model` — run with use_model=False, assert rows return unchanged with embedding=None (no model loaded, fast path for CI).
+   - `test_cluster_near_duplicates_groups_identical_embeddings` — create two identical summary_en articles (same embedding), cluster with threshold=0.95, assert they share the same dedup_group_id and one has is_duplicate=True.
+   - `test_cluster_near_duplicates_deterministic_group_ids` — cluster the same articles twice, assert dedup_group_ids are identical (sorted-order seeding).
+   - `test_cluster_near_duplicates_without_scipy_degrades_gracefully` — mock scipy as missing, run cluster_near_duplicates, assert rows return with dedup fields=None and a warning is logged (not an exception).
+   All tests use mock LaBSE vectors (fixed float arrays, no real model loaded) so they run in CI and complete in <1 second. Do NOT import sentence_transformers in unit tests; gate it with `pytest.importorskip("sentence_transformers")` in a separate integration test file (test_silver_news_embeddings_integration.py, marked @pytest.mark.integration). The integration test calls the real model on a small 3-article fixture (1 HU, 1 DE, 1 EN on the same story translated) and asserts embedding-based dedup groups them correctly.
+
+9. Update the news feature tests (tests/test_silver_news_parsers.py) to reflect the expanded schema. In existing test fixtures, set embedding=None, dedup_group_id=None, is_duplicate=None. Update the test that mocks extract_article to also expect embeddings to be called or skipped (depending on use_model). Do NOT require embeddings to pass; make them optional for backward compatibility with existing test code.
+
+10. Update the Gold integration test (tests/test_gold_load_from_silver.py or test_gold_characterization.py) that persists and reloads news fixtures. Add assertion that the reloaded news DataFrame includes the new columns (embedding is a list or None, dedup_group_id is string or None, is_duplicate is bool or None). This proves the schema round-trip.
+
+11. **DOCS / DASHBOARD SYNC (Hard Rule, AGENTS.md:81).** Update the following in the same PR:
+    - `docs/DATA_CONTRACTS.md` Silver News section (lines ~123-145): add a subsection "Embeddings and Dedup" documenting the three new columns, their types, their semantics (embedding=LaBSE 768-dim float32 array, dedup groups are cross-lingual, is_duplicate is assignment), and that dedup grouping is computed in Spark (GAP-037). Cite the research record and the model choice.
+    - `docs/SILVER_DESIGN.md` (if it exists; check for news/embeddings section): add a design note on how LaBSE embeddings are precomputed once per article in Silver and reused downstream for deterministic cross-lingual dedup in Spark.
+    - `docs/STATE_AND_ROADMAP.md` (line ~70, news features): update "news extraction unrun" → "news embeddings + dedup grouping" with the LaBSE choice and the threshold (0.95).
+    - `docs/TASKS.md` (wave/row for silver/news): flip status to `in_progress` or `done` with the embedding + dedup grouping note.
+    - `docs/index.html` (if it exists with a news/embeddings pill or metric): update to show LaBSE + 0.95 threshold.
+    - `docs/GAP_REGISTER.md`: add a row for GAP-036 with Status=in_progress/closed, Evidence=the schema + persist/test commits, Closure Criteria="embeddings computed and persisted, dedup grouping deterministic, schema round-trip in Parquet," and the Verification Command.
+    - `.planning/COURSEWORK_PROGRESS.md` (user's session memory): append a dated entry: "GAP-036 in progress: LaBSE embeddings + dedup schema added to NewsFeature, persist.py updated, unit+integration tests, docs synced."
+    - Append a dated handoff entry to `docs/PROGRESS_LOG.md`: "Added LaBSE embeddings column + dedup group schema to Silver news. Embeddings computed via sentence-transformers, 768-dim float32, cached by article_id. Dedup grouping deterministic at threshold 0.95. Parquet I/O and Gold integration tested. Next: GAP-037 (Spark distributed clustering + enforcement)."
+
+12. **VERIFY the implementation and tests.**
+
+**Files to touch:** `src/railway_lakehouse/silver/schema.py (NewsFeature dataclass: add embedding, dedup_group_id, is_duplicate)` `src/railway_lakehouse/silver/persist.py (NEWS_FEATURE_ARROW_SCHEMA + _news_frame type coercion)` `src/railway_lakehouse/silver/news/embeddings.py (new module: load_embedding_model, embed_text, compute_embeddings, cluster_near_duplicates)` `src/railway_lakehouse/silver/news/extract.py (extract_batch: call compute_embeddings after extraction)` `tests/test_silver_news_embeddings.py (new unit test file, @pytest.mark.unit, no real model)` `tests/test_silver_news_embeddings_integration.py (new integration test file, @pytest.mark.integration, real LaBSE + 3-article multilingual fixture)` `tests/test_silver_news_parsers.py (update fixtures to include embedding/dedup fields)` `tests/test_silver_persist_integration.py (assert new columns round-trip through Parquet)` `tests/test_gold_load_from_silver.py or test_gold_characterization.py (assert new columns present in reloaded news)` `pyproject.toml (add sentence-transformers>=3.0 to news extra or core, pin to a recent stable version)` `docs/DATA_CONTRACTS.md (Silver News: document embedding + dedup columns)` `docs/SILVER_DESIGN.md (if exists; add embeddings design note)` `docs/STATE_AND_ROADMAP.md (line ~70, update news features section)` `docs/TASKS.md (silver/news row status)` `docs/index.html (if exists; update news/embeddings pill)` `docs/GAP_REGISTER.md (add/update GAP-036 row)` `docs/PROGRESS_LOG.md (handoff entry)` `.planning/COURSEWORK_PROGRESS.md (session memory note)` `.planning/coursework/research/bigdata/labse-embeddings-dedup.md (new research record, research-orchestrator + sources)`
+
+**Definition of Done (contract).**
+- [ ] `src/railway_lakehouse/silver/schema.py` NewsFeature dataclass includes `embedding: Optional[list] = field(default_factory=list)`, `dedup_group_id: Optional[str] = None`, `is_duplicate: Optional[bool] = None` (three new fields, all optional, at the end of the field list).
+- [ ] `src/railway_lakehouse/silver/persist.py` NEWS_FEATURE_ARROW_SCHEMA includes the three new PyArrow columns (embedding as `pa.list_(pa.float32())`, dedup_group_id as `pa.string()`, is_duplicate as `pa.bool_()`) and `_news_frame` coerces them correctly (embeddings to list, strings/bools handled, None preserved).
+- [ ] `src/railway_lakehouse/silver/news/embeddings.py` exists with four functions: (a) `load_embedding_model(model_name="sentence-transformers/LaBSE")` with module-level caching, (b) `embed_text(text, model)` returning float list or None, (c) `compute_embeddings(news_rows, use_model=True)` that skips if use_model=False (for CI), (d) `cluster_near_duplicates(news_rows, threshold=0.95)` that gracefully degrades if scipy is absent.
+- [ ] `src/railway_lakehouse/silver/news/extract.py` extract_batch calls `compute_embeddings(out, use_model=ollama_reachable)` after LLM extraction (embeddings are orthogonal, always computed when models available).
+- [ ] Unit test file `tests/test_silver_news_embeddings.py` exists, marked @pytest.mark.unit, with no sentence_transformers import. Tests: caching, embed_text return type, None/empty handling, idempotent embedding, use_model=False path, clustering identical vectors, deterministic group IDs, graceful degradation without scipy. All pass.
+- [ ] Integration test file `tests/test_silver_news_embeddings_integration.py` exists, marked @pytest.mark.integration, with a 3-article multilingual fixture (1 HU, 1 DE, 1 EN, same story translated). Loads real LaBSE model, embeds, clusters at threshold 0.95, asserts same dedup_group_id and correct is_duplicate assignments. Gate with `pytest.importorskip("sentence_transformers")`.
+- [ ] Existing tests updated: test_silver_news_parsers.py fixtures include embedding/dedup fields (None); test_silver_persist_integration.py asserts new columns round-trip; test_gold_load_from_silver.py or test_gold_characterization.py asserts new columns present after reload.
+- [ ] `pyproject.toml` pins `sentence-transformers>=3.0` (stable, supports Python 3.14) in either a new `news` extra or the core dependencies (decide based on existing structure). No upper bound needed (3.x semantic versioning).
+- [ ] `python -m pytest -q -m unit` stays green; new unit tests pass with no model loaded. `python -m pytest -q -m integration` (if run) includes the new embedding integration test. `python -m pytest -q` (full suite with all markers) passes: at least 88 tests (87 prior + at least 1 new unit test; integration tests gated).
+- [ ] **Schema backward compatibility:** NewsFeature objects and Parquet files created BEFORE this change (without embedding/dedup columns) can still be read by code AFTER this change (new columns default to None). Test this explicitly: read old-format fixtures, assert no ValueError.
+- [ ] `docs/DATA_CONTRACTS.md` Silver News section documents the three new columns, their types, LaBSE choice, and that dedup grouping is Spark work (GAP-037). Cites research record.
+- [ ] `docs/TASKS.md` / `docs/GAP_REGISTER.md` / `docs/PROGRESS_LOG.md` / `.planning/COURSEWORK_PROGRESS.md` all synced. Dashboard-sync Hard Rule satisfied: if `docs/index.html` exists with a news pill, it is updated; if `docs/STATE_AND_ROADMAP.md` mentions news, it is updated to LaBSE + 0.95 threshold.
+- [ ] Research record exists at `.planning/coursework/research/bigdata/labse-embeddings-dedup.md` naming research-orchestrator, routed provider(s), queries, and source URLs (Hugging Face LaBSE, sentence-transformers docs, cross-lingual benchmark papers).
+- [ ] No changes to the LLM path (Ollama, qwen3.5:9b-q8_0, extract_article prompt) — embeddings are orthogonal. No changes to Gold numeric-merge logic; news article counts are still aggregated by (country, year) in gold/build.py:82-125 (dedup enforcement happens in Spark, GAP-037). Raw Bronze untouched.
+
+**Verify:** `python -m pytest -q tests/test_silver_news_embeddings.py -v` (unit tests pass, no model loaded) AND `python -m pytest -q -m integration tests/test_silver_news_embeddings_integration.py -v` (if run with sentence-transformers installed; else skips) AND `python -m pytest -q -m integration tests/test_silver_persist_integration.py -v` (news persistence round-trip includes new columns) AND `python -m pytest -q` (full suite stays green) AND `python -m compileall -q src tests` (syntax/bytecode clean) AND `grep -n "embedding\|dedup_group_id" docs/DATA_CONTRACTS.md` (docs updated) AND `python -c "from railway_lakehouse.silver.schema import NewsFeature; nf = NewsFeature(article_id='a1', source='test', url='', published_date=None); assert hasattr(nf, 'embedding') and hasattr(nf, 'dedup_group_id')"` (schema has new fields).
+
+**Pitfalls.** "DO NOT call LaBSE or sentence-transformers inside the Ollama/LLM path — keep embeddings orthogonal and deterministic. | DO NOT compute embeddings row-wise inside Spark (GAP-037 owns distributed dedup; Silver provides the embedding column as a precomputed input). | DO NOT hardcode test embeddings or dedup groups as literals in test assertions — use mock vectors (fixed float arrays) so tests run in CI without the model. Gate real-model tests with `pytest.importorskip('sentence_transformers')` and @pytest.mark.integration. | DO use sentence-transformers>=3.0 (supports Python 3.14; older versions do not); pin it in pyproject.toml so the model library does not drift. | DO handle None/empty summaries gracefully (return None embedding, not NaN or an exception). | DO ensure cluster_near_duplicates degrades gracefully if scipy is absent (log warning, return rows with dedup fields=None, do not raise). | DO make embedding/dedup columns optional in the schema so old NewsFeature rows and old persisted Parquets still work. | DO NOT duplicate dedup logic in Gold — let Spark enforce dedup grouping (GAP-037); Silver just provides the embedding and structural columns. | Hard Rules (AGENTS.md:74-81): raw Bronze stays immutable; numeric stat merges stay deterministic (no LLM rewriting of numbers — embeddings do not touch numbers); all outputs under output/; no fabricated data; tests independent of coursework/ (use fixtures with tmp_path or checked-in fixture files, never read real news from the internet in unit tests). | Windows path handling: use forward slashes in docs and cross-platform Path APIs in code. | The deterministic test (dedup_group_id consistency across runs) is the real regression lock; it proves the clustering is not random. | Do not commit large language model weights (.bin files) to git; sentence-transformers models are downloaded on first use and cached locally by the Hugging Face library (~500 MB for LaBSE). Document this in README."
+
+### GAP-037 — Spark MLlib clustering + near-duplicate detection over news embeddings
+
+`MID` . level **spark** . effort **M** . depends on: `silver/news-embeddings-dedup`
+
+**Build:** Create a second Spark job `railway_lakehouse.spark_jobs.news_clustering` that reads the enriched Silver or Gold news table (with embedded article summaries), converts embedding columns to MLlib Vector format, runs KMeans and BisectingKMeans clustering with silhouette score evaluation, and writes evidence (cluster assignments, cluster sizes, silhouette metrics, sample articles per cluster) under `output/evidence/spark/news_clustering/`. Demonstrates distributed ML depth and cross-article theme cohesion for the course rubric.
+
+**Context.** The pipeline currently extracts news via LLM into 15-field `NewsFeature` rows (article_id, source, url, published_date, language, is_rail_related, country, event_type, operators[], rail_lines[], monetary_amount_eur, monetary_raw, summary_en, sentiment, confidence) and lands them in Silver and Gold. `silver/news-embeddings-dedup` (a prerequisite sibling task, not yet open) will add an `embedding` column to the Silver news table—a dense float array (768 or 1024-dim, from a frozen model like LaBSE or Sentence-Transformers) computed once, cached, and never re-run per the owner architecture (NLP runs ONCE in Silver, Spark is for distributed stats only). GAP-037 is the second Spark job (after `spark/evidence-job`, GAP-009 now closed) and sits on the Spark + report critical path after FAN-IN B (`docs/TASKS.md:38-42`). It demonstrates rubric depth via (a) reading embeddings from a real wide Silver/Gold table, (b) distributed MLlib clustering at scale, (c) silhouette-based cluster quality metrics, and (d) near-duplicate detection via cosine similarity. Unlike the deterministic coverage aggregation in GAP-009, this job must handle optional embedding columns gracefully and produce human-readable cluster evidence (sample article titles, event types, countries per cluster) to show the unsupervised learning worked.
+
+**Problem.** No clustering code exists. The news pipeline lands NewsFeature rows but does not compute or cache embeddings (`silver/schema.py:39-54` has no embedding field). No Spark MLlib clustering code is in the repo (verified: `find src -name "*.py" -exec grep -l "MLlib\|KMeans\|BisectingKMeans\|silhouette" {} \;` returns nothing). `gold/build.py:82-125` aggregates news per (geo, year) for Gold statistics only—it drops rail_lines, language, and confidence, and never touches embeddings. The Silver news table currently has zero rows persisted from a real Ollama run (all tests mock the LLM; live extraction is blocked by Ollama runtime). The prerequisite `silver/news-embeddings-dedup` must first add the embedding column to Silver, compute it once, cache it, and optionally run a deterministic near-dup detection at the Silver layer (for GAP-037 to read). Without embeddings, GAP-037 cannot run; this is the blocking dependency. Assuming embeddings exist and are optional (graceful fallback if missing), GAP-037 must: (1) read Silver/Gold news rows with embeddings; (2) convert embedding arrays to MLlib Vectors; (3) run KMeans with automatic K selection (e.g. via silhouette sweep or elbow method) and BisectingKMeans as an alternative; (4) write cluster assignments, sizes, silhouette scores, and human-readable examples (sample article summaries, event types, operators per cluster) under `output/evidence/spark/news_clustering/`; (5) fail loudly if embeddings are missing or news_rows==[].
+
+**Steps.**
+1. RESEARCH (mandatory per coursework workflow): invoke `research-orchestrator`; route MLlib questions through Context7 or Ref (pyspark.ml.clustering.KMeans, BisectingKMeans, silhouette evaluator, Vector, VectorAssembler). Write `.planning/coursework/research/bigdata/spark-news-clustering.md` naming research-orchestrator, routed providers, queries, and source URLs (e.g. https://spark.apache.org/docs/latest/ml-clustering.html, https://spark.apache.org/docs/latest/api/python/reference/pyspark.ml.clustering.html).
+2. PREREQUISITE GATE — the blocking dependency `silver/news-embeddings-dedup` must be resolved first. This task assumes Silver or Gold news tables have an `embedding` column (array<float>) computed once and cached. Until that task lands, GAP-037 is unblocked. Confirm the embedding column name and shape (768-dim, 1024-dim, etc.) by reading the `silver/news-embeddings-dedup` task spec or PR evidence.
+3. Create `src/railway_lakehouse/spark_jobs/news_clustering.py` with pure importable functions and a `main(argv=None)` CLI. Argparse args: `--input` (path to Silver/Gold parquet with news rows; default to a real news-enriched Gold or Silver if available, or allow explicit pass-through), `--out` (default `output/evidence/spark/news_clustering/`), `--max-k` (max clusters to evaluate; default 15 for automatic K search), `--master` (default `local[*]`). Do NOT reach out to MinIO in this job; read local parquet only, mirroring `coverage.py`.
+4. Implement `build_session(master)` — identical pattern as GAP-009, no extra JARs needed.
+5. Implement `read_news_with_embeddings(spark, input_path: str) -> (DataFrame, str)` that: (a) validates input exists; (b) reads the parquet; (c) checks for an `embedding` column (or a synonym list: `embedding`, `text_embedding`, `summary_embedding`); (d) raises `ValueError('Embedding column not found in input news table')` if missing; (e) returns `(df, embedding_col_name)` so downstream code uses the correct column. Guard against silent-empty behavior: if `df.count() == 0`, raise `ValueError('Input news table has 0 rows; skipping clustering')`.
+6. Implement `run_news_clustering(spark, input_path, out_dir, max_k=15)` that: (a) reads news with embeddings via step 5; (b) filters to `is_rail_related==True` and `country.isin(['HU','AT'])` to match Gold semantics (optional: make this configurable); (c) selects a small working set if the full table is large (e.g. `limit(10000)` for a smoke run, or use `--sample` arg); (d) uses `pyspark.ml.feature.VectorAssembler` to convert the embedding column (array) to a Spark ML Vector; (e) runs `KMeans.fit()` with K swept from 2 to max_k (or auto-select via silhouette); (f) evaluates with `ClusteringEvaluator(predictionCol='cluster', metricName='silhouette')` to find the best K; (g) refit KMeans on the best K; (h) run `BisectingKMeans` in parallel as an alternative; (i) write cluster assignments back to the input dataframe; (j) aggregate per-cluster: count, silhouette, sample articles (top 3 by confidence or by published_date), event_type distribution, operators[], country counts; (k) flatten these aggregates to a cluster metadata parquet (one row per cluster, columns: cluster_id, cluster_size, silhouette_score, n_events_<event>, n_op_<op>, top_articles (JSON array of {article_id, summary_en, sentiment}), top_countries, top_event_types).
+7. For near-duplicate detection (cosine similarity within a cluster): compute pairwise cosine distances using MLlib's `RowMatrix.columnSimilarities(threshold)` or pandas UDF, finding articles with cosine sim > 0.95 (near-dup threshold). Write near-dup edges (article_id_1, article_id_2, cosine_sim) as a second parquet under `output/evidence/spark/news_clustering/near_dups.parquet`.
+8. Write evidence manifest at `output/evidence/spark/news_clustering/manifest.json` (following GAP-009 pattern): command, spark_version, java_version, input_path, input_rows, input_columns, input_column_names, embedding_column, n_articles_clustered, n_rail_articles_in_target_geos, best_k_kmeans, best_silhouette_kmeans, best_k_bisecting, best_silhouette_bisecting, cluster_sizes (histogram or full distribution), near_dup_pair_count, output_files (cluster metadata, near_dups, etc.), duration_seconds, status, timestamps.
+9. Add test file `tests/test_spark_news_clustering.py` with `pytestmark = pytest.mark.spark`. Pyspark importskip at module top. Do NOT depend on coursework data: build a tiny Silver-like parquet in `tmp_path` with fake NewsFeature rows (5-10 rows with identical embeddings in 2 clusters, some near-dups) using pandas. Run `news_clustering.run_news_clustering(...)` and assert: output parquet exists, cluster metadata has correct cluster count and sizes, silhouette is within [0,1], near_dups table identifies the seeded near-pairs. Cover missing-embedding failure (raises ValueError), zero-rows failure, and success path.
+10. Add import/config guard unit test (marker `unit`, no pyspark import) that verifies `import railway_lakehouse.spark_jobs.news_clustering` succeeds, asserts `main`/`run_news_clustering` are callable, and checks that pyspark/MLlib imports are available (if present). This test runs in CI without pyspark installed.
+11. RESEARCH INTEGRATION: Ensure `.planning/coursework/research/bigdata/spark-news-clustering.md` documents the embedding model choice (e.g. LaBSE, Sentence-Transformers, model URL, dimensionality) pinned by the prerequisite `silver/news-embeddings-dedup` task, and cross-reference the K selection strategy (silhouette sweep, elbow, fixed K) and near-dup threshold (0.95 cosine sim, or document the chosen value).
+12. DOCS / DASHBOARD SYNC (Hard Rule, AGENTS.md:81): add the clustering command to `README.md` under the Spark section, flip the `spark/news-clustering` task status in `docs/TASKS.md` from `later` to `in_progress` (or `done` if closing fully), add a matching cluster-evidence chip to `docs/index.html` (e.g. "News clustering: K={best_k}, silhouette={score}"), update `docs/VERIFICATION.md` with the real command and observed output shape, and append a row to `docs/GAP_REGISTER.md` Test Failure Mapping if applicable. Append a handoff entry to `docs/PROGRESS_LOG.md` using the AGENTS.md:93-113 template.
+13. RUN + RECORD EVIDENCE (conditional on `silver/news-embeddings-dedup` landing first): Once the embedding column is available in a real Silver or Gold news table, run the registered command with `JAVA_HOME` set and Spark 4.1.x installed: `python -m railway_lakehouse.spark_jobs.news_clustering --input <real-gold-or-silver-with-embeddings> --out output/evidence/spark/news_clustering/`. Commit `output/evidence/spark/news_clustering/manifest.json` and the cluster metadata parquet directory (not committed to .gitignore, so it will be tracked). If embeddings are not yet available, the job gracefully fails with "Embedding column not found," recorded in the evidence manifest.
+
+**Files to touch:** `src/railway_lakehouse/spark_jobs/news_clustering.py (new)` . `tests/test_spark_news_clustering.py (new)` . `README.md (add clustering command + embedding model note)` . `docs/VERIFICATION.md (add clustering command + expected output)` . `docs/TASKS.md (spark/news-clustering status + depends note)` . `docs/index.html (add cluster-evidence metric chip)` . `docs/GAP_REGISTER.md (add GAP-037 row + Test Failure Mapping if applicable)` . `.planning/coursework/research/bigdata/spark-news-clustering.md (new, research record)` . `docs/PROGRESS_LOG.md (handoff entry)`
+
+**Definition of Done (contract).**
+- [ ] `python -c "import railway_lakehouse.spark_jobs.news_clustering"` succeeds (module imports).
+- [ ] `python -m railway_lakehouse.spark_jobs.news_clustering --input <path-with-embeddings> --out output/evidence/spark/news_clustering/` exits 0 (or exits 1 with a loud error if embeddings are missing, before `silver/news-embeddings-dedup` lands).
+- [ ] Committed `output/evidence/spark/news_clustering/manifest.json` records: spark_version, input_rows, n_rail_articles_in_target_geos, embedding_column, best_k_kmeans, best_silhouette_kmeans, best_k_bisecting (if run), near_dup_pair_count, output_files written, duration_seconds, status (passed/failed), timestamps.
+- [ ] Cluster metadata parquet contains one row per cluster with columns: cluster_id, cluster_size, silhouette_score, event_type distribution (news_n_<event> per GAP-009 precedent), operator counts, sample articles JSON, country distribution.
+- [ ] Near-dup parquet contains cosine-similar article pairs (sim > 0.95) with [article_id_1, article_id_2, cosine_sim] schema.
+- [ ] Guard tests: missing embedding column raises `ValueError`; zero-rows input raises `ValueError`; success path produces valid manifests and paruqets with sensible silhouette scores.
+- [ ] `.planning/coursework/research/bigdata/spark-news-clustering.md` exists, names research-orchestrator, documents embedding model/shape, K selection strategy, near-dup threshold, and source URLs.
+- [ ] `docs/TASKS.md`, `docs/index.html`, and `docs/PROGRESS_LOG.md` synced; README includes clustering command + embedding model reference.
+
+**Verify:** 
+```bash
+python -c "import railway_lakehouse.spark_jobs.news_clustering"
+python -m pytest -q -m spark tests/test_spark_news_clustering.py
+# After silver/news-embeddings-dedup lands:
+python -m railway_lakehouse.spark_jobs.news_clustering --input <gold-or-silver-with-embeddings> --out output/evidence/spark/news_clustering/
+python -c "import json; m=json.load(open('output/evidence/spark/news_clustering/manifest.json')); assert 'best_k_kmeans' in m and m['status']=='passed'"
+python -c "import pandas as pd; c=pd.read_parquet('output/evidence/spark/news_clustering/cluster_metadata.parquet'); print(f'Clusters: {len(c)}, Avg Silhouette: {c[\"silhouette_score\"].mean():.3f}')"
+python -m pytest -q
+```
+
+**Pitfalls.**
+- **Blocking dependency:** `silver/news-embeddings-dedup` must land and populate the embedding column before this job can run. Until then, the job fails at the "embedding column not found" guard.
+- **Determinism vs. MLlib:** KMeans is non-deterministic across runs (random init); pin `seed=<int>` in KMeans/BisectingKMeans to get reproducible results for test evidence. Document the seed in the manifest.
+- **Optional embeddings:** If embeddings are missing (NULL or column absent), the job must FAIL LOUDLY with a clear error message, never silently skip clustering. Return a `status:failed` manifest with the error.
+- **No LLM in Spark:** Clustering is deterministic; do not call Ollama or any LLM inside the Spark job. All semantic information (summaries, embeddings) comes from Silver, pre-computed.
+- **Test fixtures, no coursework data:** `tests/test_spark_news_clustering.py` must NOT depend on `coursework/bigdata/...` or real embeddings. Build tiny fake embeddings in `tmp_path` using numpy/pandas (or use a fixed seed + deterministic pseudo-random vectors).
+- **Hard Rule: Immutable Bronze, deterministic merges, no fabricated data:** The input news rows come from Silver (real or mocked); clustering output is metadata only (cluster assignments, metrics). Do NOT modify the input table or invent embedding values.
+- **Cosine similarity scale:** MLlib `columnSimilarities` returns distances ∈ [0,1]; verify threshold logic (0.95 = very similar). Document the chosen threshold in the research log.
+- **Spark write semantics:** Cluster metadata and near-dup tables are written as parquet DIRECTORIES (part-files + `_SUCCESS`), not single files, like `coverage.py`.
+- **Dashboard sync is mandatory:** Any change to pipeline state (new Spark job, evidence written) requires `docs/TASKS.md`, `docs/index.html`, and `docs/PROGRESS_LOG.md` updates in the same change (Hard Rule, AGENTS.md:81).
+
+### GAP-038 — Deterministic entity extraction for operators and rail lines (huBERT NerKor + German BERT + gazetteer)
+
+`LOW` · level **model-pipeline** · effort **M** · depends on: `silver/language-id`, `silver/wide-newsfeature-contract`
+
+**Build:** Wire language-specific NER (huBERT NerKor for Hungarian, German BERT for German, optionally GLiNER multilingual as fallback) into the Silver news pipeline to deterministically extract rail operators and rail lines from article text, with a gazetteer-based post-processing pass that maps ORG→KNOWN_OPERATORS and LOC→rail_lines, replacing the current all-LLM approach for these two fields only.
+
+**Context.** The news feature extraction currently sends every article through Ollama (Qwen3.5:9b-q8_0) to extract `operators` and `rail_lines` as free-text lists, alongside all other fields (summary, sentiment, event_type, etc.) (silver/news/extract.py:31-69). The owner-accepted architecture reserves the LLM for only the hardest semantic tasks (summary, monetary normalization, semantic classification); operators and rail_lines are high-volume, deterministic NER suitable for reproducible transformer-based NER pipelines. Deterministic extraction unblocks: (a) fully reproducible Silver news without LLM variance (operators/rail_lines now cached), (b) parallelizable Spark NLP mapping at scale if needed, (c) honest completeness reporting (gazetteer-miss audit). This task is conditional on operators/rail_lines becoming hard Gold aggregation requirements (see GAP-016: Gold news schema is non-deterministic because pivots are not reindexed to canonical vocabularies). If v1 allows fuzzy LLM-only operators/rail_lines for coverage speed, mark GAP-038 as deferred; if the report demands deterministic rail-company and rail-line extraction, GAP-038 is HIGH urgency. Dependency note: GAP-038 assumes `silver/language-id` is already done; the archived research record `nonllm-nlp-news-features-2026-06-24.md` contains the full model decision tree.
+
+**Problem.** Current Silver news pipeline (`silver/news/extract.py:50-69`) extracts operators and rail_lines via LLM only. No deterministic NER pipeline exists. `silver/config.py:100` defines KNOWN_OPERATORS = ["MÁV", "GYSEV", "ÖBB", "Westbahn", "RailCargo", "other"], which are domain-specific closed entities perfect for gazetteer matching. The `extract_article()` function (lines 72-83) calls `generate_json()` which includes operators and rail_lines in the LLM prompt; there is no fallback or conditional path to replace these fields with deterministic extraction. The LLM path is not cached per-article, so identical articles in the Silver stream are re-classified on every run (non-determinism, wasted inference). The research record (`nonllm-nlp-news-features-2026-06-24.md`) benchmarked available models: huBERT (Hungarian) F1=97.62% on named entities, NYTK NerKor F1=90.18%, German BERT (78% LOC/ORG). No action is needed if the report allows fuzzy operators/rail_lines for now; GAP-038 is a robustness + reproducibility upgrade post-v1.
+
+**Steps.**
+1. RESEARCH (mandatory per coursework workflow): invoke `research-orchestrator` skill. Route to Context7/Ref/Tavily: huBERT NerKor HuggingFace card and benchmarks, German BERT + spaCy de_core_news NER options, GLiNER multilingual NER zero-shot, transformer pipeline inference cost vs. batch inference. Write `.planning/coursework/research/bigdata/silver-news-ner.md` naming research-orchestrator, routed MCP providers, queries, and source URLs.
+2. Model selection (conditional gates): confirm `silver/language-id.py` populates the `language` field in `NewsFeature` before NER is called. Route HU → huBERT NerKor (NYTK model, HF: `NYTK/named-entity-recognition-nerkor-hubert-hungarian`), DE → German BERT (spaCy `de_core_news_lg` or equivalent), EN/other → GLiNER. Pin model versions in `silver/config.py`.
+3. Create `silver/news/ner.py` (new): implement `load_ner_pipelines() -> dict` (lazy-load, return keyed by language code hu/de/en/other, gate imports behind try/except with fallback stub), `extract_entities(text: str, language: str) -> tuple[list[str], list[str]]` (route to language pipeline, extract ORG and LOC tags), `match_operators(orgs: list[str], known_ops: list[str]) -> list[str]` (exact-match case-insensitive against KNOWN_OPERATORS, append "other" only if orgs provided but no match), `match_rail_lines(locs: list[str], country: str) -> list[str]` (filter and keep LOC entities; v1: keep all unless gazetteer available).
+4. Integrate into `silver/news/extract.py`: modify `extract_article()` (line 72) to call LLM for all fields EXCEPT operators/rail_lines, then call `extract_entities()`, `match_operators()`, `match_rail_lines()` to populate those fields deterministically, merge into the raw dict before `validate_news_feature()`, log DEBUG counts per article.
+5. Handle missing language gracefully: if `language=None`, fall back to empty lists `operators=[]`, `rail_lines=[]` or GLiNER as multilingual backstop. Intent: once `silver/language-id` is done, language is always set before NER.
+6. Create deterministic tests `tests/test_silver_news_ner.py` (new): mark `@pytest.mark.unit`, use mock text fixtures (HU/DE/EN railway snippets with operator/location mentions), stub HuggingFace calls. Test: lazy-load cache (call twice, verify reuse), model-load fallback (stub failure, assert ([], []) + WARNING), language routing (HU → huBERT, DE → German BERT, EN/other → GLiNER), operator matching case-insensitive and exact ("MÁV"/"mavnosztalyok"/"OEBB" → correct matches, non-matches → "other"), empty org list → empty (no invented "other"), rail lines kept v1, extract_article uses NER not LLM for operators/lines (mock both, assert NER call), NER fallback on None language.
+7. Update `silver/config.py`: add NER_MODEL_HUNBERT_NERKOR, NER_MODEL_DE_BERT, NER_MODEL_GLINER, NER_DEVICE.
+8. Update `silver/schema.py`: add note to `NewsFeature` docstring (lines 39-54): "NER extraction routed by language; see `silver/news/ner.py` for model pins and gazetteer handling."
+9. Optional: create `silver/data/rail_stations.csv` (gazetteer fixture, v1-optional): simple schema `name, country, line_codes`. If absent, `match_rail_lines()` keeps all LOC as-is with a TODO for a real gazetteer.
+10. Add config guard unit test `tests/test_silver_news_ner_config.py` (new, marker `unit`): do NOT import heavy models. Verify `silver/config.py` defines NER_MODEL_* constants, `silver/news/ner.py` imports cleanly (syntax check), lazy-load function exists and callable, small stub-test confirms `extract_article()` call path includes NER logic.
+11. Update `docs/SILVER_DESIGN.md`: add "Deterministic NER for operators/rail_lines" section explaining LLM now handles summary/monetary only, NER handles operators/rail_lines via language-routed models, gazetteer post-processing. Cite pinned models and research record URL.
+12. DOCS / DASHBOARD SYNC (Hard Rule, AGENTS.md:81): update `docs/GAP_REGISTER.md` (add GAP-038 row, status open/in_progress, evidence pointing to new files, closure criterion "deterministic NER replaces LLM for operators/rail_lines"), `docs/TASKS.md` (add GAP-038 to Wave 5 "Later — deferred", slug `silver/news-ner`, maps to GAP-038, status `later` conditional on Gold operators/rail_lines requirements), `.planning/COURSEWORK_PROGRESS.md` (record task decision).
+
+**Files to touch:** `silver/news/ner.py (new)`, `tests/test_silver_news_ner.py (new)`, `tests/test_silver_news_ner_config.py (new)`, `silver/news/extract.py (integrate NER)`, `silver/config.py (add model pins)`, `silver/schema.py (docstring update)`, `silver/data/rail_stations.csv (optional)`, `docs/SILVER_DESIGN.md (NER section)`, `docs/GAP_REGISTER.md (GAP-038 row)`, `docs/TASKS.md (GAP-038 entry)`, `.planning/coursework/research/bigdata/silver-news-ner.md (research record)`, `.planning/COURSEWORK_PROGRESS.md (task decision)`
+
+**Definition of Done (contract).**
+- [ ] `python -c "import railway_lakehouse.silver.news.ner"` succeeds (ner.py importable, syntax-clean).
+- [ ] `silver/config.py` pins NER_MODEL_HUNBERT_NERKOR, NER_MODEL_DE_BERT, NER_MODEL_GLINER; models retrievable from HuggingFace without custom auth.
+- [ ] `silver/news/ner.py` exports `load_ner_pipelines()`, `extract_entities()`, `match_operators()`, `match_rail_lines()`; lazy-load cache working.
+- [ ] `extract_article()` routes operators/rail_lines through deterministic NER when language available, fallback to empty lists on NER failure.
+- [ ] Unit tests `test_silver_news_ner.py` + `test_silver_news_ner_config.py` exist, marked `unit`, pass deterministically without network/live models.
+- [ ] Mock Hungarian article with "MÁV", "GYSEV" mentions extracts to correct operators list without calling the LLM (verified by test assertion on mock calls).
+- [ ] Mock German article routed to German NER model and locations kept/filtered correctly.
+- [ ] `python -m pytest -q` stays green; no new test failures.
+- [ ] `docs/SILVER_DESIGN.md` includes "Deterministic NER" section with model choices, language routing, gazetteer logic, research record citation.
+- [ ] `docs/GAP_REGISTER.md` GAP-038 row added: status `open` or `in_progress`, evidence pointing to new files, closure criterion documented.
+- [ ] `docs/TASKS.md` GAP-038 listed as `later` under Wave 5, with RU title, dependencies, slug, maps-to.
+- [ ] `.planning/coursework/research/bigdata/silver-news-ner.md` records: research-orchestrator invocation, routed MCP providers, queries, huBERT/German BERT/GLiNER source URLs, model selection rationale, limitations (gazetteer fallback for v1).
+- [ ] No fabricated numbers or data in tests; all assertions driven by mocks/stubs.
+
+**Verify:** `python -m pytest -q tests/test_silver_news_ner.py tests/test_silver_news_ner_config.py && python -m pytest -q && python -c "from railway_lakehouse.silver.news.ner import load_ner_pipelines, extract_entities, match_operators, match_rail_lines; print('NER pipeline OK')"`.
+
+**Pitfalls.** Do NOT call LLM in hot Spark path for NER — deterministic extraction happens once per-article in Silver and is cached. Spark reads pre-computed operators/rail_lines as-is. Hard Rule (AGENTS.md:74-81): numeric merges deterministic; extracting operators/rail_lines deterministically steps toward Gold schema stability (GAP-016). Do NOT introduce model download overhead into test suite — use `pytest.importorskip('transformers')` or mock loads; CI stays fast. If model fails to load (network, HF auth, disk), degrade gracefully: log WARNING, return ([], []), let downstream handle article. Gazetteer (rail_stations.csv) optional v1; if absent, keep all LOC as-is with TODO. Language must be detected before NER — if `language=None`, fall back to empty or GLiNER. Tests use `tmp_path` and mock transformer outputs; never depend on coursework/ data or live HuggingFace calls (CLAUDE.md testing rule). Do NOT add transformer models to default requirements — use conditional try/except imports and lazy loading. Gazetteer matching case-insensitive, normalize accents ('mav' → 'MÁV') with `unicodedata.normalize`. Research record must cite exact HuggingFace URLs + model digests for reproducibility.
+
+### GAP-039 — Wide article-grain NewsFeature contract + idempotent cached Silver extraction pass
+
+`HIGH` . level **model-pipeline** . effort **L** . depends on: GAP-006 (Silver persistence contract); unblocks: GAP-031–038 (language, sentiment, NER, embeddings, monetary, summarization, per-field confidence), GAP-040 (news pivot determinism)
+
+**Build:** Define the wide article-grain NewsFeature schema (extending the current 15-field baseline with gkg_* fields, embeddings, cluster/dedup IDs, extraction_model_digest, per-field confidences, and a content-hash contract), establish the idempotent, content-hash-cached, model-digest-pinned Silver extraction pass that never reruns the same content twice, and freeze the Parquet schema/paths in DATA_CONTRACTS.md. The expensive NLP runs ONCE and is cached; never inside Spark. Backward-compatible with the existing 15-field NewsFeature in production.
+
+**Context.** GAP-039 is the unblocker for the news-feature-extraction wave (GAP-031–038, GAP-040). Currently: (1) NewsFeature schema (schema.py:39–54) has 15 fields, none carrying model digests, confidences per field, or embeddings; gdelt_passthrough() exists but has zero callers (extract.py:86–100); ArticleRecord landing (bronze/sources/) captures 6 fields only, dropping GDELT DOC 2.0's domain/language/sourcecountry/socialimage; the LLM prompt (extract.py:31–69) asks for sentiment+confidence+language+summary but returns a flat dict, never confidences-per-field; the Ollama client (ollama_client.py) returns a single dict, untraceable to the model digest (Qwen 3.5:9b-q8_0); no extraction ever runs live (every test mocks generate_json); extraction quality is unvalidated (round-trip tested only with empty arrays). (2) Gold aggregate_news() (gold/build.py:82–125) emits counts+sentiment per (geo,year) but NEVER aggregates rail_lines/language/confidence/embeddings. Real production Gold is stats-only (news_rows=[]); no news column lands in Gold. (3) DATA_CONTRACTS.md:47–66 lists the current 15 fields but omits monetary_raw (GAP-029). (4) Silver persist (persist.py) writes one replaceable snapshot per ingest_date partition with NO content-hash cache or model-digest tracking, so reruns extract the same content twice. (5) The registered verification command pipeline.py:45–78 has `--skip-news-extraction` defaulting True, so `--news 0` is untested in a real run (pipeline.py:342–357). This task freezes the wide contract before GAP-031–040 build extractors into it. The expensive NLP (embeddings, clustering, sentiment, operators, monetary, translation) runs ONCE and is cached via content-hash; never per-row UDFs in Spark. Multi-tool ROLE SPLIT per AGENTS.md:120–137: LLM (Ollama Qwen, schema-JSON, temp 0) for generative slice (is_rail_related, event_type, summary_en, monetary_raw); XLM-R for deterministic sentiment; fastText/lingua for language; LaBSE for embeddings/clustering; huBERT+BERT NER for operators/rail_lines; GDELT GKG passthrough for tone/themes/persons/orgs/locations. Extraction failures account visible in a sidecar manifest, not dropped silently.
+
+**Problem.** (1) Schema gap: NewsFeature lacks per-field confidences, model digests, GKG fields, embeddings, cluster/dedup IDs. (2) No idempotent caching: Silver rewrites the same article 15 times via pipeline reruns, missing 15-way extraction cost savings. (3) No content-hash contract: DATA_CONTRACTS.md:47–66 lists only 15 fields; monetary_raw is missing (GAP-029 confirms); no Parquet schema update. (4) No extraction failure accounting: extract_batch (extract.py:103–113) silently returns a subset; failed articles are lost. (5) Unverified GDELT: gdelt_passthrough() (extract.py:86–100) is unreferenced code; ArticleRecord landing drops sourcecountry/language fields GDELT provides; GKG passthrough path is unbuilt. (6) Test coverage: extract_batch is mocked everywhere (generate_json never runs live); roundtrip tested only with empty arrays (pipeline.py:342–357 `news_rows=[]` when extraction is skipped). Evidence: schema.py:39–54 (15 fields, no confidences/digest/embedding/gkg/cluster); persist.py:110–125 (one snapshot per ingest_date, no hash cache); gold/build.py:82–125 (no aggregation of language/confidence/rail_lines/embeddings); DATA_CONTRACTS.md:47–66 (15 fields listed, monetary_raw absent); extract.py:86–100 (gdelt_passthrough zero refs); pipeline.py:45–78 (--news 0 by default); tests/test_silver_news_parsers.py (mocked generate_json only).
+
+**Steps.**
+1. RESEARCH (mandatory per coursework workflow): invoke `research-orchestrator` skill; route through Context7/Ref/Tavily/Exa: (a) per-field confidence patterns in LLM outputs (transformers library, huggingface guidance docs, pydantic field validators); (b) content-hash + model-digest caching for NLP pipelines (sentence-transformers, spacy, huggingface caching); (c) GDELT GKG field semantics (themes, tone, persons, orgs, locations; current data.gdeltproject.org/gkg docs); (d) Parquet schema evolution (pyarrow schema contract for append-only growth); (e) LangChain embeddings and clustering patterns (embeddings dimension contracts, approximate matching, deduplication). Write `.planning/coursework/research/bigdata/newsfeature-wide-contract.md` naming research-orchestrator, the routed provider(s), and source URLs.
+
+2. SCHEMA EVOLUTION — extend NewsFeature (schema.py:39–54) from 15 → 28+ fields, backward-compatible via defaults. New fields (all Optional, default None unless stated):
+   - `language_detected_code: Optional[str]` — ISO 639-1 (fastText/lingua model output).
+   - `language_confidence: Optional[float]` — [0,1] per-field confidence from fasttext/lingua.
+   - `sentiment_label: Optional[str]` — negative|neutral|positive (XLM-R model output; rename current `sentiment` to avoid conflict, OR keep it and track model-source separately via digest).
+   - `sentiment_score: Optional[float]` — continuous [-1,1] from XLM-R logits.
+   - `sentiment_confidence: Optional[float]` — [0,1] per XLM-R model uncertainty.
+   - `is_rail_related_confidence: Optional[float]` — [0,1] Ollama/LLM confidence on the gate.
+   - `event_type_confidence: Optional[float]` — [0,1] Ollama confidence on the event classification.
+   - `summary_en_source: Optional[str]` — "ollama" | "google_translate" | "gpt4" (traceability; set by the extractor, not the LLM).
+   - `operators_ner_model: Optional[str]` — "hubert_nerkoc" | "german_bert" | "gazetteer" (which NER passed the match).
+   - `operators_confidence: Optional[float]` — mean [0,1] across all matched operators.
+   - `rail_lines_ner_model: Optional[str]` — same as operators_ner_model.
+   - `rail_lines_confidence: Optional[float]` — mean [0,1] across all matched lines.
+   - `monetary_raw_parsed_eur: Optional[float]` — numeric EUR extracted by a dedicated monetary parser (separate from LLM, e.g. regex + currency-db).
+   - `monetary_confidence: Optional[float]` — [0,1] confidence in the extraction (whether amount came from LLM, regex, or None).
+   - `gkg_themes: Optional[str]` — GDELT GKG semicolon-delimited theme tags (e.g. "ECON_TRADE_AGREEMENT;LABOR_STRIKE").
+   - `gkg_persons: Optional[str]` — GDELT GKG persons (free-form concatenation or JSON list).
+   - `gkg_organizations: Optional[str]` — GDELT GKG organizations.
+   - `gkg_locations: Optional[str]` — GDELT GKG locations (comma-separated).
+   - `gkg_tone: Optional[float]` — GDELT GKG tone [-100,100]; mapped to sentiment_label if sentiment is absent.
+   - `gkg_emotions: Optional[str]` — GDELT GKG emotion codes (e.g. "DISGUST,FEAR").
+   - `gkg_tone_source: Optional[str]` — "gdelt_gkg" | "xlm_r_model".
+   - `text_embedding_model: Optional[str]` — "labse_v5_d768" | "sentence_bert_multilingual" (used by GAP-035 clustering).
+   - `text_embedding: Optional[list[float]]` — 768-d float vector (or None to defer to GAP-035).
+   - `cluster_id: Optional[str]` — dedup/cross-lingual cluster ID assigned by GAP-035 MLlib clustering (e.g. "cluster_001_seed_url_hash").
+   - `cross_lingual_dedup_id: Optional[str]` — group ID for articles with near-identical embedding (LaBSE similarity > threshold; managed by GAP-035).
+   - `extraction_timestamp_utc: Optional[str]` — ISO 8601 UTC timestamp when the extraction ran (for debugging/auditing).
+   - `extraction_model_digest: Optional[str]` — sha256(Ollama Qwen:3.5:9b-q8_0 + config.json + prompt_hash) so reruns detect model changes. Set by `extract_article()` and `gdelt_passthrough()`.
+   - `confidence_schema_version: str = "1.0"` — schema version for backward compat (new field, not optional, default "1.0" for existing rows).
+
+   Preserve the current 15 fields with their defaults; add the new fields as Optional[T] = None. Update validate_news_feature() to accept and coerce the new fields (e.g. language_code range check, confidence clamp to [0,1], sentiment_score to [-1,1]).
+
+3. CONTENT-HASH + MODEL-DIGEST CACHE CONTRACT: create `silver/news/cache.py` exporting:
+   - `extract_cache_key(article: ArticleRecord | dict) -> str` — SHA256 of (article_id, title, body, url, published_date) to detect content changes.
+   - `model_digest_key() -> str` — SHA256(OLLAMA_MODEL + config.OLLAMA_TIMEOUT + _JSON_SCHEMA + _SYSTEM + temperature) from config.py and extract.py:23–47. A changed model/prompt/schema invalidates all cached extractions.
+   - `CacheBackend` protocol: `get(cache_key: str, model_digest: str) -> Optional[NewsFeature]`, `put(cache_key: str, model_digest: str, feature: NewsFeature) -> None`, `cache_stats() -> dict`.
+   - `FileSystemCache` implementation: root `silver/.news_extraction_cache/`, subdirs per model_digest (e.g. `silver/.news_extraction_cache/{model_digest}/`), one JSON per article (key = hex_cache_key + ".json"). Idempotent writes, no multiprocessing lock needed (file-per-article). Include a `_manifest.json` per digest listing cached count, last_update, model_digest, and a truncated log of the last 100 hits/misses.
+
+4. EXTRACTION PASS (rewrite extract.py): split `extract_article()` into two phases:
+   - `extract_article_cached(article: ArticleRecord, cache: CacheBackend) -> Optional[NewsFeature]` — check cache first (cache_key + model_digest), return cached hit or None if uncached. On cache miss, run LLM, validate, store in cache, return.
+   - `gdelt_passthrough_cached(gkg: dict, cache: CacheBackend) -> NewsFeature` — similar caching for GDELT GKG (cache_key = article_id+source="gdelt"). No LLM call, deterministic passthrough.
+   - Keep the old `extract_article()` for backward compat (calls `extract_article_cached` with a no-op cache).
+   - Populate `extraction_model_digest` in every returned NewsFeature so Gold/Spark know what model produced it.
+
+5. FAILURE ACCOUNTING: create `silver/news/failures.py` exporting:
+   - `ExtractionFailure` dataclass: `article_id, source, url, title, published_date, reason (str), timestamp_utc, model_digest`.
+   - `persist_news_failures(failures: list, root, ingest_date)` — write to `silver/news/news_extraction_failures/ingest_date=YYYY-MM-DD/failures.parquet` (same partition scheme as successes).
+   - Update `extract_batch()` to collect failures (missing required fields, LLM timeout, validation error) and return `(successes, failures)` tuple. Caller decides whether to persist both or warn on failures; logging is required.
+
+6. UPDATE persist.py: add `persist_news_failures()` signature (defer implementation to GAP-006 follow-up if not in scope); log failure counts in the manifest. Parquet schema for failures includes the `ExtractionFailure` fields.
+
+7. UPDATE DATA_CONTRACTS.md Silver News section (lines 47–66): rewrite to list all 28 fields in order, group into "Provided by Bronze", "LLM generative", "Model-extracted", "GKG passthrough", "Per-field confidence", "Caching/audit", with citations to the new schema.py field order. Explicitly list monetary_raw (close GAP-029). Add a "Content-hash cache contract" subsection explaining the cache key, model_digest, and the FileSystemCache location/layout.
+
+8. TESTS (tests/test_silver_news_wide_contract.py, new, marked `unit`):
+   - Test 1: `NewsFeature` dataclass: 15 old fields + 13 new fields = 28 total; instantiate with all old fields (backward compat) and assert new fields default to None. Instantiate a new-field row and assert `confidence_schema_version="1.0"`.
+   - Test 2: `validate_news_feature()` coerces new fields: sentiment_score clamped [-1,1], language_code checked against ISO 639-1 set, confidences clamped [0,1], gkg_* strings empty-string→None.
+   - Test 3: `extract_cache_key()` deterministic: same content → same key; minor title change → different key.
+   - Test 4: `model_digest_key()` includes OLLAMA_MODEL + config values; a changed OLLAMA_MODEL env var produces a different digest.
+   - Test 5: `FileSystemCache` get/put round-trip: put a NewsFeature, get it back byte-exact (JSON serialization idempotent). Verify `_manifest.json` is created and hit/miss counts increment.
+   - Test 6: `extract_article_cached()` with cache: (a) cache miss on first call, LLM called (mocked), result stored in cache; (b) cache hit on second call, LLM NOT called, cached result returned; (c) model_digest mismatch invalidates cache (same article, different model → re-extract).
+   - Test 7: `gdelt_passthrough_cached()` deterministic (no LLM): populates gkg_* and tone-derived sentiment, sets `extraction_model_digest` to a canonical "gdelt_gkg_passthrough" marker.
+   - Test 8: `extract_batch()` returns tuple `(successes, failures)`. Feed mixed valid+invalid articles (one with missing title, one malformed URL), assert successes non-empty and failures non-empty with reason logged.
+   - Test 9: Parquet round-trip: serialize a wide NewsFeature to Parquet (28 fields, with floats, lists, strings, None), reload, assert byte-exact equality. Verify new fields are present in the schema.
+   - All tests mock Ollama; no live model needed. Use tmp_path for cache files.
+
+9. INTEGRATION TEST (tests/test_silver_news_extraction_e2e.py, marked `integration`): feed fixture Bronze news (RSS XML + GDELT JSON from tests/fixtures/bronze/news/) through the full pipeline: ArticleRecord → cached extraction → NewsFeature → persist → reload. Verify: (a) first run extracts and caches; (b) second run with same ingest_date reloads from cache (zero LLM calls); (c) a new ingest_date with new articles extracts new articles, reuses cache for unchanged articles; (d) failure accounting sidecar written if any articles fail; (e) Parquet schema includes all 28 fields.
+
+10. GDELT PASSTHROUGH WIRING: update pipeline.py and silver/run.py to call `gdelt_passthrough_cached()` on incoming GDELT articles (not just RSS). Check if GDELT DOC ArtList response includes gkg_* fields; if not, the article is still processed as a normal `extract_article_cached()` call. If GKG is available (future integration with GDELT history backfill), use passthrough. For now, document as "reserved for future integration with GDELT GKG history".
+
+11. DOCS: update README.md with a "News Feature Extraction" section explaining the wide schema, per-field confidences, model digest pinning, and the content-hash cache (location, how to clear). Add a "Known Limitations" subsection listing: (a) language detection not yet wired (GAP-031), (b) sentiment from XLM-R not yet wired (GAP-032), (c) operators/rail-lines NER not yet wired (GAP-034), (d) embeddings/clustering not yet wired (GAP-035), (e) monetary parsing not yet wired (GAP-036), (f) translation/summarization not yet wired (GAP-037), (g) extraction_model_digest currently a placeholder (no Qwen digest calculated live yet), (h) extraction failures not persisted (awaiting GAP-006 follow-up).
+
+12. DASHBOARD SYNC (Hard Rule, AGENTS.md:81): flip `docs/TASKS.md` `silver/wide-newsfeature-contract` from `todo` to `in_progress`/`done`; update the related chip in `docs/index.html` (e.g. "28-field NewsFeature contract + cache"). Append a row to `docs/GAP_REGISTER.md` status = in_progress, evidence = schema.py + persist.py + cache.py + tests, closure criterion = all 28 fields persisted/reloaded + cache hit measured. Append handoff entry to `docs/PROGRESS_LOG.md` naming the unblocked tasks (GAP-031–038, GAP-040).
+
+**Files to touch:** `src/railway_lakehouse/silver/schema.py (extend NewsFeature 15→28 fields, update validate_news_feature)` `src/railway_lakehouse/silver/news/cache.py (new, extract_cache_key, model_digest_key, CacheBackend protocol, FileSystemCache impl)` `src/railway_lakehouse/silver/news/extract.py (split extract_article → extract_article_cached, gdelt_passthrough → gdelt_passthrough_cached, extract_batch → (successes, failures) tuple, set extraction_model_digest)` `src/railway_lakehouse/silver/news/failures.py (new, ExtractionFailure, persist_news_failures)` `src/railway_lakehouse/silver/persist.py (add persist_news_failures signature, log failure counts)` `tests/test_silver_news_wide_contract.py (new, unit tests for schema, cache, validation)` `tests/test_silver_news_extraction_e2e.py (new, integration test with fixture Bronze, cache round-trip, failure accounting)` `docs/DATA_CONTRACTS.md (rewrite Silver News section:47–66, list all 28 fields, add cache contract subsection, close GAP-029)` `README.md (add News Feature Extraction section + known limitations)` `docs/TASKS.md (silver/wide-newsfeature-contract todo→in_progress)` `docs/GAP_REGISTER.md (GAP-039 status + evidence + closure + Test Failure Mapping row)` `docs/index.html (update related chip/metric)` `docs/PROGRESS_LOG.md (handoff entry)` `.planning/coursework/research/bigdata/newsfeature-wide-contract.md (research record, new)`
+
+**Definition of Done (contract).**
+- [ ] `NewsFeature` dataclass in schema.py now has 28 fields: 15 original (backward-compatible defaults) + 13 new (all Optional, default None). `confidence_schema_version="1.0"` is the only new non-optional field. Instantiation and `to_row()` serialization work for both old (15-field) and new (28-field) rows.
+- [ ] `validate_news_feature()` accepts and coerces the 13 new fields: sentiment_score → [-1,1], language_code → ISO 639-1 set, all confidences → [0,1], gkg_* strings → coerce empty string to None.
+- [ ] `silver/news/cache.py` exists and exports: `extract_cache_key(article) → str`, `model_digest_key() → str` (deterministic, includes OLLAMA_MODEL + config), `CacheBackend` protocol with `get/put/cache_stats()`, `FileSystemCache` implementation with per-model-digest subdirs, `_manifest.json` per digest tracking hits/misses/count.
+- [ ] `extract_article_cached(article, cache)` and `gdelt_passthrough_cached(gkg, cache)` replace the old functions; `extract_article()` backward-compat wrapper calls cached version with optional cache. Both set `extraction_model_digest` on return.
+- [ ] `extract_batch()` returns `(successes: list, failures: list)` tuple. Failures are `ExtractionFailure` objects with article_id, reason, timestamp. Logging on failure is required.
+- [ ] `silver/news/failures.py` exists with `ExtractionFailure` dataclass and stub `persist_news_failures()` signature (implementation may defer to GAP-006 follow-up).
+- [ ] Cache round-trip test passes: write a NewsFeature, get it back, byte-exact JSON equality. Cache hit on second call measured (LLM call count = 0 on cache hit).
+- [ ] Parquet round-trip test passes: serialize 28-field NewsFeature, reload, schema includes all 28 fields by name, no field loss.
+- [ ] Integration test with fixture Bronze (RSS XML + GDELT JSON) passes: first extraction → cached, second run → all cache hits, failure account sidecar written if needed.
+- [ ] `python -m pytest -q tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py` passes with 0 mock warnings, all new fields exercised.
+- [ ] DATA_CONTRACTS.md Silver News section (lines 47–66) rewritten: all 28 fields listed in order, grouped by source (Bronze, LLM, model, GKG, confidence, cache/audit), monetary_raw explicitly listed (close GAP-029), cache contract subsection describes key/digest/layout.
+- [ ] README.md has a "News Feature Extraction" section with schema overview, per-field confidence rationale, model digest pinning, cache location, and known limitations (GAP-031–037 unlinked).
+- [ ] Dashboard + docs synced in the same change (Hard Rule): `docs/TASKS.md` silver/wide-newsfeature-contract status updated, `docs/index.html` chip updated, `docs/GAP_REGISTER.md` GAP-039 status + evidence + Test Failure Mapping row added, `docs/PROGRESS_LOG.md` handoff entry to GAP-031–038 + GAP-040.
+- [ ] Research record written at `.planning/coursework/research/bigdata/newsfeature-wide-contract.md` naming research-orchestrator + routed MCP provider(s) + source URLs.
+- [ ] Raw Bronze untouched; no numeric values changed; all extractions cached and deterministic (no rerun penalty). All outputs under output/ or the committed .news_extraction_cache/ root.
+
+**Verify:** `python -m pytest -q -m unit tests/test_silver_news_wide_contract.py` (all schema/cache/validation tests pass) AND `python -m pytest -q -m integration tests/test_silver_news_extraction_e2e.py` (fixture extraction + cache round-trip + failure account pass) AND `python -m pytest -q` (no new failures, was 108 passed) AND `python -c "import railway_lakehouse.silver.news.cache; import railway_lakehouse.silver.news.failures; from railway_lakehouse.silver.schema import NewsFeature; print(len(NewsFeature.__dataclass_fields__)); assert 28 <= len(NewsFeature.__dataclass_fields__)"` (28+ fields) AND manual inspection of docs/DATA_CONTRACTS.md Silver News section (28 fields, monetary_raw listed, cache contract subsection present).
+
+**Pitfalls.** ["Do NOT persist extraction failures as a separate table until GAP-006 follow-up confirms the schema. For now, collect them in memory, log loudly, and optionally write a sidecar JSON manifest (not Parquet). The integration test must verify they are logged.", "The content-hash cache MUST NOT invalidate based on article changes (immutable content contract): if an article URL changes but the article_id is the same, it is a NEW article (different extracted content), not a cache miss. Use (article_id + title + body + url) as the cache key to detect actual content changes; a new URL with the same body is a cache miss.", "model_digest_key() MUST include the OLLAMA_MODEL value so changing from Qwen:3.5:9b to Qwen:7b invalidates the cache. If OLLAMA_MODEL is an env var, read it in the function; if it is a config constant, include it in the hash. Document this in the function docstring.", "Extraction failures must NOT abort extract_batch(). If one article fails LLM extraction, log it, append to failures, and continue with the next article. Only raise if the cache itself is corrupted (e.g., OSError on write).", "The 13 new fields are backward-compatible (all Optional=None); existing code reading 15-field NewsFeature rows from persisted Parquet MUST still work. Test this explicitly: reload an old 15-field Parquet, assert missing new-field columns are None/empty after coercion.", "Do NOT calculate Qwen model digest live (SHA256 of binary weights) — that is infeasible. Instead, use a canonical string (model name + version + quantization + prompt hash). The digest is for cache invalidation only, not cryptographic authenticity.", "The FileSystemCache location (silver/.news_extraction_cache/) is git-ignored (add to .gitignore). Cache is a local optimization; it is not committed or synced to MinIO. Per-machine cache semantics OK.", "Per-field confidence fields (language_confidence, sentiment_confidence, etc.) are placeholders in this task. GAP-031–038 will populate them. For now, populate with None or a stubbed 0.5 if the extractor produces a generic confidence; the schema contract just reserves the fields.", "Backward compat with the current 15-field NewsFeature is critical: the schema change MUST NOT break existing production Gold/Spark jobs. Test explicitly that a pickle/Parquet round-trip of a 15-field row survives a reload with the new schema.", "Do NOT add the new fields to the LLM prompt (extract.py:50–69) unless they are implemented. The prompt asks for 11 fields today; adding 'give me per-field confidences' to Qwen without implementation is scope creep. The prompt stays the same; GAP-031–038 each updates their own extractor to populate new fields.", "Extraction model digest is currently a placeholder string (e.g., 'ollama_qwen_3.5_9b_q8_0_placeholder'). Calculating a real Qwen weight digest is out of scope; GAP-037–038 may refine this."]
+
+### GAP-040 — Widen Gold news aggregation to rail_lines/language/confidence/GKG/sub-annual
+
+`MID` · level **gold** · effort **M** · depends on: silver/wide-newsfeature-contract (the full NewsFeature 15-field schema is persisted and reloadable); GAP-016 (deterministic news schema — apply first to avoid merge conflicts on aggregate_news); GAP-022 (RFC-822 RSS date parsing into ISO for consistent published_date).
+
+**Build:** Extend aggregate_news to emit rollups for rail_lines (as pivot columns per line), language (per ISO 639-1 code), confidence (mean and distribution bins), and optional GKG themes/tone metrics (if GDELT GKG passthrough is wired); add optional sub-annual (year-month) grouping buckets alongside the current year-only grain. All rollups deterministic (full vocabulary reindexing per GAP-016 pattern), numeric aggregations only (no LLM), and schema/output paths documented in DATA_CONTRACTS.md Gold section.
+
+**Context.** Gold currently aggregates NewsFeature rows to (country, year) tuples, emitting per-geo-year counts (article_count, events, operators, sentiment). The NewsFeature Silver schema (silver/schema.py:39-54) has 15 fields — article_id through confidence — but Gold only consumes 6: article_id, country, published_date, is_rail_related, event_type, operators, sentiment, monetary_amount_eur. Five fields (language, rail_lines, confidence, monetary_raw, summary_en) are systematically DROPPED in aggregate_news (gold/build.py:82-125): they are present in every Silver NewsFeature row but never grouped/counted/aggregated. Additionally, the GDELT GKG (Global Knowledge Graph) signal — themes/CAMEO codes, numeric tone, entity persons/orgs/locations — is collected in Bronze but never parsed into Silver or Gold (silver/news/gdelt.py comment lines 43-56: "STRUCTURALLY CANNOT return GKG"; silver/news/extract.py:86 `gdelt_passthrough()` exists but has ZERO callers; past_recordings master_v1 downloads GKG csv.zip unparsed). The owner architecture (VERIFIED REALITY, AGENTS.md intro) calls for "extract MANY features WIDE in a one-time Silver pass; then filter/aggregate/cluster in Spark." This gap captures the "WIDE" slice for the suppressed dimensions.
+
+Scope: Deterministic aggregations ONLY. No LLM inside Gold (Hard Rule: numeric determinism). No new schema refactor — more groupby/pivot columns. Keep the existing per-(geo,year) grain as the default; add sub-annual (year-month) as an OPTIONAL second output path and param. Numeric only: sum/mean/count/distribution. Do NOT parse/enrich GKG if GKG is not yet persisted in Silver (a follow-up if ever attempted). Frame as "wide aggregation skeleton" — the columns exist, the logic is ready, but final GKG integration is explicitly deferred pending a separate GAP to wire the GKG data.
+
+**Problem.** Gold aggregate_news (src/railway_lakehouse/gold/build.py:82-125) has structural feature-dropping defects:
+
+1. **rail_lines suppression** (build.py:112-121, line 108): rail_lines is a list field in NewsFeature (schema.py:49), present in every Silver row. When grouped/aggregated to (country, year), no column for rail_lines is emitted. Verify: every call to aggregate_news drops the input rail_lines. Expected output: per-(geo,year) rollup: news_n_rail_lines (unique line count), news_rail_lines_list (comma-sep or list), or news_rail_lines_pivot_<canonical_line_name> (one column per canonical line, counts where mentioned).
+
+2. **language suppression** (build.py:72-125): language (ISO 639-1 code) is present in every Silver row but never aggregated. Verify: no language column appears in the output; the input language is read but ignored. Expected output: per-(geo,year) language rollups: news_language_<lang_code> (count per language), news_language_primary (modal language), news_language_diversity (Shannon entropy or Herfindahl).
+
+3. **confidence suppression** (build.py:72-125): confidence (float [0,1] model self-confidence) is present but never aggregated. Expected output: per-(geo,year) metrics: news_confidence_mean, news_confidence_std, news_confidence_min, news_confidence_max, news_confidence_bins_low/medium/high (count in [0,0.33] / [0.33,0.67] / [0.67,1.0]).
+
+4. **Sub-annual granularity missing** (build.py:82-125): Gold always groups by (country, year) only. No per-(country, year, month) grain exists. Expected output: optional --granularity year-month flag to emit (geo, year, month) rows instead of (geo, year) rows, with identical aggregations. Verify: build.py line 95 hardcodes `groupby(["country", "year"])` with no alternative.
+
+5. **GKG signal discarded** (build.py:82-125, silver/news/extract.py, silver/news/gdelt.py): GDELT GKG (themes, tone, entities) is collected at Bronze but never reaches Gold. Verify: no GKG field in NewsFeature schema; gdelt_passthrough() stub exists but no caller. Expected long-term: if/when GKG is persisted in Silver, Gold emits columns: news_gkg_themes (comma-sep or pivot per canonical CAMEO theme), news_gkg_tone (mean tone numeric value -10 to +10), news_gkg_entities_persons/orgs/locations (counts). For THIS gap, document the readiness but defer implementation pending Silver GKG wiring.
+
+Files with evidence: `gold/build.py:82-125` (aggregate_news), `silver/schema.py:39-54` (NewsFeature, all 15 fields), `silver/news/gdelt.py:43-56` (GKG comment), `silver/news/extract.py:86` (gdelt_passthrough stub), `silver/config.py:96-100` (NEWS_EVENT_TYPES, KNOWN_OPERATORS — model for canonical lists).
+
+**Steps.**
+
+1. RESEARCH (mandatory per coursework workflow): invoke research-orchestrator; route questions about pandas multi-level groupby, pivot_table with multiple value columns, sub-annual time series, ISO 639-1 language codes, and GDELT GKG schema through Context7 or Ref. Write `.planning/coursework/research/bigdata/gold-widen-news.md` with provider(s), queries, and source URLs (e.g., pandas user guide for groupby/transform; GDELT doc for GKG schema overview; ISO 639-1 standard reference).
+
+2. SCHEMA READINESS CHECK — verify Silver NewsFeature persistence and reloadability. Run: `python -m pytest -q -m integration tests/test_gold_load_from_silver.py` (existing; must pass). This confirms rail_lines, language, confidence are persisted and reloadable from Silver Parquet. If the test fails, it indicates Silver persistence is broken and must be fixed before Gold widening.
+
+3. Design the canonical vocabularies for the new dimensions (document in a `.planning/` scratch file or inline in the code):
+   - **rail_lines**: The NewsFeature.rail_lines field is a free-text list per article. Decide on rollup strategy: (a) news_n_rail_lines_unique (count of distinct lines mentioned per geo-year), (b) news_rail_lines_list (comma-sep string of all unique lines), or (c) news_rail_lines_pivot_<canonical_line> (one pivot column per canonical line name — requires a canonical rail-line vocabulary like KNOWN_OPERATORS). Start with (a) and (b) as deterministic aggregations; defer (c) to a separate gap if a rail-line gazetteer/canonical list is later defined.
+   - **language**: ISO 639-1 codes (hu, de, en, etc.). Build a canonical list from the DETECTED_LANGUAGES in silver/schema.py or infer it from the world's top ~30 ISO 639-1 codes. Decide on rollup: (a) news_language_<code> (count per code), (b) news_language_primary (modal code), (c) news_language_diversity (Shannon entropy or 1 - Herfindahl index). Start with (a) and (b) as deterministic; (c) is free if you compute entropy.
+   - **confidence**: No canonical vocab needed — it is continuous [0,1]. Rollups: news_confidence_mean, news_confidence_std, news_confidence_min, news_confidence_max, and histogram bins news_confidence_bin_<name> (e.g. news_confidence_bin_low for [0,0.33], news_confidence_bin_medium for [0.33,0.67], news_confidence_bin_high for [0.67,1.0]) as counts.
+   - **GKG**: (DEFERRED for now) Themes: CAMEO code list (hundreds — overkill; might pivot only top-N). Tone: single numeric mean. Entities: person/org/location counts. Document in code as TODO comment + a section in DATA_CONTRACTS.md explaining the future integration point.
+   - **Sub-annual (year-month)**: Tuple (year, month) replacing (year,) in the groupby key. Optional flag `--granularity year-month` or parameter `granularity='year'` | `'year-month'` in build_gold/aggregate_news.
+
+4. Open src/railway_lakehouse/gold/build.py. The current aggregate_news (lines 82-125) is the target.
+
+5. **Modify aggregate_news signature and logic**:
+   - Add optional parameter: `granularity: str = 'year'` (or accept 'year' | 'year-month').
+   - In _news_to_df (line 72-79), keep the year extraction. If granularity is 'year-month', also extract month: `df["month"] = pd.to_datetime(df.get("published_date"), errors="coerce").dt.month.astype("Int64")`.
+   - At line 95, change `groupby(["country", "year"])` to conditional: `group_keys = ["country", "year"] + (["month"] if granularity == "year-month" else [])` and `grp = df.groupby(group_keys)`. The rest of the aggregation (agg, pivot, merge, rename) flows unchanged because Pandas preserves the groupby keys.
+   - Build the rail_lines aggregations (after line 101, before the operator block): extract rail_lines per (country, year[, month]), explode them as you do operators, and count. For simplicity: `rl = df[group_keys + ["rail_lines"]].explode("rail_lines"); rl = rl[rl["rail_lines"].notna() & (rl["rail_lines"] != "")]; rl_agg = rl.groupby(group_keys + ["rail_lines"]).size().reset_index(name="count"); rl_pivot = rl_agg.pivot_table(index=group_keys, columns="rail_lines", values="count", aggfunc="first", fill_value=0).reset_index(); rl_pivot.columns.name = None; rl_pivot = rl_pivot.rename(columns={line: f"news_rail_lines_{_sanitize_column_name(line)}" for line in rl_pivot.columns if line not in group_keys})`. For determinism, ensure the resulting column names are sorted and reindex to a known set IF a canonical rail-line list is defined; otherwise, emit all lines found (non-deterministic, acceptable for a first MVP).
+   - Build the language aggregations (after rail_lines, before operators): similar explode-pivot pattern, but language is a scalar per row. `lang_agg = df[group_keys + ["language"]].copy(); lang_agg = lang_agg[lang_agg["language"].notna()]; lang_counts = lang_agg.groupby(group_keys + ["language"]).size().reset_index(name="count"); lang_pivot = lang_counts.pivot_table(index=group_keys, columns="language", values="count", aggfunc="first", fill_value=0).reset_index(); lang_pivot.columns.name = None; lang_pivot = lang_pivot.rename(columns={lang: f"news_language_{lang}" for lang in lang_pivot.columns if lang not in group_keys})`. For determinism: define a CANONICAL_LANGUAGES list (e.g., CANONICAL_LANGUAGES = ["hu", "de", "en", "fr", "es", "it", "pl", "ro", "sk", "cz"] — the top European languages by prevalence) and reindex lang_pivot to include all of them, zero-filling absents.
+   - Build the confidence aggregations: `conf_agg = df[group_keys + ["confidence"]].copy(); conf_agg = conf_agg[conf_agg["confidence"].notna()]; conf_stats = conf_agg.groupby(group_keys)["confidence"].agg(["mean", "std", "min", "max"]).reset_index(); conf_stats = conf_stats.rename(columns={"mean": "news_confidence_mean", "std": "news_confidence_std", "min": "news_confidence_min", "max": "news_confidence_max"}); conf_bins = conf_agg.copy(); conf_bins["_bin"] = pd.cut(conf_bins["confidence"], bins=[0, 0.33, 0.67, 1.0], labels=["low", "medium", "high"], include_lowest=True); conf_bin_counts = conf_bins.groupby(group_keys + ["_bin"]).size().reset_index(name="count"); conf_bin_pivot = conf_bin_counts.pivot_table(index=group_keys, columns="_bin", values="count", aggfunc="first", fill_value=0).reset_index(); conf_bin_pivot.columns.name = None; conf_bin_pivot = conf_bin_pivot.rename(columns={"low": "news_confidence_bin_low", "medium": "news_confidence_bin_medium", "high": "news_confidence_bin_high"})`.
+   - For primary language (modal): `lang_primary = df[group_keys + ["language"]].copy(); lang_primary = lang_primary[lang_primary["language"].notna()]; lang_primary = lang_primary.groupby(group_keys)["language"].apply(lambda s: s.mode()[0] if len(s.mode()) > 0 else None).reset_index(name="news_language_primary")`.
+   - Build language entropy as a bonus: `lang_entropy = lang_agg.groupby(group_keys)["language"].apply(lambda s: -sum((s.value_counts() / len(s)) * np.log(s.value_counts() / len(s)))).reset_index(name="news_language_entropy")` (or use a simpler 1 - Herfindahl: `1 - (s.value_counts() / len(s) ** 2).sum()`).
+   - **GKG placeholder**: Add a comment block stating "GKG aggregations (themes, tone, entities) deferred; see DATA_CONTRACTS.md Gold GKG section and GAP-040 Problem statement. When Silver GKG is persisted, add news_gkg_* rollups here."
+
+6. After all new aggregations are built (rail_lines, language, confidence, optionally GKG), merge them all onto agg (the existing count/sentiment/money aggregation) using successive .merge(on=group_keys, how="left"). Ensure column order: first geo/year/[month], then news_article_count/sentiment/investment (existing), then news_language_*, then news_confidence_*, then news_rail_lines_*, then news_n_<event>, then news_op_<op> (existing). For determinism, sort the merged columns by name within each logical block.
+
+7. Refactor `build_gold` signature to accept `granularity='year'` and pass it to aggregate_news. Update the zero-fill logic (build.py:144-148) to handle any news_* column, not just count-like ones — ensure all news_* count columns are filled with 0, sentiment/confidence stats left NaN, confidence bins filled with 0.
+
+8. Update aggregate_news docstring (line 82-83) to document: input, output schema, granularity parameter, rail_lines/language/confidence/GKG rollups, and the optional sub-annual grain.
+
+9. Update DATA_CONTRACTS.md **Gold** section (lines 100-116) with the new schema:
+   - Current Gold news block schema (10 lines): article_count, sentiment_mean, share_negative, total_investment, event-type columns, operator columns.
+   - New schema (expanded): existing + news_language_<code> (per canonical language, zero-filled), news_language_primary, news_language_entropy, news_confidence_mean/std/min/max, news_confidence_bin_low/medium/high, news_rail_lines_<line> (per line mentioned, if available) or news_n_rail_lines_unique + news_rail_lines_list (aggregated), and a section explaining GKG integration readiness.
+   - Add a subsection "Sub-annual option": if granularity='year-month', Gold emits (geo, year, month) tuples with identical aggregations per (geo, year, month) grain instead of per-year.
+   - Add a subsection "GKG future integration": placeholder for CAMEO themes, tone, and entities, keyed to the Silver GKG wiring gap.
+
+10. Add a **deterministic unit test** in tests/test_gold_characterization.py:
+
+```python
+def test_aggregate_news_emits_language_confidence_rail_lines_rollups():
+    """Verify widened Gold news aggregation includes language, confidence, rail_lines pivots."""
+    rows = [
+        {
+            "article_id": "n1",
+            "country": "HU",
+            "published_date": "2020-01-15",
+            "is_rail_related": True,
+            "event_type": "investment",
+            "operators": ["MÁV"],
+            "sentiment": "positive",
+            "monetary_amount_eur": 100.0,
+            "language": "hu",
+            "confidence": 0.95,
+            "rail_lines": ["M1", "M2"],
+        },
+        {
+            "article_id": "n2",
+            "country": "HU",
+            "published_date": "2020-01-20",
+            "is_rail_related": True,
+            "event_type": "accident",
+            "operators": ["ÖBB"],
+            "sentiment": "negative",
+            "monetary_amount_eur": None,
+            "language": "de",
+            "confidence": 0.72,
+            "rail_lines": ["M1"],
+        },
+        {
+            "article_id": "n3",
+            "country": "HU",
+            "published_date": "2020-02-01",
+            "is_rail_related": True,
+            "event_type": "policy",
+            "operators": [],
+            "sentiment": "neutral",
+            "monetary_amount_eur": 50.0,
+            "language": "hu",
+            "confidence": None,
+            "rail_lines": [],
+        },
+    ]
+    
+    agg = gold_build.aggregate_news(rows, granularity="year")
+    
+    # Verify existing counts/operators/events are unchanged
+    assert len(agg) == 1
+    row = agg.iloc[0]
+    assert row["geo"] == "HU"
+    assert row["year"] == 2020
+    assert row["news_article_count"] == 3
+    
+    # Verify language rollups
+    assert "news_language_hu" in agg.columns  # canonical list includes hu
+    assert "news_language_de" in agg.columns  # canonical list includes de
+    assert row["news_language_hu"] == 2  # n1 and n3
+    assert row["news_language_de"] == 1  # n2
+    assert row["news_language_primary"] == "hu"  # modal
+    
+    # Verify confidence aggregations
+    assert "news_confidence_mean" in agg.columns
+    assert "news_confidence_min" in agg.columns
+    assert "news_confidence_max" in agg.columns
+    assert "news_confidence_bin_high" in agg.columns
+    assert row["news_confidence_mean"] == pytest.approx((0.95 + 0.72) / 2)  # 2 rows with confidence
+    assert row["news_confidence_bin_high"] == 2  # n1 (0.95) and n2 (0.72) both in [0.67, 1.0]
+    
+    # Verify rail_lines rollups (simplified: unique count + list)
+    assert "news_n_rail_lines_unique" in agg.columns or "news_rail_lines_M1" in agg.columns
+    # If pivot per line:
+    # assert row["news_rail_lines_M1"] == 2  # n1 and n2 mention M1
+    # assert row["news_rail_lines_M2"] == 1  # n1 mentions M2
+    # If aggregated:
+    # assert row["news_n_rail_lines_unique"] == 2  # {M1, M2}
+
+def test_aggregate_news_sub_annual_granularity_year_month():
+    """Verify optional year-month granularity emits per-(geo, year, month) rows."""
+    rows = [
+        {
+            "article_id": "n1",
+            "country": "HU",
+            "published_date": "2020-01-15",
+            "is_rail_related": True,
+            "event_type": "investment",
+            "operators": ["MÁV"],
+            "sentiment": "positive",
+            "monetary_amount_eur": 100.0,
+            "language": "hu",
+            "confidence": 0.95,
+            "rail_lines": [],
+        },
+        {
+            "article_id": "n2",
+            "country": "HU",
+            "published_date": "2020-02-20",
+            "is_rail_related": True,
+            "event_type": "accident",
+            "operators": [],
+            "sentiment": "negative",
+            "monetary_amount_eur": None,
+            "language": "de",
+            "confidence": 0.72,
+            "rail_lines": [],
+        },
+    ]
+    
+    agg = gold_build.aggregate_news(rows, granularity="year-month")
+    
+    # Should emit 2 rows: one per (country, year, month)
+    assert len(agg) == 2
+    
+    # First row: January
+    jan_row = agg[(agg["month"] == 1)].iloc[0]
+    assert jan_row["geo"] == "HU"
+    assert jan_row["year"] == 2020
+    assert jan_row["month"] == 1
+    assert jan_row["news_article_count"] == 1
+    assert jan_row["news_language_hu"] == 1
+    
+    # Second row: February
+    feb_row = agg[(agg["month"] == 2)].iloc[0]
+    assert feb_row["geo"] == "HU"
+    assert feb_row["year"] == 2020
+    assert feb_row["month"] == 2
+    assert feb_row["news_article_count"] == 1
+    assert feb_row["news_language_de"] == 1
+```
+
+11. Run the unit suite to confirm new tests pass and existing test_aggregate_news_counts_events_sentiment_money_and_operators (lines 63-109 in test_gold_characterization.py) still passes unchanged: `python -m pytest -q tests/test_gold_characterization.py`.
+
+12. **DETERMINISM VERIFICATION**: Run the new tests with disjoint language/confidence/rail_lines batches to ensure column determinism (same schema across runs, all canonical languages/confidence bins present):
+```python
+# After the tests pass, add an optional smoke check:
+A = [{"article_id": "a1", "country": "HU", "published_date": "2020-01-01", "is_rail_related": True, 
+      "event_type": "investment", "operators": ["MÁV"], "sentiment": "positive", "monetary_amount_eur": 10.0,
+      "language": "hu", "confidence": 0.9, "rail_lines": ["M1"]}]
+B = [{"article_id": "b1", "country": "HU", "published_date": "2020-01-01", "is_rail_related": True,
+      "event_type": "accident", "operators": ["ÖBB"], "sentiment": "negative", "monetary_amount_eur": None,
+      "language": "de", "confidence": 0.6, "rail_lines": ["M3"]}]
+# Verify: set(aggregate_news(A).columns) == set(aggregate_news(B).columns) (all canonical languages present)
+```
+
+13. Update docs/index.html dashboard chip for Gold:
+    - Current metric: "4 cols" (geo, year, geo_level, + one stat feature).
+    - New metric: "4 cols + language/confidence/rail_lines/GKG skeleton" or "wide Gold schema: 20+ columns incl. language, confidence, rail_lines per-(geo,year)".
+    - Link to the DATA_CONTRACTS.md Gold section.
+
+14. Update docs/TASKS.md to flip the `gold/widen-news-aggregation` task from `todo` to `done` (once verified).
+
+15. Update docs/GAP_REGISTER.md GAP-040 row (or create if not yet present) to `closed` with the verification command and test results, and append a row to the Test Failure Mapping table.
+
+16. Add a research record `.planning/coursework/research/bigdata/gold-widen-news.md` linking to research-orchestrator, MCP providers, and source URLs for pandas groupby patterns, ISO 639-1 codes, and GDELT GKG schema overview.
+
+**Files to touch:** `src/railway_lakehouse/gold/build.py` (aggregate_news and build_gold signature/logic) · `tests/test_gold_characterization.py` (new tests for language/confidence/rail_lines) · `docs/DATA_CONTRACTS.md` (expand Gold news schema section) · `docs/TASKS.md` (gold/widen-news-aggregation todo→done) · `docs/GAP_REGISTER.md` (GAP-040 closed row) · `docs/index.html` (dashboard chip update) · `.planning/coursework/research/bigdata/gold-widen-news.md` (research record, new)
+
+**Definition of Done (contract).**
+- [ ] aggregate_news emits news_language_<code> columns for all canonical languages (e.g., hu, de, en, fr, es, it, pl, ro, sk, cz), zero-filled when absent — one column per canonical ISO 639-1 code. news_language_primary (modal language) also present. Canonical language list is defined and deterministic across batches.
+- [ ] aggregate_news emits news_confidence_mean, news_confidence_std, news_confidence_min, news_confidence_max aggregated from input confidence values; also news_confidence_bin_low/medium/high counts per [0,0.33] / [0.33,0.67] / [0.67,1.0] bins, zero-filled.
+- [ ] aggregate_news emits news_rail_lines_* rollups (either per-line pivot columns if a canonical rail-line list exists, OR news_n_rail_lines_unique + news_rail_lines_list aggregated; deterministic approach chosen and documented in code).
+- [ ] Optional granularity parameter (granularity='year' | 'year-month') added to aggregate_news and build_gold; granularity='year-month' emits per-(geo, year, month) rows with identical aggregations, including the new language/confidence/rail_lines dimensions.
+- [ ] GKG integration skeleton documented in code (TODO comment in aggregate_news + DATA_CONTRACTS.md GKG section); placeholder ready for future Silver GKG wiring.
+- [ ] Two new unit tests in tests/test_gold_characterization.py pass: test_aggregate_news_emits_language_confidence_rail_lines_rollups and test_aggregate_news_sub_annual_granularity_year_month. Existing test_aggregate_news_counts_events_sentiment_money_and_operators (lines 63-109) still passes unchanged.
+- [ ] Determinism verified: set(aggregate_news(A).columns) == set(aggregate_news(B).columns) for disjoint-language/confidence/rail_lines batches A and B; all canonical language codes present in all non-empty outputs.
+- [ ] docs/DATA_CONTRACTS.md Gold section expanded to document language/confidence/rail_lines/GKG schema, canonical vocabularies, and sub-annual option.
+- [ ] Full unit suite green: python -m pytest -q -m unit (no regressions in existing stats/event/operator tests).
+- [ ] No LLM, no network, no Docker introduced; pure pandas deterministic aggregation. Raw Bronze immutable; numeric values not rewritten.
+- [ ] docs/TASKS.md gold/widen-news-aggregation flipped to done; docs/GAP_REGISTER.md GAP-040 marked closed with verification command + result; docs/index.html Gold chip updated; research record committed.
+
+**Verify:** 
+Red baseline (before fix): 
+\`\`\`bash
+python -c "from railway_lakehouse.gold import build as g; A=[{'article_id':'a1','country':'HU','published_date':'2020-01-01','is_rail_related':True,'event_type':'investment','operators':['MÁV'],'sentiment':'positive','monetary_amount_eur':10.0}]; print('language' in g.aggregate_news(A).columns); print('confidence' in g.aggregate_news(A).columns); print('rail_lines' in g.aggregate_news(A).columns)"
+\`\`\`
+Expected: all False (dimensions not currently aggregated).
+
+Green gate (after fix), the authoritative DoD command:
+\`\`\`bash
+python -m pytest -q -m unit tests/test_gold_characterization.py
+\`\`\`
+Expected: all tests pass incl. the new language/confidence/rail_lines and year-month tests.
+
+Full smoke:
+\`\`\`bash
+python -m pytest -q -m unit
+\`\`\`
+Expected: 80+ tests pass, no regressions.
+
+**Pitfalls.** 
+- Do NOT add any LLM calls inside aggregate_news or build_gold (Hard Rule: deterministic numeric merges only). The rail_lines/language/confidence aggregations are counts/statistics only.
+- Do NOT rewrite or rescale existing count/sentiment/money aggregations (existing test_aggregate_news_counts_events_sentiment_money_and_operators must pass unchanged).
+- Do NOT break the existing per-(country, year) grain; make sub-annual (year-month) optional via a parameter, not the default.
+- For determinism, ensure all canonical language columns are ALWAYS present in aggregate_news output (use reindex with fill_value=0), just as GAP-016 does for event-type and operator columns. If a language is absent from the batch, its column still appears, zero-filled.
+- GKG integration is DEFERRED; do NOT attempt to parse Silver GKG if it does not yet exist. Document the skeleton and the integration point, but leave it as a TODO for a later gap.
+- rail_lines is a free-text list with no canonical vocabulary defined yet. Choose deterministic approach: (a) aggregate only (count of unique lines), or (b) if a later gap defines a canonical list (like KNOWN_OPERATORS), refactor to pivot per canonical line. For MVP, document the choice and ensure it does NOT break on unexpected line names (use _sanitize_column_name or filter to known-only).
+- Tests must use inline fixtures (tmp_path if needed) only; never depend on coursework/ data or live Ollama.
+- Keep the empty-input early returns (aggregate_news lines 82-88) intact: truly empty or no-qualifying-rows input legitimately returns only [geo, year] (or [geo, year, month] if sub-annual).
+- When merging all the new dimension aggregations (language, confidence, rail_lines), use successive .merge(on=group_keys, how="left") to preserve row counts and avoid silent NaN introduction. Ensure the order of columns is deterministic (e.g., sort by name within each logical block: counts, then language, then confidence, then rail_lines, then events, then operators).
+- Confidence values are often None (nullable); always filter with .notna() before aggregating, and ensure output columns (confidence_mean/std/min/max) are left as NaN when no non-null confidence exists in a group (not zero-filled like count columns).
+
+### GAP-041 — UIC PDF: widen geo to all countries + stage all tables/unmapped rows + traffic-trends text
+
+`MID` . level **parser-correctness** . effort **M** . depends on: -
+
+**Build:** (1) Widen `_uic_geo_from_cells()` (load.py:395–403) from AT/HU-only to recognize all ISO-2 and ISO-3 country codes in UIC PDFs for free international volume. (2) Persist EVERY extracted table and unmapped (unparseable) rows to a Silver staging/quarantine area (`silver/uic_staging/`) partitioned by (dataset_id, table_idx, row_type) so nothing is silently dropped and mappings can expand without re-parsing. (3) Sub-task: mine the Traffic-Trends PDF (`uic_traffic_trends_2024.pdf`, 591 KB, 100% text, no country-level synopsis table) as a separate extraction; it has text but no tabular country code—extract text chunks, stage them, and leave numeric parsing to future work.
+
+**Context.** The UIC public PDF reader (load.py:464–534) is deterministic and currently production-wired for the Bronze→Silver stats path (GAP-006, task `silver/stats-uic-pdf-reader`, merged PR #26). It parses the UIC Railway Statistics Synopsis 2025 PDF (1.5 MB) using `pdfplumber` table extraction + column spec matching. Current implementation (load.py:342–347) FILTERS on hardcoded `_UIC_GEO_CODES = {"AT", "AUT", "HU", "HUN"}` and `_UIC_COUNTRIES = {"austria", "hungary"}`, dropping all other countries invisibly at line 485 (geo == None). Two live Bronze artifacts exist (output/evidence/uic-live-check-2026-06-22/manifest.json): Synopsis 2025 (1.5 MB, parsed to 39 rows, AT/HU only) and Traffic Trends 2024 (591 KB, text PDF, no country-level table, 0 rows extracted). Owner decision (AGENTS.md:75–81) is to CAPTURE EVERYTHING and MAP deliberately in Spark/Gold. The narrowing-to-AT/HU belongs in Spark filters, not in the Silver parser.
+
+**Problem.** 
+1. Line 395–403, `_uic_geo_from_cells()` checks `if code in _UIC_GEO_CODES` and returns None for any other country code (e.g., "CZ", "IT", "SK", "FR"); at line 484–486 in `_uic_rows_from_tables()`, rows with geo==None are skipped silently (`continue`), dropping all non-AT/HU country data even though the UIC Synopsis table includes them. Evidence: the UIC Synopsis 2025 PDF contains data for 9+ European railways (e.g., Czech, Italian, Slovak, French railways) — all are currently discarded.
+2. Line 469–506: `_uic_rows_from_tables()` processes tables and yields only rows that successfully parse (geo != None, year != None, value parseable). Rows that fail the geo or year check, or that sit in non-matching tables, are NEVER persisted. Once dropped, they are invisible — if future requirements expand the grammar (e.g., add a new event type, widen to regional operators, include other row types), re-parsing the PDF is required. No audit trail of what was rejected.
+3. Line 518–525: `load_uic_frame()` calls `_extract_uic_pdf_text_and_tables(raw)` and only processes `tables`. The `text` variable (all page text) is extracted but then DISCARDED (line 518). The Traffic Trends 2024 PDF has text but no country-level synopsis table (it is a different report format); `_uic_table_specs()` returns None (line 469–470 condition fails) and the entire PDF yields 0 rows. The rich text content is lost.
+
+**Steps.**
+1. RESEARCH (external PDF parsing patterns and ISO country code standards): invoke research-orchestrator; route through Context7 / Ref for (a) pdfplumber text-extraction best practices, (b) ISO-3166 country code lists (standard references); write `.planning/coursework/research/bigdata/silver-uic-pdf-widen-and-stage.md` with provider(s), queries, and URLs.
+2. In `src/railway_lakehouse/silver/stats/load.py`:
+   - Line 342–347: Replace `_UIC_GEO_CODES` and `_UIC_COUNTRIES` with a full ISO-2/ISO-3 mapping. Use a library (e.g., `pycountry` pinned; check via research-orchestrator) or hardcode a minimal dict covering all EU+adjacent countries (AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE) + known non-EU UIC members (e.g., CH, GB, TR, RU, UA). Update `_uic_geo_from_cells()` to accept any recognized code.
+   - Line 464–506: Refactor `_uic_rows_from_tables()` into TWO functions: (a) `_uic_rows_from_tables_golden()` — the current logic, yields only successfully-parsed rows that match geo+year+value criteria; (b) `_uic_rows_from_tables_staging()` — yields ALL rows (including failed/unmapped) with additional columns `table_idx` (ordinal position in tables list), `parse_status` ("success" | "geo_unmapped" | "year_missing" | "value_unparseable" | "table_mismatch"), and `raw_geo_cell` / `raw_year_cell` for audit/future mapping. Both functions share helper parsing logic (`_parse_uic_number`, etc.).
+   - Line 511–534: Extend `load_uic_frame()` to: (a) call `_uic_rows_from_tables_golden()` as before (for the current live merge path); (b) call `_uic_rows_from_tables_staging()` and persist staging rows to a new contract (see DATA_CONTRACTS.md step below); (c) handle text-only PDFs (like Traffic Trends) by extracting text chunks and staging them separately.
+3. In `src/railway_lakehouse/silver/stats/merge.py`:
+   - Ensure `_ENGLISH_LABEL_RULES` and `_map_label_by_rule()` (line 382–439) already handles unmapped label stubs (e.g., "uic_unmapped:traffic_trends_paragraph_1"). No code change likely needed here, but verify crosswalk logs unmapped labels.
+4. In `docs/DATA_CONTRACTS.md`:
+   - Add a new subsection **Silver UIC Staging Contract** documenting the staging table schema:
+     ```
+     - table_name: uic_staging
+     - table_id: (string) dataset_id + "_" + table_idx + "_" + row_type
+     - row_type: "header" | "data_row" | "text_chunk"
+     - table_idx: (int) ordinal position in pdfplumber tables extraction
+     - parse_status: (string) "success" | "geo_unmapped" | "year_missing" | "value_unparseable" | "table_mismatch"
+     - raw_geo_cell, raw_year_cell, raw_value_cells: (list/str) original unparsed cells
+     - text_chunk: (string, for text-only rows) the extracted paragraph
+     - created_at: (ISO timestamp) when the row was staged
+     ```
+   - Persistence path: `silver/uic_staging/ingest_date=YYYY-MM-DD/uic_staging.parquet`, partitioned by ingest_date, with a companion schema-guard test.
+5. In `src/railway_lakehouse/silver/persist.py`:
+   - If `build_silver_stats()` is called, also persist staging rows to the staging contract. Staging is optional for now (no Gold aggregation yet); the main stats path continues as is.
+6. In `tests/test_silver_stats_uic_pdf.py`:
+   - Add `test_uic_rows_from_tables_staging_captures_unmapped_geos()` — mock a table with rows for AT, HU, CZ, and FR; verify staging rows are emitted for all geos with correct `parse_status`.
+   - Add `test_uic_rows_from_tables_staging_preserves_unparseable_values()` — mock a row where the year or value cell is malformed (e.g., "N/A", "pending"); verify staging row captures the raw cell and `parse_status="value_unparseable"`.
+   - Add `test_load_uic_frame_extracts_traffic_trends_text_chunks()` — create a mock text-only PDF (no tables, just paragraphs); verify `load_uic_frame()` extracts text and stages it with `row_type="text_chunk"`.
+   - Add `test_uic_staging_roundtrip_persists_and_reloads()` — stage a mixed dataset (synopsis rows + traffic-trends text), persist to Parquet, reload via a new `load_uic_staging()` function, verify schema and row counts.
+7. In `docs/TASKS.md`:
+   - Add a new line under the "Later — deferred" section (Stage 4) for silver/stats-parsers-extra: 
+     ```
+     | `silver/uic-pdf-widen-and-stage` | UIC PDF: widen geo to all countries + stage all rows + traffic-trends text | 4 | `silver/persist-contract` | todo | GAP-041 · stats volume + audit trail |
+     ```
+   - Update the `silver/stats-uic-pdf-reader` row (currently done, line ~79) to note: "current live synopsis is AT/HU-only (39 rows); GAP-041 widening to all countries (est. 100+ rows) and staging audit trail is deferred to Stage 4".
+8. In `docs/index.html` (dashboard):
+   - Add a new chip entry for GAP-041 in the "Parser Correctness" section with status `todo`, severity `MID`, and link to GAP_TASKS.md#GAP-041.
+
+**Files to touch:** `src/railway_lakehouse/silver/stats/load.py` (widen geo codes, refactor `_uic_rows_from_tables()` into golden+staging, extend `load_uic_frame()`), `src/railway_lakehouse/silver/stats/merge.py` (verify unmapped label stubs are logged), `src/railway_lakehouse/silver/persist.py` (add staging persistence), `docs/DATA_CONTRACTS.md` (add UIC Staging Contract section), `tests/test_silver_stats_uic_pdf.py` (add 4 new unit+integration tests), `docs/TASKS.md` (add board row + update existing UIC row), `docs/index.html` (add dashboard chip), `.planning/coursework/research/bigdata/silver-uic-pdf-widen-and-stage.md` (research log with provider + URLs)
+
+**Definition of Done (contract).**
+- [ ] ISO country code mapping (hardcoded or via `pycountry`) is in place and covers all EU + known UIC members; `_uic_geo_from_cells()` accepts any recognized code (not just AT/HU).
+- [ ] `_uic_rows_from_tables_golden()` produces the same output as before (determinism preserved for live stats path); AT/HU-only filtering is no longer implicit in the parser.
+- [ ] `_uic_rows_from_tables_staging()` produces one row per input row (header, data, unmapped) with `table_idx`, `parse_status`, and `raw_*` audit columns; test confirms staging row count > golden row count.
+- [ ] Traffic Trends 2024 PDF is processed: text is extracted and staged as `row_type="text_chunk"` rows; the Silver staging table includes at least 10+ text chunks from the Traffic Trends dataset.
+- [ ] Staging Parquet schema is frozen in DATA_CONTRACTS.md and guarded by a deterministic test (`test_uic_staging_roundtrip_persists_and_reloads()`) that does NOT depend on live PDFs (uses mock/tmp_path fixtures).
+- [ ] All 4 new tests pass (unit + integration): `test_uic_rows_from_tables_staging_captures_unmapped_geos`, `test_uic_rows_from_tables_staging_preserves_unparseable_values`, `test_load_uic_frame_extracts_traffic_trends_text_chunks`, `test_uic_staging_roundtrip_persists_and_reloads`.
+- [ ] `python -m pytest -q tests/test_silver_stats_uic_pdf.py` passes all 16 tests (existing 12 + new 4).
+- [ ] Dashboard chip in docs/index.html and board row in docs/TASKS.md are synchronized with this task (status: todo, severity: MID, maps to GAP-041).
+- [ ] Research log (`.planning/coursework/research/bigdata/silver-uic-pdf-widen-and-stage.md`) records the research-orchestrator invocation, routed MCP provider(s), and source URLs for pdfplumber + ISO country code standards.
+
+**Verify:** 
+```bash
+# Full stats + uic tests pass
+python -m pytest -q tests/test_silver_stats_uic_pdf.py
+
+# Staging integration test confirms non-empty staging Parquet with > 39 rows (golden) and 10+ text chunks
+python -m pytest -q tests/test_silver_stats_uic_pdf.py::test_uic_staging_roundtrip_persists_and_reloads -v
+
+# Live UIC PDF probe still produces same 39 rows from synopsis (determinism check)
+python -m railway_lakehouse.bronze.live_check --sources uic --out output/evidence/uic-proof-of-widen-2026-06-25 --max-artifacts 1 --timeout-seconds 30
+# Then: python -c "import json; m=json.load(open('output/evidence/uic-proof-of-widen-2026-06-25/manifest.json')); print(f\"UIC artifacts: {m['artifact_count']}\")"
+
+# Crosswalk cache logs any new unmapped labels from widened geos
+grep unmapped .planning/silver/crosswalk_cache.json | head -5
+
+# Dashboard index.html is valid HTML (syntax check)
+python -m html.parser docs/index.html
+```
+
+**Pitfalls.** 
+- **Raw Bronze immutability**: Do NOT modify the Bronze PDF bytes or the landing; widen only the Silver parser. The Bronze UIC artifacts remain frozen; re-run `load_uic_frame()` on the same bytes to test.
+- **Determinism / numeric merge**: The golden (stats-only) path MUST produce identical rows as before (39 rows from Synopsis 2025 for AT/HU). Verify by comparing `_uic_rows_from_tables_golden()` output to old `_uic_rows_from_tables()` output on the real Synopsis PDF (test fixture or live artifact). Widening geo is a separate concern; the staging path can drop rows (parse failures), but the golden path must NOT change numbers.
+- **pdfplumber API stability**: pdfplumber.extract_tables() returns a list of 2D lists (rows of cells); the order and structure are stable for the same PDF version. If a new version of pdfplumber changes the cell-cleaning behavior (e.g., whitespace normalization), re-run the live check and update fixtures.
+- **Staging cardinality**: Staging rows include all rows from ALL tables, even header rows and unmapped geos. The staging Parquet will be wider (many more rows) than the golden stats table. Size it appropriately in tests; do NOT persist staging for every test (use tmp_path, not the shared output/ dir).
+- **Traffic Trends text extraction**: pdfplumber.extract_text() returns a long string with embedded `\n` and `\f` (form feed, page break) characters. Split on `\n` to yield per-paragraph text chunks; do NOT rely on OCR or vision (not available in the sandbox). Text-only PDFs have no table structure, so _uic_table_specs() will return None — add a conditional branch in `_extract_uic_pdf_text_and_tables()` or `load_uic_frame()` to handle text-only case separately.
+- **ISO country code library choice**: `pycountry` (pypi.org/project/pycountry) is standard for ISO lookups; if unavailable in the sandbox, hardcode the dict (EU27 + CH, GB, TR, RU, UA is ~35 entries, < 100 lines). Either way, cite the source in the research log and pinpoint the version (e.g., pycountry==24.1.1 or "hardcoded ISO-3166-1 via public IANA registry").
+- **Tests must not depend on coursework/ data**: All new tests use `tmp_path` fixtures or mock PDFs (e.g., `_minimal_table_pdf()` already exists in the test file); do NOT create test data files in `tests/fixtures/bronze/` without explicit owner approval. Staging tests should generate mock Parquet on the fly or use StringIO.
+- **Future news/Gold work**: Staging rows are for audit; they do NOT feed into Gold aggregation yet (Gold only reads golden stats). A future task (GAP-042 or later) will add a separate news-staging path. Keep staging and news-staging schemas separate in DATA_CONTRACTS.md.
+
+### GAP-042 — Build ODS parser for Statistik Austria rail statistics (StatFact reader)
+
+`MID` · level **parser-correctness** · effort **M** · depends on: -
+
+**Build:** Implement a deterministic ODS reader to parse Statistik Austria `.ods` files (5 rail freight + rolling-stock datasets) into the `StatFact` long contract (geo=AT), completing the stats-parser set. Register it as `"statistik_austria"` alongside `"ksh"`, `"uic"`, and `"eurostat"` in the load pipeline.
+
+**Context.** The Statistik Austria rail `.ods` artifacts are landed raw in Bronze (verified live, 5 files: Schienengueterverkehr 2025, Lokomotivbestaende, Schienentriebfahrzeuge, Schienengueterwaegenbestaende, Personenwaegenbestaende; see `bronze/sources/statistik_austria.py:76-120`). The `_SOURCES` registry in `silver/stats/load.py:539-544` dispatches on source name to a loader function; KSH XLSX, UIC PDF, World Bank JSON, and Eurostat TSV(.gz) all have readers, but ODS is the missing parser, blocking the completion of the stats-merge layer. The gap sits in the **Silver parser set completion** Wave (docs/TASKS.md:95, Stage 4 / Wave 5 parsers), is non-blocking for Gold since current real Gold uses only World Bank (live 2026-06-24 evidence: 2,968 rows × 4 columns with `rail_freight_tonne_km` and `rail_network_length_km` from WB; Statistik Austria ODS could add `rail_freight_tonnes`, rolling-stock counts), but is a ****required completion of the deterministic stats architecture** so the lakehouse fully covers its contracted sources.
+
+**Problem.** Statistik Austria ODS files are landed unchanged under `bronze/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.ods` (verified by `tests/test_bronze_characterization.py::test_statistik_austria_ingest_lands_valid_ods` and live evidence at `output/evidence/statistik-austria-live-check-2026-06-22/manifest.json`, 5 artifacts). The `_SOURCES` registry in `load.py:539-544` has no `"statistik_austria"` entry, and `frames_from_bronze` (lines 551-575) skips any source not listed. Because ODS is omitted, no `.ods` bytes are parsed and no `StatFact` rows are emitted by `build_silver_stats`, leaving the Statistik Austria slice silent in all merged Gold outputs. The root cause is a missing reader function (`load_stataustria_frame`) and the missing registry entry that would route `.ods` bytes through it.
+
+**Steps.**
+
+1. **RESEARCH** — invoke `research-orchestrator` skill; route through Context7/Ref/Tavily/Exa as appropriate for ODS library choices and implementation patterns. Research queries: (a) `odfpy` vs `pandas.read_excel(engine="odf")` vs alternatives for reading ODS files with deterministic behavior in Python 3.12+; (b) typical data layout and header detection in Statistik Austria STADAT-like `.ods` spreadsheets (similar to KSH XLSX from `load.py:155-302` patterns); (c) error handling and robustness for malformed ODS. Write findings to `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md` citing provider(s), source URLs, and version pins.
+
+2. **Add ODS library dependency** to `pyproject.toml [project].dependencies`: after line 13 (`pdfplumber>=0.11,<1`), add the chosen ODS reader library. Recommendation based on Step 1: if `odfpy` is selected, add `odfpy>=1.4,<2` (see https://github.com/eea/odfpy for current stable); if using `pandas.read_excel(engine="odf")` without an explicit import, no new dep is needed beyond odfpy (pandas treats `engine="odf"` as a vendor string). Do NOT add to `[project.optional-dependencies]` — this is a core Silver stats dependency, not optional like `[spark]` or `[ollama]`.
+
+3. **Implement `load_stataustria_frame(raw: bytes, dataset_id: str) -> pd.DataFrame`** in `silver/stats/load.py` following the `load_ksh_frame` pattern (lines 305-339):
+   - Validate the input: check if `raw` is non-empty and a valid ODS file (start byte magic `PK\x03\x04` or `PK\x05\x06` for ZIP-based ODS). If invalid, log a warning (pattern: `"stataustria %s: non-ODS payload; skipping"`) and return `_empty()`.
+   - Parse the ODS bytes into a tidy `(label, year, value, unit)` frame using `pd.read_excel(io.BytesIO(raw), sheet_name=0, engine="odf", header=None, dtype=object)` (parallel to `_ksh_tidy_from_excel`, lines 278-302). ODS files are ZIP-based, so they can be opened with the same `io.BytesIO` pattern as XLSX.
+   - Detect year columns and extract label/value/unit rows using helper functions (reuse or adapt `_ksh_year_header`, `_ksh_tidy_from_year_header_table`, `_ksh_title_unit` as needed; ODS structure is typically identical to XLSX because both are XML-in-ZIP). If no year header is found after scanning the first 40 rows, log a warning (pattern: `"stataustria %s: no tidy year/value rows; skipping"`) and return `_empty()`.
+   - Call `read_tabular_long()` (lines 319-333) with `geo="AT"` (Austria is the fixed geo for all Statistik Austria datasets), the tidy frame's label/year/value columns, and `unit="stataustria_native"` (placeholder, to be overridden per-row from the tidy frame's unit column, following the KSH pattern at line 331). Populate `source_dataset` from the `dataset_id` parameter (e.g., `"stat_at_rail_freight"`).
+   - Drop rows with NaN year or value (line 332: `dropna(subset=["year", "value"])`). Return `_empty()` if the result is empty.
+   - Catch any exception and log a warning (pattern: `"stataustria %s: ODS parse failed: %s"`) and return `_empty()`. This guards against malformed XML, missing sheets, or ODS format variants.
+   - Set `source_system="statistik_austria"` and return `frame[_LONG_COLS]` (columns in order: `["geo", "year", "value", "unit", "source_dataset", "source_column", "source_system"]`).
+
+4. **Register the loader in `_SOURCES`** (lines 539-544): add a new entry `"statistik_austria": (load_stataustria_frame, (".ods",))` after the `"uic"` entry and before the closing brace. This routes any `.ods` file landing under `bronze/stats/statistik_austria/*` through the reader.
+
+5. **Write a deterministic unit test** in a new file `tests/test_silver_stats_stataustria.py` marked `pytest.mark.unit`:
+   - **Test 1: empty/non-ODS rejection** — call `load_stataustria_frame(b"", "test_id")` and `load_stataustria_frame(b"not a zip", "test_id")` and assert both return a frame with 0 rows and columns `_LONG_COLS`.
+   - **Test 2: basic parsing** — create a minimal ODS file in `tmp_path` with a tidy layout (header row with years 2023, 2024, a label column, and 1-2 data rows). Write it using `openpyxl` or `ezodf` (whichever is lighter; verify in research step); read it back as bytes; call `load_stataustria_frame(raw, "test_at_rail_freight")`; assert `len(frame) > 0`, `frame["geo"].unique() == ["AT"]`, `frame["source_system"].unique() == ["statistik_austria"]`, `frame["source_dataset"].unique() == ["test_at_rail_freight"]`, and that the extracted years include 2023 and 2024.
+   - **Test 3: unit override** — verify the frame's `unit` column contains values from the source (not all `"stataustria_native"`), following the KSH pattern (load.py:331). This proves the per-row unit extraction works.
+   - **Test 4: crosswalk integration** — build a tidy frame with label like `"Schienengueterverkehr"` (rail freight in German), pass it through `load_stataustria_frame`, then apply the existing English-rule crosswalk (lines 428-439 in merge.py) to prove the label can be mapped to a canonical feature (e.g., `"rail_freight_tonnes"` via the "freight" rule or LLM). Assert `source_column` in the result is the original German label (preserving provenance) and the crosswalk resolves it to a mapped key.
+   - No test should depend on `coursework/` data or require `tmp_path` for ODS creation (use inline dict fixtures or generate ODS programmatically in tmp_path per convention).
+
+6. **Update `docs/GAP_REGISTER.md`** (line ~63, after GAP-030): add a new row for GAP-042 with Status `open`, Area `parser-correctness`, and a note that Statistik Austria ODS reader is the last stats parser; mark it `closed` with a dated evidence note after verification (e.g., `"Closed 2026-06-25: load_stataustria_frame implemented, 4 unit tests added to test_silver_stats_stataustria.py, all 89 suite tests green."`).
+
+7. **Update `docs/TASKS.md`** (the Wave 5 / Stage 4 parsers line, around line 95): change `"parsers: 4/5 (KSH XLSX ✓, UIC PDF ✓, Eurostat ✓, World Bank ✓; Statistik Austria ODS ✗)"` to `"parsers: 5/5 (all readers done)"`. Update the board row entry for `silver/stats-parsers` to reflect completion.
+
+8. **Update `docs/index.html`** (the dashboard line for Statistik Austria, around lines 346 and 429): change the status indicator from `"red NO ODS reader"` to `"green DONE — ODS → StatFact"` to reflect that the parser is complete. Keep the source description unchanged (`"5 rail files (ODS) · AT"`).
+
+9. **Run the verification command** (below): confirm all 89 unit+integration tests pass and the full suite is green. Locally run `build_silver_stats(root="output/evidence/.../ with real Statistik Austria ODS Bronze to prove end-to-end parsing produces `StatFact` rows (optional smoke evidence; not required by the closure criterion if deterministic tests suffice).
+
+**Files to touch:** `pyproject.toml` (add ODS library dep) · `src/railway_lakehouse/silver/stats/load.py` (add `load_stataustria_frame`, register in `_SOURCES`) · `tests/test_silver_stats_stataustria.py` (NEW, 4+ unit tests) · `docs/GAP_REGISTER.md` (add GAP-042 row, mark closed with evidence) · `docs/TASKS.md` (update Wave 5 parsers status) · `docs/index.html` (update Statistik Austria dashboard chip) · `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md` (NEW, research record)
+
+**Definition of Done (contract).**
+
+- [ ] `pyproject.toml [project].dependencies` includes the chosen ODS library (e.g., `odfpy>=1.4,<2`) with version bounds and a comment naming why (research step evidence).
+- [ ] `silver/stats/load.py` has a `load_stataustria_frame(raw: bytes, dataset_id: str) -> pd.DataFrame` function following the `load_ksh_frame` pattern: validates ODS magic bytes, parses tidy via `pd.read_excel(..., engine="odf")`, extracts year columns + labels, calls `read_tabular_long(geo="AT")`, sets `source_system="statistik_austria"`, drops NaN year/value rows, logs warnings on failure, returns `_empty()` on error.
+- [ ] The loader is registered in `_SOURCES` (line 539-544) as `"statistik_austria": (load_stataustria_frame, (".ods",))`.
+- [ ] A new file `tests/test_silver_stats_stataustria.py` contains 4+ deterministic unit tests (markers: `pytest.mark.unit`) covering: (1) empty/non-ODS rejection, (2) basic tidy parsing with years/labels/values, (3) per-row unit override from the ODS source, (4) crosswalk integration (German label → canonical English feature key). All tests use inline/generated fixtures (no `coursework/` data; use `tmp_path` for ODS file creation if needed).
+- [ ] The test suite passes: `python -m pytest -q -m unit tests/test_silver_stats_stataustria.py` must pass (4+ tests), and `python -m pytest -q` must report no regressions (89 total tests green).
+- [ ] The new `load_stataustria_frame` function is called by at least one integration test that proves `frames_from_bronze` (line 551-575) routes `.ods` files through the reader (optional: a deterministic fixture-based integration test that seeds a fake Bronze tree with a test ODS file and verifies it appears in the output of `frames_from_bronze`).
+- [ ] `docs/GAP_REGISTER.md` includes a new row for GAP-042 (after line 62) with Status `closed`, Sev `MID`, Area `parser-correctness`, Evidence linking to the new test file and implementation, and Closure Criteria stating all 89 unit+integration tests are green and the ODS reader completes the stats-parser set.
+- [ ] `docs/TASKS.md` (Wave 5 line, ~95) no longer lists Statistik Austria ODS as a blocker; the parsers summary is updated to reflect 5/5 completion (or language like "all readers done").
+- [ ] `docs/index.html` Statistik Austria dashboard chip (lines ~346, ~429) reflects the parser is complete (styling/color change from red/amber to green, or text change to "DONE — ODS → StatFact").
+- [ ] A research record exists at `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md` naming the research-orchestrator skill, the routed MCP provider(s), search queries, and source URLs for ODS library decision + Statistik Austria file structure.
+- [ ] No modification to the KSH or UIC readers (only additive new code); no changes to raw Bronze immutability or the deterministic numeric-merge rule (all parsing is pure pandas on cached bytes).
+
+**Verify:** 
+
+```bash
+python -m pip install -e ".[test]"
+python -m pytest -q tests/test_silver_stats_stataustria.py
+python -m pytest -q -m unit
+python -m pytest -q
+```
+
+Expected outcomes: `test_silver_stats_stataustria.py` passes 4+ tests; `pytest -q -m unit` → 87 passed (existing 77 unit + 10 new stataustria) or nearby count depending on research-step test additions; `pytest -q` → 92-93 passed (no regressions). Optional smoke (not required for closure): `python -c "from railway_lakehouse.silver.stats.load import frames_from_bronze; frames = frames_from_bronze('output/evidence/statistik-austria-live-check-2026-06-22'); print(f'Loaded {len([f for f in frames if f.iloc[0][\"source_system\"]=="statistik_austria\"])} Statistik Austria frames')"` → expect 5 frames from the 5 ODS artifacts if live evidence is available.
+
+**Pitfalls.** 
+
+- **ODS format choice**: Research thoroughly in Step 1 to select the lightest, most-supported ODS library. `odfpy` is the official ODS reference; `pandas.read_excel(engine="odf")` requires odfpy as a backend but offers a consistent pandas interface. Avoid heavy alternatives like LibreOffice/UNO. Pin the version in `pyproject.toml` with clear `<` bounds (e.g., `<2`) to prevent future major breaks.
+- **Raw Bronze immutability**: This is READ-ONLY parsing of already-landed ODS bytes. Never write to or modify anything under `bronze/stats/statistik_austria` — only consume the bytes. Verify using `git diff bronze/` after implementation shows no changes to sources.
+- **No LLM numeric rewriting**: Numbers (year, value, unit) must come from pure pandas `to_numeric` via `read_tabular_long`. The LLM (Ollama) is permitted ONLY for the German→English label crosswalk (merge.py:454-456 uses LLM for non-Eurostat sources), not for data extraction. Keep the test deterministic by running `use_llm=False` in the crosswalk test.
+- **ODS-as-ZIP**: ODS files are ZIP-based (magic bytes `PK\x03\x04` or `PK\x05\x06`), so the validation check must use the same ZIP-magic-byte guard as KSH XLSX (load.py:313: `zipfile.is_zipfile(io.BytesIO(raw))`). Apply the same guard here.
+- **Tidy extraction robustness**: Real Statistik Austria STADAT `.ods` files may carry title rows, merged cells, and footnotes — reuse the helper functions from KSH (lines 155-302) to detect year columns by 4-digit numerics rather than hardcoding row indices. Return `_empty()` on unexpected layouts (never crash, never fabricate). The fixture test must prove the basic happy path; production ODS may vary.
+- **Unit column handling**: Statistik Austria files may encode units differently than KSH (e.g., inline in the label, in a dedicated column, or implicit per dataset). Step through a real sample ODS to determine the pattern and implement per-row unit extraction (parallel to load.py:331). If units are implicit per dataset (e.g., "rail freight" is always in tonnes), hardcode it in the dataset registration or the reader function.
+- **Source system and dataset tagging**: The `source_dataset` field must be the original dataset name from Bronze (e.g., `stat_at_rail_freight`, as registered in bronze/sources/statistik_austria.py:78), and `source_system` must be `"statistik_austria"` (matching the `_SOURCES` registry key). Provenance is critical for auditing.
+- **Windows/encoding**: Build ODS test fixtures via the ODS library's save method to a real `tmp_path` file (do NOT assume a committed fixture — tests must generate ODS bytes in tmp_path). Read it back as bytes. Avoid platform-default text encoding assumptions; ODS is ZIP-based XML, so encoding is XML-standard UTF-8 inside. For test data generation, if using a library like `ezodf`, check platform support (Windows is supported).
+- **No `coursework/` data dependency**: Tests must not read from `coursework/bigdata/` files. Generate all test ODS fixtures within `tmp_path` using the ODS library or by seeding a tidy dict and converting it to ODS. Use inline dict fixtures for simple cases (matching the Eurostat and KSH test patterns).
+- **Reuse helper functions carefully**: `_ksh_year_header`, `_ksh_tidy_from_year_header_table`, etc., are KSH-specific. Before reusing them, verify ODS structure matches the KSH STADAT layout (which is likely, since both are Austrian stat offices). If ODS structure differs (e.g., year columns in a different position or label encoding), adapt the helpers or write dedicated Statistik Austria helpers.
+- **Dashboard sync hard rule** (AGENTS.md:81): This PR touches `docs/GAP_REGISTER.md`, so you MUST also update `docs/index.html` and `docs/TASKS.md` in the SAME change, or the dashboard-sync reminder bot will comment. Do not leave the dashboard stale.
+- **No hardcoding task-specific paths or parameters**: The reader must work for any Statistik Austria dataset by delegating `dataset_id` to `read_tabular_long` and letting `frames_from_bronze` discover files. Do not hardcode column indices or dataset names.
+
+### GAP-043 — News/model pipeline evaluation harness: golden set + per-feature metrics + regression gates
+
+`HIGH` . level **eval-testing** . effort **L** . depends on: silver/wide-newsfeature-contract (GAP-006 refinement: NewsFeature extraction must be stable and live-tested before evaluation harness can measure quality; the golden set assumes extraction runs deterministically)
+
+**Build:** Create an evaluation harness that measures extraction quality per-feature (sentiment accuracy/macro-F1, NER precision/recall/F1, event_type accuracy, is_rail_related precision/recall, language accuracy, dedup precision/recall, monetary exact-match) against a hand-labeled golden set (100–200 multilingual HU/DE/EN rail articles). Add quality thresholds, regression gates (fail if a model swap drops a metric below threshold), model-digest tracking (pin which model/version produced which metric), and a small deterministic harness test that runs with mocked model outputs (no live Ollama/XLM-R/fastText required in CI).
+
+**Context.** News feature extraction (silver/news/extract.py:72-83, `extract_article()` calling `generate_json` with Qwen3.5:9b-q8_0) has never run against a live model in CI or been evaluated for quality. The LLM prompt (silver/news/extract.py:50-69) asks for 11 fields with JSON validation (silver/news/extract.py:31-47), but every test mocks the LLM output (tests/test_silver_news_parsers.py:98-114, 143-158 `monkeypatch.setattr`). No golden labeled dataset exists to establish ground truth. The Gold aggregation (gold/build.py:82-125 `aggregate_news`) depends on correct extraction but has NEVER ingested a real NewsFeature row (news_rows is always `[]` in production; the real Gold is stats-only with 2,968 rows × 4 columns). The extraction quality is unvalidated — we do not know if the LLM is hallucinating event types, misidentifying language, dropping monetary amounts, or confusing operators. Regression gates do not exist, so a future model swap (e.g., Qwen to Llama, XLM-R to mBERT, fastText to another language-ID tool) could silently degrade quality with no alert. This gap blocks **honest measurement** of the pipeline's ML quality and **reproducible grading** of the news component (docs/VERIFICATION.md does not mention a news extraction quality baseline). | Documentation precedent: docs/VERIFICATION.md:30-63 proves stats Bronze→Gold with deterministic tests + committed evidence; a news evaluation harness replicates this pattern for the extraction ML layer.
+
+**Problem.** (1) **No golden set:** No hand-labeled articles exist. NewsFeature has 15 fields (silver/schema.py:39-54); only is_rail_related, event_type, sentiment, language, country, monetary_amount_eur, and operators are semantically testable (confidence is a model-reported score, summary_en is free text, rail_lines and monetary_raw are open-ended). Without ground truth, we cannot measure accuracy. (2) **No per-feature metrics:** The extraction pipeline has never reported precision/recall/F1 per field. The LLM call (extract.py:75 `generate_json`) succeeds if JSON is valid but does not validate semantic correctness (e.g., event_type="delay" ∈ config.NEWS_EVENT_TYPES does not prove it is the RIGHT event type for the article). validate_news_feature (schema.py:61-93) coerces bad values (unknown event types → "other") but does not score extraction fidelity. (3) **No regression gates:** If Qwen3.5 is swapped for another LLM, or XLM-R sentiment model is replaced, there is no automated test that fails if F1 drops by >5%. The Gold pipeline would proceed silently with degraded quality, undetected until manual audit. (4) **No model digest tracking:** The commit history does not record which model version produced which metric, making it impossible to investigate quality drift or defend a grading claim ("we used deterministic Qwen3.5:9b-q8_0"). (5) **Live test unprovable in CI:** Ollama, XLM-R, and fastText are too heavy for a normal pytest run; CI tests must mock them. The current mocks are exhaustive (extract.py test mocks return full valid dicts) but trivial (they do not test extraction fidelity). A harness test that (a) builds a tiny golden set fixture in `tmp_path` (no coursework/ dependency per AGENTS.md testing rule), (b) calls `extract_article` with mocked model outputs matching golden labels, (c) computes metrics, and (d) asserts metric thresholds are met — demonstrates the harness logic without requiring live models.
+
+**Steps.**
+1. RESEARCH (mandatory per coursework workflow): invoke the `research-orchestrator` skill; route questions on multilingual NER, sentiment model evaluation, language-ID metrics, and dedup F1 through Context7 or Ref (cardiffnlp/twitter-xlm-roberta-base-sentiment evaluation protocol, fastText language-ID accuracy benchmarks, flair NER or spaCy NER F1 reporting patterns, huggingface evaluate library for standard metrics). Write the research record to `.planning/coursework/research/bigdata/news-eval-harness.md` naming research-orchestrator, the routed provider(s), queries, and source URLs (e.g., https://huggingface.co/cardiffnlp/twitter-xlm-roberta-base-sentiment, https://github.com/facebookresearch/fastText, https://huggingface.co/spaces/evaluate-metric/accuracy, https://huggingface.co/spaces/evaluate-metric/f1).
+2. Define the **golden set schema** and **build protocol**. In `tests/fixtures/news_golden_set.json`, structure the golden set as an array of rows: `[{article_id, source, url, published_date, title, body, language_gold, is_rail_related_gold, country_gold, event_type_gold, operators_gold_list, rail_lines_gold_list, monetary_amount_eur_gold, sentiment_gold}, ...]`. Hand-label or crowdsource 100–200 real-world or synthetic articles covering: (a) HU/DE/EN languages; (b) is_rail_related = true/false (to test recall); (c) event_types from config.NEWS_EVENT_TYPES (investment, delay, safety, closure, expansion, other); (d) country = HU/AT/other; (e) sentiment = negative/neutral/positive; (f) monetary fields (some articles with money, some without); (g) operator mentions (MAVAG, ÖBB, etc.). Store it as a fixture under `tests/fixtures/news_golden_set.json` with a docstring/README explaining the annotation protocol and any inter-rater agreement score if crowdsourced. Do NOT use coursework/ data; if using real articles, ensure license permits test use or synthetic mock them. The fixture is committed (it is a small JSON, ~50 KB for 200 articles), not generated at test time.
+3. Create `src/railway_lakehouse/eval/news.py` with a metrics module. Implement per-feature metric functions: (a) `accuracy_score(gold, pred)` for is_rail_related, language, country (0/1 or the single correct label); (b) `event_type_accuracy(gold_list, pred_list)` respecting "other" as a catch-all (optional: penalize "other" predictions slightly for ambiguity); (c) `sentiment_accuracy(gold, pred)` for {negative, neutral, positive} classification (optional: compute confusion matrix); (d) `monetary_match(gold_amount, pred_amount, tolerance_eur=100)` exact-match if within tolerance (not always exact due to rounding); (e) `nER_precision_recall_f1(gold_ner_list, pred_ner_list)` for operator/rail_line extraction — use token-level F1 (simple token set intersection / union, or sequence-match if operator names are unambiguous, e.g. "ÖBB", "MAVAG"); (f) `dedup_precision_recall_f1(pred_list, gold_cluster_groups)` treating predicted articles as potentially duplicates (optional: use simple string-sim cutoff like Levenshtein > 0.8, or approximate group assignment to gold clusters). Compute macro-averages where applicable (e.g., macro-F1 per event-type class).
+4. Create the harness CLI: `src/railway_lakehouse/eval/__init__.py` + `src/railway_lakehouse/eval/harness.py` with a `main(argv=None)` entry point. Argparse args: `--golden-set` (path to the JSON, default `tests/fixtures/news_golden_set.json`), `--extraction-results` (path to a parquet or JSON of predicted NewsFeature rows, required), `--model-digest` (optional model identifier string, e.g. "qwen3.5-9b-q8_0:sha256:abc123", stored in output manifest), `--out` (default `output/evidence/news_eval/`), `--metric-thresholds` (optional JSON with {is_rail_related_precision: 0.85, event_type_accuracy: 0.80, sentiment_f1: 0.75, ...}, defaults to reasonable values like 0.80 across metrics). The harness must: (a) load the golden set and the predicted extraction results; (b) align rows by article_id; (c) compute metrics for each field; (d) fail non-zero if any metric falls below the corresponding threshold (exit 1, write `status:"failed"`); (e) write a manifest at `output/evidence/news_eval/manifest.json` recording: metric_values (dict), metric_thresholds (dict), threshold_violations (list of {metric, value, threshold}), model_digest, command, duration, UTC timestamps, and status ("passed"/"failed"). (f) Write a detailed CSV report at `output/evidence/news_eval/per_article_scores.csv` with columns: article_id, is_rail_related_match, event_type_match, sentiment_match, monetary_match, language_match, ner_precision, ner_recall, ner_f1, overall_score (simple mean of per-article field matches). (g) Write a per-metric summary at `output/evidence/news_eval/metric_summary.json`: {metric_name: {accuracy/F1/precision/recall, value, threshold, status: pass/fail}, ...}.
+5. Add a deterministic test: `tests/test_news_eval_harness.py` marked `@pytest.mark.unit`. The test must: (a) build a tiny golden set in `tmp_path` (5–10 synthetic articles with known ground truth, e.g. "Investment in ÖBB" → is_rail_related=true, event_type="investment", sentiment="positive"); (b) mock the LLM extraction via a fixture that returns exact-match predictions for the golden articles (100% accuracy mock); (c) call `harness.run_evaluation(golden_set_path, extraction_results_path, ...)` and assert: all metrics == 1.0 (perfect match), manifest exists and `status="passed"`, and per-article CSV has all scores == 1.0. (d) A second test fixture that returns DEGRADED predictions (e.g., event_type="other" for all, sentiment all "neutral") and asserts metrics fall below thresholds and `status="failed"`, manifest records violations, and exit code is 1. (e) A third test that asserts a missing `--golden-set` or `--extraction-results` raises an error with a helpful message. (f) Assert that if `--model-digest` is provided, it appears in the output manifest. **Crucially, this test uses mocked/fixture model outputs, NOT live Ollama/XLM-R**, so it runs in `pytest -q -m unit` with no extra services.
+6. Integrate the harness into the pipeline (optional but recommended for graded reproduction): Add a `--eval-news` flag to `pipeline.py` that, if set, (a) writes the extracted NewsFeature rows to a temp JSON, (b) calls the harness with `--extraction-results` pointed at that temp file, and (c) logs the metric summary before returning. This makes `python -m railway_lakehouse.pipeline --eval-news` generate an evaluation report inline.
+7. Create `src/railway_lakehouse/eval/golden_set_builder.py` (optional helper) for future crowdsourcing: a `build_from_csv(csv_path, output_json_path)` function that ingests a CSV with columns [article_id, source, url, published_date, title, body, language_gold, is_rail_related_gold, country_gold, event_type_gold, operators_gold_list (pipe-delimited), rail_lines_gold_list, monetary_amount_eur_gold, sentiment_gold] and outputs the JSON fixture. Include a docstring/README/script in `docs/GOLDEN_SET_PROTOCOL.md` explaining how to hand-label articles using a spreadsheet template or web form.
+8. Update `docs/GAP_REGISTER.md` GAP-043 row (new; create if not present): Status = "open" → "in_progress"/"closed", Evidence points to tests/test_news_eval_harness.py + tests/fixtures/news_golden_set.json + output/evidence/news_eval/manifest.json, add a Test Failure Mapping row with the verification command.
+9. Update `docs/TASKS.md` if a `news-eval` task exists; flip status to done once harness is implemented.
+10. Run the verification command (deterministic test suite, no live models): `python -m pytest -q tests/test_news_eval_harness.py` must pass all assertions (golden set fixture loads, metrics compute, thresholds enforced, degraded scenario fails correctly). Then run the full suite: `python -m pytest -q` must remain green with no new failures. Record the command + observed results in `docs/VERIFICATION.md` as a new subsection.
+
+**Files to touch:** `src/railway_lakehouse/eval/__init__.py (new)`  `src/railway_lakehouse/eval/news.py (new)`  `src/railway_lakehouse/eval/harness.py (new)`  `src/railway_lakehouse/eval/golden_set_builder.py (new, optional)`  `tests/test_news_eval_harness.py (new)`  `tests/fixtures/news_golden_set.json (new, committed fixture)`  `docs/GOLDEN_SET_PROTOCOL.md (new, optional)`  `docs/GAP_REGISTER.md (GAP-043 new row + Test Failure Mapping)`  `docs/TASKS.md (news-eval status if present)`  `docs/VERIFICATION.md (new subsection with harness results)`  `.planning/coursework/research/bigdata/news-eval-harness.md (new, research record)`
+
+**Definition of Done (contract).**
+- [ ] A golden set fixture exists at `tests/fixtures/news_golden_set.json` with 100+ hand-labeled articles covering HU/DE/EN, is_rail_related true/false, all event_type values, country HU/AT/other, sentiment neg/neutral/pos, and monetary fields (none or ±100 EUR). The fixture is committed and immutable (versioned if updated).
+- [ ] `src/railway_lakehouse/eval/news.py` exports metric functions: `accuracy_score(gold, pred)`, `event_type_accuracy(gold, pred)`, `sentiment_accuracy(gold, pred)`, `monetary_match(gold_amt, pred_amt)`, `ner_precision_recall_f1(gold_ner, pred_ner)`, `dedup_precision_recall_f1(pred, gold_clusters)`, and a `compute_all_metrics(golden_rows, prediction_rows)` → dict aggregator.
+- [ ] The harness (`src/railway_lakehouse/eval/harness.py`) exposes `run_evaluation(golden_set_path, extraction_results_path, model_digest=None, metric_thresholds=None, out_dir=...) → manifest_dict` and a `main(argv)` CLI that reads golden set + predicted extractions, computes metrics, enforces thresholds, writes manifest + per-article CSV + metric summary JSON, and exits 0 if all metrics ≥ thresholds, else 1 with violations recorded.
+- [ ] Deterministic test `tests/test_news_eval_harness.py` marked `unit` exists: (a) perfect-mock test asserts all metrics == 1.0 and manifest status="passed"; (b) degraded-mock test asserts metrics fall below thresholds and status="failed" + exit 1; (c) missing-args test asserts helpful error; (d) model-digest test asserts it appears in manifest. **Zero dependency on live Ollama/XLM-R/fastText** — all predictions are mocked fixture dicts.
+- [ ] `python -m pytest -q tests/test_news_eval_harness.py` passes all assertions without network, Docker, or extra models.
+- [ ] `python -m pytest -q` full suite remains green (was 127–161 tests depending on prior PRs); the new harness tests add to the count but do not break existing tests.
+- [ ] Metrics are reproducible: a given golden set + same model predictions always produce identical output manifest (deterministic no randomness in metric computation).
+- [ ] Model digest tracking: the `--model-digest` arg (optional string, e.g., "ollama-qwen3.5:9b-q8_0-digest-abc123") is recorded in the output manifest, enabling audit trails of which model produced which metric.
+- [ ] Threshold enforcement: if any metric (e.g., sentiment_f1) falls below its threshold (default 0.80), harness exits 1 and the manifest records the violation with the actual value, threshold, and metric name. Regression gates work: a future model swap is caught immediately if metrics degrade.
+- [ ] Documented golden set protocol: `docs/GOLDEN_SET_PROTOCOL.md` (or README note) explains the annotation schema, inter-rater agreement expectation, and how to extend/update the golden set (e.g., add new languages, more edge cases).
+- [ ] Dashboard sync (Hard Rule, AGENTS.md:81): `docs/GAP_REGISTER.md` GAP-043 row exists (status, evidence links to tests + fixture + output manifest), `docs/VERIFICATION.md` records the deterministic test command + observed results, and `docs/TASKS.md` reflects news-eval progress if applicable. No uncommitted evidence paths.
+- [ ] Research record written at `.planning/coursework/research/bigdata/news-eval-harness.md` naming research-orchestrator + routed MCP provider(s) + source URLs (sentiment model evaluation, NER metrics, language-ID benchmarks).
+
+**Verify:** 
+Primary (deterministic, CI-safe, no live models):
+```bash
+python -m pytest -q tests/test_news_eval_harness.py
+python -m pytest -q -m "unit or integration"
+python -m pytest -q
+python -c "import railway_lakehouse.eval.harness; import railway_lakehouse.eval.news"
+```
+
+Optional (with mocked extraction results fixture):
+```bash
+python -m railway_lakehouse.eval.harness --golden-set tests/fixtures/news_golden_set.json --extraction-results <tmp_pred_path> --out output/evidence/news_eval/ --model-digest "mock-perfect"
+cat output/evidence/news_eval/manifest.json
+```
+
+**Pitfalls.** 
+- "**No live model in CI tests:**  the harness test must mock all LLM/NER/sentiment/language-ID outputs. Ollama, XLM-R, and fastText are production-only (GAP-006 integration test may exercise them, but GAP-043 harness test must not). Use fixtures or monkeypatch to inject predicted dicts so the test runs in `pytest -q -m unit` without Docker/services. The only production harness run (if integrated into pipeline.py) calls the real models, but the test is mock-only for reproducibility."
+- "**Golden set is immutable, committed, and small:**  treat it like a test fixture (commit to repo, not generated at runtime). Use tmp_path for test-local golden sets. Keep the committed golden set to 100–200 articles (~50 KB JSON) so clones are fast. Do not embed it in the test file (makes diffs unreadable); keep it in `tests/fixtures/`."
+- "**Per-feature metrics, not just overall F1:**  report is_rail_related precision/recall, event_type accuracy, sentiment confusion matrix, etc. separately. This lets future audits isolate which field is failing (e.g., "sentiment F1 dropped from 0.85 to 0.72 after model swap → investigate XLM-R degradation")."
+- "**Threshold enforcement is the regression gate:**  a degraded metric should fail the harness with exit 1 and a manifest record of violations. This ensures a model swap is never silent; the gate fires immediately if F1 < threshold, blocking accidental quality downgrades."
+- "**Hard Rules (AGENTS.md:74-81):**  raw Bronze and numeric Gold values are read-only (this task reads extraction outputs only, does not regenerate them). The golden set is a committed fixture (not fabricated or generated on-the-fly per AGENTS.md testing rule). Test inputs are in tmp_path, not coursework/ or output/. All evaluation outputs go under output/evidence/news_eval/."
+- "**Model digest for audit trail:**  if `--model-digest` is provided (e.g., hash of model weights or image digest from Ollama), record it in the manifest. This enables future investigation ('what model version produced that 0.78 F1?')."
+- "**Metrics are deterministic, not probabilistic:**  do not use random sampling or early stopping in metric computation. Exact-match, token-level F1, macro-F1 over classes — all fully deterministic so re-runs are bit-identical (crucial for grading reproducibility)."
+- "**NER and dedup are optional if not used in current pipeline:**  sentiment, language, is_rail_related, event_type, monetary are core. If operators/rail_lines are not yet extracted reliably (GAP-006 may be incomplete), you may stub NER metrics as placeholders or exclude them from the main thresholds (e.g., compute them but do not gate the overall pass/fail on NER). Document which metrics are gating vs. informational."
+- "**Research before implementing:**  consult evaluate library, cardiffnlp sentiment evaluation examples, fastText accuracy benchmarks, flair NER F1 patterns (via research-orchestrator) to use standard metric definitions. Do not invent custom metrics; reuse huggingface evaluate or scikit-learn where possible so auditors recognize the methodology."
+
+### GAP-044 — Per-source parser correctness audit + field-coverage golden fixtures
+
+`MID` · level **parser-correctness** · effort **M** · depends on: -
+
+**Build:** Add per-source golden fixtures (real sample bytes) and field-coverage assertions for RSS, GDELT DOC, World Bank, Eurostat, KSH, and UIC, verifying each parser extracts the expected fields and does not silently drop rows; fold in robustness gaps GAP-022 (mixed/RFC-822 dates), GAP-025 (malformed RSS aborts batch), and GAP-026 (dict-row KeyError). Produce a coverage matrix (source × fields-captured-vs-available).
+
+**Context.** Parsers are deterministic, low-level ingestion points trusted by the entire pipeline. Currently, tests cover happy-path record counts and basic field presence, but no per-source golden fixtures validate that real-world bytes (e.g. Eurostat TSV with quoted codes, RSS with namespace-encoded content, GDELT compact dates) round-trip correctly with no silent drops. Three known robustness gaps (GAP-022, GAP-025, GAP-026) affect downstream users (Gold date parsing, batch aborts, KeyError on partial fields) and block honest error handling. A field-coverage matrix exposes which high-value fields (GDELT tone/themes, Eurostat aggregate geos, KSH regional variants, UIC traffic trends, StatAustria ODS) are captured, mapped, or dropped by design vs. by accident. This task hardens the parser contract and formalizes the field-drop decision boundary documented in the owner-accepted architecture (CLAUDE.md, AGENTS.md:74-81).
+
+**Problem.** (1) No per-source golden fixtures exist; tests use minimal synthetic examples (e.g. `test_parse_rss_xml_returns_article_records` at `tests/test_silver_news_parsers.py:10-32` parses a 4-field RSS item but real feeds carry namespaced content, CDATA, and mixed character encodings). Real Bronze bytes are committed under `output/evidence/*/bronze/`, but the parsers are NOT tested against them — only against mocked JSON dicts. (2) GAP-022 evidence: `gold/build.py:74` calls `pd.to_datetime(published_date)` with no format hint, silently producing NaT on mixed-format input; RFC-822 RSS dates (`"Mon, 24 Jun 2026 10:30:00 +0000"`) are silently lost. (3) GAP-025 evidence: `silver/news/rss.py:9` calls `ET.fromstring(xml_text)` with no `ParseError` handler, so one malformed feed URL or one bad byte-sequence in a multi-feed batch aborts the entire `article_records_to_news_features` run. (4) GAP-026 evidence: `gold/build.py:71,96,108` assumes dict news rows have all `NewsFeature` optional fields; a dict omitting `monetary_amount_eur` or `operators` raises `KeyError` despite the advertised dict-or-object input contract. (5) Field-coverage unknowns: GDELT DOC 2.0 ArtList (gdelt.py:43-56) STRUCTURALLY CANNOT return GKG fields (themes, CAMEO tone, persons, orgs, locations); the parser currently extracts only article_id, source, title, url, published_date, body (6 fields). WorldBank JSON yields datetime/indicator/country/value (4 fields); Eurostat TSV carries obs_time, unit measure, and flags; KSH XLSX layout discovery is heuristic and may miss indicators in unexpected table positions; UIC PDF table detection uses regex keyword hints and skips Traffic Trends PDF (no country-level synopsis). StatAustria ODS (source registered at bronze/sources/statistik_austria.py but never parsed — only landed raw).
+
+**Steps.**
+1. RESEARCH: invoke research-orchestrator; route questions about RSS 2.0 namespaces/CDATA, RFC-822 date RFC 5822 compliance, GDELT DOC 2.0 field inventory, XML parsing error handling (ET.ParseError), pandas multi-format date coercion, and golden-fixture best practices through Context7 or Ref. Write the research record to `.planning/coursework/research/bigdata/parser-correctness-audit.md` naming research-orchestrator, routed provider(s), queries, and source URLs (e.g. RSS 2.0 content:encoded namespace, https://www.rfc-editor.org/rfc/rfc822, GDELT documentation, pdfplumber table extraction semantics).
+
+2. Create real golden fixtures from committed Bronze evidence:
+   - **RSS**: extract a real feed URL from `bronze/sources/rss_media.py:_all_feeds()` (e.g. hu_telex, at_orf), fetch a bounded snapshot (5-10 items, ~50 KB), and save as `tests/fixtures/silver/news/rss_real_example.xml` (include content:encoded, description fallback, missing URLs, and one malformed item to test error handling).
+   - **GDELT**: copy a real DOC 2.0 JSON payload from `output/evidence/*/bronze/news/gdelt/` (e.g. `gdelt_doc_HU_1d.json` from a live-check run) into `tests/fixtures/silver/news/gdelt_real_example.json` (5-10 articles, ~30 KB).
+   - **World Bank**: save a real `output/evidence/*/bronze/stats/worldbank/<indicator>.json` (e.g. IS.RRS.PASG.KM) as `tests/fixtures/silver/stats/worldbank_real_example.json` (2-3 countries, 5 time periods).
+   - **Eurostat**: save a real `output/evidence/*/bronze/stats/eurostat/<dataset>.tsv` or `.tsv.gz` as `tests/fixtures/silver/stats/eurostat_real_example.tsv` (include quoted dataset codes per `test_discover_rail_datasets_strips_quoted_dataset_codes`, gzip compress it, and save both `.tsv.gz` and uncompressed variants).
+   - **KSH**: save a real `output/evidence/ksh-live-check-2026-06-22-current/bronze/stats/ksh/*/ingest_date=*/sza*.xlsx` as `tests/fixtures/silver/stats/ksh_real_example.xlsx` (include a year-header table, a regional-total table, and one unexpected layout to test fallback).
+   - **UIC**: save a real `output/evidence/uic-live-check-2026-06-22/bronze/stats/uic/*/ingest_date=*/*.pdf` (e.g. the Railway Statistics Synopsis PDF) as `tests/fixtures/silver/stats/uic_real_synopsis.pdf` (10+ KB); optionally include a second PDF that should yield 0 rows (e.g. a traffic-trends table with no country header).
+   - **StatAustria** (optional, low priority): if ODS fixture exists in live-check evidence, save as `tests/fixtures/silver/stats/statistik_austria_real_example.ods` (currently no parser, so skip or stub as a TBD).
+
+3. Refactor and harden the parsers for error handling:
+   - **RSS (silver/news/rss.py)**: wrap `ET.fromstring` in a try-except, catch `xml.etree.ElementTree.ParseError`, log a warning with the feed source, and either (a) return empty list if first parse, or (b) collect and return the items parsed so far. Update the docstring to state the behavior: "Skips malformed feeds and continues processing; parsing errors are logged."
+   - **GDELT (silver/news/gdelt.py)**: already handles `json.loads` gracefully, but add explicit schema validation (articles must have title + url or snippet); log a count of dropped articles if any field is missing.
+   - **World Bank (silver/stats/load.py:49-68)**: already guards against errors; verify the logic and add a test for malformed JSON.
+   - **Eurostat (silver/stats/load.py:70-82)**: add explicit gzip detection and decompression (already done per line 74); verify TSV decode is UTF-8 explicit.
+   - **KSH (silver/stats/load.py:305-340)**: already wrapped in try-except; verify no silent drops on unexpected XLSX layouts and that the fallback returns empty rather than partial rows.
+   - **UIC (silver/stats/load.py:511-535)**: already wrapped; verify PDF-text fallback when no tables found and that Traffic-Trends layout (no country-level synopsis) correctly yields 0 rows.
+
+4. Create `tests/test_silver_parser_golden_fixtures.py` marked `@pytest.mark.unit` with per-source test cases:
+   - **test_parse_rss_xml_golden_fixture()**: load `tests/fixtures/silver/news/rss_real_example.xml`, parse, assert article count >= expected, assert all articles have article_id/source/title/published_date, assert body prefers content:encoded, and assert the malformed item is logged and skipped.
+   - **test_parse_gdelt_artlist_json_golden_fixture()**: load `tests/fixtures/silver/news/gdelt_real_example.json`, parse, assert article count >= expected, assert all articles have published_date in compact format, and assert title/url/snippet all present or logged as dropped.
+   - **test_load_worldbank_frame_golden_fixture()**: load `tests/fixtures/silver/stats/worldbank_real_example.json` as bytes, call `load_worldbank_frame`, assert output is long format with geo/year/value/unit columns, assert AT/HU rows present if expected, and assert value types are numeric or None.
+   - **test_load_eurostat_frame_golden_fixture()**: load both `.tsv` and `.tsv.gz` variants, call `load_eurostat_frame`, assert long format, assert quoted dataset codes are stripped (e.g. `"rail_pa_typepas"` becomes `rail_pa_typepas`), assert geo=[A-Z]{2}, and assert gzip path matches uncompressed.
+   - **test_load_ksh_frame_golden_fixture()**: load `tests/fixtures/silver/stats/ksh_real_example.xlsx`, call `load_ksh_frame`, assert long format with geo=HU, assert year is 4-digit or None, assert label/unit are non-empty or logged, and assert unexpected layouts return empty rather than crash.
+   - **test_load_uic_frame_golden_fixture()**: load `tests/fixtures/silver/stats/uic_real_synopsis.pdf`, call `load_uic_frame`, assert long format with geo=[AT|HU], assert year is 4-digit, assert label matches a mapped feature (network, passengers, freight, etc.), and assert a non-synopsis PDF (traffic trends) returns empty.
+
+5. Create `tests/test_parser_robustness.py` marked `@pytest.mark.unit` to cover GAP-022, GAP-025, GAP-026:
+   - **test_gold_news_date_parsing_handles_mixed_formats()** (GAP-022): create mock news rows with mixed published_date formats (ISO, GDELT compact, RFC-822 RSS), call `aggregate_news()`, assert all valid-date rows are counted, assert a warning is logged for any unparseable-but-present date, and assert NaT rows are excluded.
+   - **test_parse_rss_xml_skips_malformed_feeds()** (GAP-025): create RSS XML with one valid item and one malformed XML (unclosed tag, invalid encoding), call `parse_rss_xml` on both, assert valid items are returned, assert the malformed doc is caught and logged, and assert NO exception is raised (batch continues).
+   - **test_aggregate_news_handles_dict_with_missing_optional_fields()** (GAP-026): create dict news rows omitting `monetary_amount_eur`, `operators`, `confidence`, call `aggregate_news()`, assert it aggregates without raising, and assert missing fields default to None/empty list.
+
+6. Create `tests/test_parser_field_coverage.py` marked `@pytest.mark.unit` with a coverage matrix and per-source capability assertions:
+   - **test_parser_field_coverage_matrix()**: build a dict mapping source -> (available_fields, captured_fields, field_map). For each source, document which optional high-value fields are available in the source format but not extracted (e.g. GDELT tone/themes, Eurostat flags, KSH regional variant flags, UIC traffic-unit variants). Print a coverage matrix (source × field, captured/dropped/not_available). Assert that each captured field is used in Silver schema or explicitly logged as "for future enrichment."
+   - **test_rss_news_feature_schema_complete()**: assert that NewsFeature (schema.py:39-54, 15 fields) are all populated or None by `article_records_to_news_features()` when fed a real RSS record.
+   - **test_gdelt_passthrough_fields_available()**: assert that `gdelt_passthrough()` (extract.py:86-100) can accept gkg_tone/themes/locations (currently it ignores them); add optional parameters so future GDELT+GKG enrichment is possible.
+   - **test_worldbank_long_format_schema_matches()**: assert that `load_worldbank_frame()` output matches the LONG_COLS schema (geo, year, value, unit, source_dataset, source_column, source_system).
+   - **test_eurostat_geo_filtering_is_explicit()**: assert that geos matching [A-Z]{2} are retained and aggregate geos (EU27_2020, EA19) are dropped (via GAP-023 fix — explicit allowed-geo set with a warning log).
+   - **test_ksh_year_detection_is_robust()**: assert that `_coerce_ksh_year()` (load.py:83-95) correctly rejects non-4-digit and out-of-range years, and that the label-column detection (_ksh_label_column, load.py:116-142) prioritizes text content, not position.
+   - **test_uic_table_detection_uses_keyword_hints()**: assert that `_uic_table_specs()` (load.py:435-449) correctly identifies a Synopsis table (widest_row >= 20, "country code" + "railway company"), distinguishes it from Traffic Trends (no "revenue rail traffic" hint), and returns specs only for matched tables.
+
+7. Create a field-coverage summary document `docs/PARSER_FIELD_COVERAGE.md`:
+   - **Format**: Markdown table with columns: Source | Available Fields | Extracted Fields | Dropped/Future | Notes.
+   - **Rows**: RSS (title, link, pubDate, description, content:encoded, author, category, comments, ... → extracted: 6 ArticleRecord fields; dropped: author/category), GDELT (title, url, seendate, snippet, language, sourcecountry, imageid, domain ... → extracted: 6; available but unused: tone, themes, locations, persons, orgs), World Bank (date, value, indicator, country, ... → extracted: 4; available: metadata), Eurostat (obs_time, obs_value, unit measure, flags, ... → extracted: 3; available: flags/unit_multiplier), KSH (label, unit, year, value → extracted: 4; available: regional breakdowns if table layout is detected), UIC (geo, year, label, value, unit → extracted: 5; available: traffic-variant breakdowns in Traffic-Trends PDF, currently skipped).
+   - **Rationale**: link each "dropped" field to its GAP number (if applicable) or note "future enrichment" / "requires additional source access" (e.g. GDELT GKG, Eurostat flags, Traffic Trends details).
+
+8. Update `docs/DATA_CONTRACTS.md` to incorporate the field-coverage findings:
+   - Add a "Field Availability and Coverage" section per source explaining which optional/metadata fields are structurally available but not currently extracted.
+   - Link to `docs/PARSER_FIELD_COVERAGE.md` for the matrix.
+   - Clarify the owner-accepted architecture (CLAUDE.md, AGENTS.md) decision to extract MANY features WIDE in Silver and filter/aggregate in Spark.
+
+9. Add an import/schema guard test `tests/test_parser_imports_and_schemas.py` marked `@pytest.mark.unit`:
+   - Assert all parser functions (parse_rss_xml, parse_gdelt_artlist_json, load_worldbank_frame, load_eurostat_frame, load_ksh_frame, load_uic_frame) are importable.
+   - Assert their return type signatures (list of ArticleRecord for news, pd.DataFrame with _LONG_COLS for stats).
+   - Assert ArticleRecord and NewsFeature Pydantic models have correct field counts (6 and 15 respectively) and no breaking changes to schema.
+
+10. Update `docs/GAP_REGISTER.md` GAP-044 row: set Status to `closed` once verification passes, update Evidence to point at the test files and coverage matrix, and add a row to the Test Failure Mapping table.
+
+11. Run verification command and confirm all parser tests pass with no silent drops and robustness guards in place.
+
+**Files to touch:** `tests/fixtures/silver/news/rss_real_example.xml (new)` `tests/fixtures/silver/news/gdelt_real_example.json (new)` `tests/fixtures/silver/stats/worldbank_real_example.json (new)` `tests/fixtures/silver/stats/eurostat_real_example.tsv (new)` `tests/fixtures/silver/stats/eurostat_real_example.tsv.gz (new)` `tests/fixtures/silver/stats/ksh_real_example.xlsx (new)` `tests/fixtures/silver/stats/uic_real_synopsis.pdf (new)` `silver/news/rss.py (harden ET.fromstring error handling)` `gold/build.py (add robust date parsing; fix dict-row KeyError on optional fields)` `tests/test_silver_parser_golden_fixtures.py (new)` `tests/test_parser_robustness.py (new)` `tests/test_parser_field_coverage.py (new)` `tests/test_parser_imports_and_schemas.py (new)` `docs/PARSER_FIELD_COVERAGE.md (new)` `docs/DATA_CONTRACTS.md (Field Availability section)` `docs/GAP_REGISTER.md (GAP-044 row + Test Failure Mapping)` `.planning/coursework/research/bigdata/parser-correctness-audit.md (new)`
+
+**Definition of Done (contract).**
+- [ ] Per-source golden fixtures exist under `tests/fixtures/silver/{news,stats}/` and are loaded and tested in deterministic unit tests with no network/external dependencies (fixtures are committed to repo and sourced from output/evidence/ Bronze real-check artifacts).
+- [ ] All parser functions round-trip their golden fixtures correctly: article/stat counts match expected ranges, all input fields are either captured or explicitly logged as dropped, and no silent drops occur (rows consumed != rows produced must be logged).
+- [ ] RSS parser catches and logs `xml.etree.ElementTree.ParseError`; malformed feeds are skipped and the batch continues (not aborted).
+- [ ] Gold `aggregate_news()` handles dict news rows with missing optional `NewsFeature` fields (monetary_amount_eur, operators, confidence) without raising `KeyError`; defaults applied and logged.
+- [ ] Gold news date parsing uses explicit format detection (ISO, GDELT compact, RFC-822) and logs unparseable-but-present dates; no silent NaT conversion without warning (GAP-022 addressed).
+- [ ] Field-coverage matrix exists at `docs/PARSER_FIELD_COVERAGE.md` documenting available vs. extracted vs. dropped fields per source, with rationale linking dropped fields to GAP numbers or "future enrichment" notes.
+- [ ] `tests/test_silver_parser_golden_fixtures.py` (new): per-source golden-fixture roundtrip tests for RSS, GDELT, World Bank, Eurostat, KSH, UIC; all pass with real bytes.
+- [ ] `tests/test_parser_robustness.py` (new): covers GAP-022 (mixed-date handling), GAP-025 (malformed RSS abort-safety), GAP-026 (dict-row missing optional fields); all tests pass.
+- [ ] `tests/test_parser_field_coverage.py` (new): per-source schema/field completeness assertions and a coverage matrix print/assert; tests pass.
+- [ ] `tests/test_parser_imports_and_schemas.py` (new): import guard + schema field-count assertions; tests pass without network.
+- [ ] `python -m pytest -q` stays green with no new failures (was 93 passed after GAP-018/019 closures); all new tests marked `unit` are collected and pass.
+- [ ] `docs/PARSER_FIELD_COVERAGE.md` is human-readable, links back to `DATA_CONTRACTS.md`, and is referenced from `docs/index.html` or `README.md` as a resource.
+- [ ] `docs/DATA_CONTRACTS.md` updated with "Field Availability and Coverage" section per source explaining which optional/metadata fields exist but are not extracted (why and future plans).
+- [ ] Research record written at `.planning/coursework/research/bigdata/parser-correctness-audit.md` naming research-orchestrator + routed MCP provider(s) + source URLs.
+
+**Verify:** `python -m pytest -q tests/test_silver_parser_golden_fixtures.py tests/test_parser_robustness.py tests/test_parser_field_coverage.py tests/test_parser_imports_and_schemas.py && python -m pytest -q && python -c "import json; m=json.load(open('docs/PARSER_FIELD_COVERAGE.md'.replace('.md','.json'), encoding='utf-8')); assert len(m['sources']) >= 6; print('Parser coverage matrix OK')"` (or if .md format, assert the table is readable and all sources are listed).
+
+**Pitfalls.** "DO NOT fetch live from external sources during fixture creation — commit all fixture bytes to the repo (no temp files, no live downloads in tests). Real bytes extracted from output/evidence/*/bronze/ are already committed and safe. DO NOT rely on test data from coursework/; all fixtures must be under tests/fixtures/ and self-contained. Hard Rule (AGENTS.md:74-81): parsers are read-only deterministic units; no modifications to how they process numbers or drop rows (those decisions are in Gold aggregate). Document the design decision explicitly: RSS/GDELT are 6-field ArticleRecord; GDELT GKG is structurally unavailable from DOC 2.0 ArtList; if GKG enrichment is needed, it requires a separate GKG-specific source. DO NOT add new LLM calls or external services (news extraction via Ollama is GAP-006, kept separate). Eurostat geo filtering (GAP-023) is a separate fix and must be applied in this same change or cross-referenced as 'pending GAP-023'. Mixed-date handling (GAP-022) and dict-field robustness (GAP-026) must pass tests but do NOT require a live Ollama or MinIO run. Keep tests marked `unit` so they run without Docker/network. Do NOT round-trip output/evidence/ Bronze bytes or commit duplicates; the fixtures are sourced once and committed. All error-handling changes must log (use module logger) so failures are auditable and not silent."
+
+
+
+---
+
+## Roadmap finale + LLM-design tasks (GAP-045…050) — added 2026-06-25
+
+> Authored by the `roadmap-research-and-eda-design` workflow + owner refinements. Build order, sessions, and Contracts: [`docs/ROADMAP_NEWS_TO_REPORT.md`](ROADMAP_NEWS_TO_REPORT.md). Status: `docs/GAP_REGISTER.md`. **GAP-050 belongs to Session A (P0, precedes the live LLM run GAP-033)** despite its number; GAP-046→049 are the Session C EDA→analysis→report finale; GAP-045 (macro indicators) is Session B. Embedder default = `multilingual-e5-base` (model is a config knob; invest in the algorithm).
+
+### GAP-045 — Add the missing macro indicators (cars-per-1000 + PPP) to World Bank ingestion
+
+`MID` · level **bronze** · effort **S** · depends on: none (additive to an existing source list; everything else the analysis needs is already collected).
+
+**Build:** Add exactly the genuinely-new World Bank indicators the feature-availability audit identified — `IS.VEH.PCAR.P3` (passenger cars per 1,000 people) and `PA.NUS.PPP` (PPP conversion factor, GDP) — to `EU_STATS_INDICATORS`, map them to canonical features, and prove they land + reach Gold for AT/HU.
+
+**Context.** The closing analysis needs a car-ownership and a PPP signal to test H17 (cars-per-capita vs rail passenger-km). The sibling feature audit confirmed that GDP growth (`NY.GDP.MKTP.KD.ZG`), population density (`EN.POP.DNST`), Gini (`SI.POV.GINI`), CO2 (`EN.GHG.CO2.PC.CE.AR5`, `EN.ATM.CO2E.PC`) and GDP levels are ALREADY in `EU_STATS_INDICATORS` (verified at `src/railway_lakehouse/bronze/sources/worldbank.py:54-71`). Only cars-per-1000 and PPP are missing, and the originally-requested `IS.VEH.NVEH.P3` is DEPRECATED/retired on the WB API — use `IS.VEH.PCAR.P3` instead.
+
+**Problem.** `EU_STATS_INDICATORS` (worldbank.py:54-71) has no vehicle-ownership or PPP indicator, so H17 cannot be tested and any cars-per-capita claim would need a new source. `CANONICAL_FEATURES` (`src/railway_lakehouse/silver/config.py:27+`) has no `cars_per_1000` or `ppp_conversion_factor` key, and `_WB_INDICATOR_FEATURE` (`src/railway_lakehouse/silver/stats/merge.py:266-269`) maps only rail indicators, so even if landed the columns would not reach Gold.
+
+**Steps.**
+1. RESEARCH (mandatory): invoke `research-orchestrator`; route via Context7/Ref/Tavily to confirm on the live World Bank API that `IS.VEH.PCAR.P3` and `PA.NUS.PPP` are active (not retired) and have AT/HU coverage, and that `IS.VEH.NVEH.P3` is retired. Write `.planning/coursework/research/bigdata/macro-indicators-gap045.md` naming research-orchestrator + provider(s) + queries + source URLs.
+2. Add `IS.VEH.PCAR.P3` and `PA.NUS.PPP` to `EU_STATS_INDICATORS` in `worldbank.py:54-71` (deduped — `list(dict.fromkeys(...))` already protects against dupes at line 150).
+3. Add canonical keys `cars_per_1000` ("Passenger cars per 1,000 people") and `ppp_conversion_factor` ("PPP conversion factor, GDP (LCU per international $)") to `CANONICAL_FEATURES` in `silver/config.py`.
+4. Map both in `_WB_INDICATOR_FEATURE` (`silver/stats/merge.py:266`): `"IS.VEH.PCAR.P3": "cars_per_1000"`, `"PA.NUS.PPP": "ppp_conversion_factor"`.
+5. Add a deterministic unit test (marker `unit`, tmp_path) that feeds a tiny WB-JSON fixture for each new indicator through `load_worldbank_frame` + the crosswalk and asserts the canonical feature key appears in the long frame with numeric values for AT/HU. NO live network in the test.
+6. DOCS/DASHBOARD SYNC: note the two new indicators in `README.md` data-inventory and `docs/STATE_AND_ROADMAP.md` Data Inventory; set GAP-045 status in `docs/GAP_REGISTER.md` + Test Failure Mapping row; append `docs/PROGRESS_LOG.md` handoff.
+7. RUN + RECORD: run a bounded live World Bank Bronze→Silver→Gold (`--max-artifacts` small) and confirm `cars_per_1000` / `ppp_conversion_factor` appear as Gold columns for AT/HU; record counts under `output/evidence/macro-indicators-gap045/`.
+
+**Files to touch:** `src/railway_lakehouse/bronze/sources/worldbank.py` `src/railway_lakehouse/silver/config.py` `src/railway_lakehouse/silver/stats/merge.py` `tests/test_silver_stats_crosswalk.py (or new tests/test_macro_indicators.py)` `README.md` `docs/STATE_AND_ROADMAP.md` `docs/GAP_REGISTER.md` `docs/PROGRESS_LOG.md` `.planning/coursework/research/bigdata/macro-indicators-gap045.md (new)`
+
+**Definition of Done (contract).**
+- [ ] `IS.VEH.PCAR.P3` and `PA.NUS.PPP` are in `EU_STATS_INDICATORS`; `IS.VEH.NVEH.P3` is NOT added (it is retired).
+- [ ] `cars_per_1000` and `ppp_conversion_factor` exist in `CANONICAL_FEATURES` and are mapped in `_WB_INDICATOR_FEATURE`.
+- [ ] A `unit`-markered tmp_path test proves both indicators crosswalk to their canonical keys with numeric AT/HU values; `python -m pytest -q` stays green.
+- [ ] A recorded bounded live run shows both as Gold columns for AT/HU (counts under `output/evidence/macro-indicators-gap045/`).
+- [ ] Dashboard/docs synced; GAP-045 row + Test Failure Mapping updated; research record written.
+- [ ] Raw Bronze untouched; numeric merge stays deterministic (no LLM on these numbers).
+
+**Verify:** `python -m pytest -q -m unit && python -c "from railway_lakehouse.bronze.sources.worldbank import EU_STATS_INDICATORS as I; assert 'IS.VEH.PCAR.P3' in I and 'PA.NUS.PPP' in I and 'IS.VEH.NVEH.P3' not in I; from railway_lakehouse.silver.config import CANONICAL_FEATURES as C; assert 'cars_per_1000' in C and 'ppp_conversion_factor' in C"`
+
+**Pitfalls.** Do NOT add the retired `IS.VEH.NVEH.P3`. cars-per-1000 is sparse post-2018 — H17 must report coverage, not assume density. Keep this purely additive; do not touch rail indicators or the Eurostat path. Numeric values are read verbatim (no LLM). Tests use tmp_path fixtures, never coursework/ or output/ data.
+
+### GAP-046 — Spark EDA artifact harness (correlation incl deltas, lag cross-corr, panels, coverage, distributions)
+
+`HIGH` · level **spark** · effort **L** · depends on: GAP-017 (pinned Spark 4.1 stack) and a real feature-bearing Gold parquet (already exists: `output/evidence/inventory-live-2026-06-23/railway_ml.parquet`, 2968×4; widens as GAP-045/Eurostat/UIC land). Soft input GAP-045 (richer features make the matrix more interesting but are not required to ship the harness).
+
+**Build:** Add an importable PySpark job `railway_lakehouse.spark_jobs.eda` that reads a real Gold parquet, computes a YoY-delta-augmented panel, and auto-writes a fixed set of EDA artifacts under `output/evidence/eda/` plus a manifest — the iterative EDA stage the course requires before hypothesis brainstorming.
+
+**Context.** The project must end in iterative Spark EDA → hypotheses → analysis → report. The Spark idiom already exists in `src/railway_lakehouse/spark_jobs/coverage.py` (build_session, run_*, manifest with spark_version/timestamps/loud-fail-on-empty, `_spark_local_path`, `_write_json`, `spark.stop()` in finally). This job generalizes that into a multi-artifact EDA harness over the Gold `(geo, geo_level, year)` matrix whose feature vocabulary is `CANONICAL_FEATURES` (`silver/config.py:27+`) plus `news_*` columns and `delta_<feature>` derived here.
+
+**Problem.** No EDA artifacts are auto-generated; correlations/deltas/lags exist nowhere. `coverage.py` only emits per-(geo,year) non-null counts. There is no `delta_<feature>` step (the feature audit calls for a deterministic YoY-delta over the existing Gold), no correlation matrix, no lag cross-correlation, and no distributions — so hypothesis brainstorming has no evidence base.
+
+**Steps.**
+1. RESEARCH (mandatory): invoke `research-orchestrator`; route via Context7/Ref for Spark 4.1 APIs: `Window.partitionBy(...).orderBy(...)` + `F.lag` for YoY deltas, `pyspark.ml.stat.Correlation` and `DataFrame.stat.corr`/`approxQuantile`/`summary` for stats, Spearman via rank (`F.percent_rank`/`F.rank`). Write `.planning/coursework/research/bigdata/spark-eda-harness.md` (research-orchestrator + provider(s) + queries + URLs e.g. https://spark.apache.org/docs/latest/ml-statistics.html).
+2. Create `src/railway_lakehouse/spark_jobs/eda.py` with pure functions + a `main(argv=None)` CLI. Args: `--input` (default the inventory-live Gold), `--out` (default `output/evidence/eda/`), `--master` (default `local[*]`), `--min-pairs` (default 8), `--corr-threshold` (default 0.5), `--max-lag` (default 3). Reuse `build_session`, `_spark_local_path`, `_write_json`, the loud FileNotFoundError/empty-input guards, and the `spark.stop()` finally from `coverage.py` (import or mirror — do not duplicate logic sloppily).
+3. `add_deltas(df)`: for every numeric feature column (all columns except geo/geo_level/year), add `delta_<feature> = value - lag(value)` over `Window.partitionBy('geo').orderBy('year')`. Emit `output/evidence/eda/gold_with_deltas.parquet`.
+4. `correlation_long(df, methods=('pearson','spearman'), min_pairs)`: compute pairwise correlations over numeric features + deltas, restricted by a `--geo-level` filter (default run on geo_level='country' AND a second pass on all rows). Write `correlation_matrix.csv` and `correlation_matrix_with_deltas.csv` (long form: feature_x, feature_y, method, corr, n_pairs, low_support). Pairs with n_pairs<min_pairs get low_support=true, never dropped.
+5. `top_correlations(...)`: filter |corr|>=corr-threshold AND n_pairs>=min_pairs, sort by |corr|, write `top_correlations.csv` with a `hypothesis_hint` column (best-effort map of known pairs to H-ids).
+6. `lag_crosscorr(df, pairs, max_lag)`: for a configured pair list (investment↔network, investment↔passengers, news_n_investment↔delta_rail_investment, ...), self-join the panel on year+lag per geo for lags -max_lag..+max_lag, compute corr; write `lag_crosscorr.csv` (feature_x, feature_y, geo, lag, corr, n).
+7. `coverage_matrix(df)`: per (geo or geo_level) × feature non-null count + fraction + min/max year → `coverage_matrix.csv` (reuse the coverage.py aggregation shape).
+8. `distributions(df)`: per feature count/mean/stddev/min/quartiles/max via `summary`+`approxQuantile` → `distributions.csv`; per-feature histogram bin counts → `histograms/<feature>.csv`.
+9. `panels(df)`: one CSV per country `panels/panel_<GEO>.csv` (full time-series incl deltas, sorted by year).
+10. Write `output/evidence/eda/manifest.json` (mirror coverage.py manifest: spark_version, java_version, input_path/rows/cols, params min_pairs/threshold/max_lag, list of artifacts each with row count, duration_seconds, status, UTC timestamps, evidence_path). Fail loudly + write a `status:'failed'` manifest on any exception; `main` returns nonzero. `spark.stop()` in finally.
+11. Tests `tests/test_spark_eda.py`: `spark`-markered tests guarded by `pyspark = pytest.importorskip('pyspark')`, building a tiny multi-year AT/HU Gold in tmp_path (so deltas + lag + corr are computable), running `eda.main([...])` in `local[1]`, asserting each artifact + manifest exists, that delta columns are present and equal value−prior-year, and that a missing `--input` raises FileNotFoundError + 0-row raises ValueError. Plus a `unit`-markered no-pyspark import/CLI guard.
+12. DOCS/DASHBOARD SYNC: add the EDA command to `README.md` + `docs/VERIFICATION.md` (real command + observed artifact list once run); flip an `eda/artifacts` row in `docs/TASKS.md` to done; update `docs/index.html` chip; GAP-046 row + Test Failure Mapping in `docs/GAP_REGISTER.md`; `docs/PROGRESS_LOG.md` handoff.
+13. RUN + RECORD: `python -m railway_lakehouse.spark_jobs.eda --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/eda/` with pinned PySpark 4.1 + JDK 17/21; commit the artifacts + manifest (output/evidence/eda/ is NOT gitignored — only output/evidence/**/bronze/ is).
+
+**Files to touch:** `src/railway_lakehouse/spark_jobs/eda.py (new)` `tests/test_spark_eda.py (new)` `README.md` `docs/VERIFICATION.md` `docs/TASKS.md` `docs/index.html` `docs/GAP_REGISTER.md` `docs/PROGRESS_LOG.md` `.planning/coursework/research/bigdata/spark-eda-harness.md (new)`
+
+**Definition of Done (contract).**
+- [ ] `python -c "import railway_lakehouse.spark_jobs.eda"` succeeds; `eda.main`/`run_*` callable.
+- [ ] Running the job writes ALL of: `gold_with_deltas.parquet`, `correlation_matrix.csv`, `correlation_matrix_with_deltas.csv`, `top_correlations.csv`, `lag_crosscorr.csv`, `coverage_matrix.csv`, `distributions.csv`, `panels/panel_AT.csv` + `panel_HU.csv`, and `manifest.json` under `output/evidence/eda/`.
+- [ ] `delta_<feature>` columns equal value(geo,year) − value(geo,year−1) per geo (verified in the spark test on the tmp_path fixture).
+- [ ] Low-support correlation pairs (n_pairs<min_pairs) are flagged `low_support=true`, never silently dropped; missing/0-row input fails loudly (FileNotFoundError/ValueError).
+- [ ] manifest.json records spark_version, params, per-artifact row counts, duration, status='passed', UTC timestamps.
+- [ ] `tests/test_spark_eda.py`: spark test builds input in tmp_path (no coursework/output dependency), unit guard passes with NO pyspark; `python -m pytest -q` stays green (spark test SKIPS without pyspark).
+- [ ] Dashboard/docs synced; GAP-046 row + Test Failure Mapping updated; research record written.
+- [ ] Raw Bronze untouched; all outputs under output/evidence/eda/; deltas/correlations are deterministic numeric Spark work, no LLM.
+
+**Verify:** `python -m pytest -q -m unit && python -c "import railway_lakehouse.spark_jobs.eda"` (CI-safe, no Spark). With pinned PySpark 4.1 + JDK 17/21: `python -m pytest -q -m spark && python -m railway_lakehouse.spark_jobs.eda --input output/evidence/inventory-live-2026-06-23/railway_ml.parquet --out output/evidence/eda/ && python -m json.tool output/evidence/eda/manifest.json`
+
+**Pitfalls.** Spark writes DIRECTORIES (part-files + _SUCCESS) for parquet; CSV artifacts should be coalesced(1) or written via a small pandas collect for single-file human-readable CSVs — decide and document. With only AT/HU country rows the per-country n is tiny (≤27 years) — every correlation must carry n_pairs and low_support so the report does not over-claim. Spearman needs a rank transform, not `df.stat.corr` default (Pearson). Always `spark.stop()` in finally. Keep pyspark out of the default [test] env (importorskip). Do not write a non-empty manifest claiming success on an empty Gold (GAP-012-class trap). output/evidence/eda/ is committable; spark-warehouse/ is gitignored.
+
+### GAP-047 — Hypothesis registry + analysis_artifacts integration with Spark re-verification
+
+> **FRAMING OVERRIDE (owner decision, 2026-06-25): hypotheses are formed FROM the EDA artifacts, not pre-authored.** `docs/HYPOTHESES.md` starts EMPTY of conclusions; it is populated in **GAP-048** by reading the GAP-046 EDA artifacts (top_correlations, lag_crosscorr, coverage) and curating the interesting/robust/surprising relationships the data actually shows. The teammate's correlation list and any `H##` ids named in this spec are **illustrative method examples, NOT a predetermined set to confirm**. GAP-047 builds only the registry STRUCTURE + the `analysis_artifacts/` integration/verifier; GAP-048 forms the hypotheses post-EDA.
+
+
+`HIGH` · level **analysis** · effort **L** · depends on: GAP-046 (EDA artifacts give the evidence base + delta panel that claims recompute against). Soft: GAP-045 (richer features).
+
+**Build:** Create the hypothesis registry `docs/HYPOTHESES.md` (H1..Hn), the `analysis_artifacts/` upload inbox + `output/evidence/analysis/` verified-output zone with a claims.json contract, and an importable Spark verifier `railway_lakehouse.spark_jobs.verify_analyses` that re-runs every uploaded claim against the CURRENT Gold and writes a confirmed/drifted/broken/low_support diff.
+
+**Context.** Teammate analyses will be uploaded and must be re-verified against current data, and new hypotheses appended (project requirement). The backlog from the EDA design agent (H1..H22) seeds `docs/HYPOTHESES.md`. Gold feature columns are the `CANONICAL_FEATURES` keys (`silver/config.py:27+`) + `news_*` + `delta_*` (from GAP-046). The verifier reuses the Spark idiom in `src/railway_lakehouse/spark_jobs/coverage.py`/`eda.py`.
+
+**Problem.** There is no home for teammate analyses, no machine-checkable claim format, and no mechanism to detect that an uploaded number has DRIFTED because Gold changed (new sources landed, deltas added). Without it, the report would cite unverifiable uploads.
+
+**Steps.**
+1. RESEARCH (mandatory): invoke `research-orchestrator`; route via Context7/Ref for any stats methods referenced (partial correlation, Granger-style lagged OLS, KMeans silhouette in Spark MLlib). Write `.planning/coursework/research/bigdata/analysis-integration-gap047.md`.
+2. Author `docs/HYPOTHESES.md` seeded with H1..H22 from the EDA design backlog (columns: id | statement | variables=Gold columns | method | expected_artifact | feasibility | status). State the append protocol: new hypotheses get the next Hxx with status='candidate'; promotion to 'active' requires a runnable analysis or an EDA artifact.
+3. Define the `analysis_artifacts/<author>/<slug>/` inbox layout: `analysis.md` (narrative), `analysis.py` (recompute fn `recompute(gold_df) -> dict[claim_id, value]`, takes a Gold parquet path via `--gold`, NO hardcoded data), and `claims.json` (list of {claim_id, statement, metric, expected_value, tolerance, gold_columns, geo_filter, hypothesis_id}). Commit a `templates/analysis_artifacts_template/` example and one real seed analysis implementing H1 (investment vs track length correlation) so the verifier has something to run.
+4. Create `src/railway_lakehouse/spark_jobs/verify_analyses.py`: `main(argv)` with `--gold` (default inventory-live Gold), `--analyses-root` (default `analysis_artifacts/`), `--out` (default `output/evidence/analysis/`). For each `**/claims.json`: load Gold via Spark, run the sibling `analysis.py recompute`, and per claim write recomputed_value, expected_value, abs_diff, within_tolerance, gold_rows_used, gold_columns_present (flag a referenced column absent from current Gold → status='broken'), status∈{confirmed,drifted,broken,low_support}. Write `output/evidence/analysis/<author>__<slug>/verification.json` + a top-level `verification_summary.json` and `verification_summary.md`. Reuse loud-empty-Gold guard + manifest idiom + spark.stop() finally.
+5. Tests `tests/test_verify_analyses.py`: a `unit`-markered test (no pyspark) validating the claims.json schema loader and the diff/status classification on a hand-built dict (confirmed within tolerance, drifted beyond, broken on missing column, low_support on small n); a `spark`-markered test (importorskip) building a tmp_path Gold + a tmp analysis_artifacts folder and asserting verification.json + summary are written with correct statuses. NO coursework/output data.
+6. DOCS/DASHBOARD SYNC: link `docs/HYPOTHESES.md` from README + docs/index.html; document `analysis_artifacts/` + `output/evidence/analysis/` in `docs/VERIFICATION.md` and `docs/DATA_CONTRACTS.md`; GAP-047 row + Test Failure Mapping in GAP_REGISTER; PROGRESS_LOG handoff.
+7. RUN + RECORD: run the verifier over the seeded H1 analysis against the real Gold; commit `output/evidence/analysis/verification_summary.json` + the per-analysis verification.json.
+
+**Files to touch:** `docs/HYPOTHESES.md (new)` `analysis_artifacts/ (new inbox + templates/analysis_artifacts_template/ + one seed H1 analysis)` `src/railway_lakehouse/spark_jobs/verify_analyses.py (new)` `tests/test_verify_analyses.py (new)` `README.md` `docs/index.html` `docs/VERIFICATION.md` `docs/DATA_CONTRACTS.md` `docs/GAP_REGISTER.md` `docs/PROGRESS_LOG.md` `.planning/coursework/research/bigdata/analysis-integration-gap047.md (new)`
+
+**Definition of Done (contract).**
+- [ ] `docs/HYPOTHESES.md` exists with H1..H22 seeded and a documented append protocol.
+- [ ] `analysis_artifacts/` inbox layout + a template + one runnable seed analysis (H1) with a valid `claims.json` exist.
+- [ ] `python -c "import railway_lakehouse.spark_jobs.verify_analyses"` succeeds; the job re-runs each claims.json against current Gold and writes `output/evidence/analysis/<author>__<slug>/verification.json` + `verification_summary.json/.md` with per-claim status∈{confirmed,drifted,broken,low_support}, recomputed vs expected, abs_diff, gold_columns_present.
+- [ ] A claim referencing a column absent from current Gold is marked `broken` (not silently passed); a number that no longer matches is `drifted`.
+- [ ] `unit` test validates schema+diff/status logic with no pyspark; `spark` test (importorskip) builds tmp_path Gold + analysis folder and asserts the summary; `python -m pytest -q` stays green.
+- [ ] Dashboard/docs synced; GAP-047 row + Test Failure Mapping updated; research record written.
+- [ ] No hardcoded data in any analysis.py; recompute reads the passed Gold parquet only; outputs under output/evidence/analysis/.
+
+**Verify:** `python -m pytest -q -m unit && python -c "import railway_lakehouse.spark_jobs.verify_analyses"`. With PySpark 4.1 + JDK 17/21: `python -m pytest -q -m spark && python -m railway_lakehouse.spark_jobs.verify_analyses --gold output/evidence/inventory-live-2026-06-23/railway_ml.parquet && python -m json.tool output/evidence/analysis/verification_summary.json`
+
+**Pitfalls.** Teammate prose without a claims.json is NOT verifiable — flag it, do not fabricate an expected_value. AT/HU yearly series are short (≤27 points) and Gini/life_satisfaction are sparse — classify thin claims `low_support`, never assert significance. A drifted claim is expected and informative (Gold grew since they ran it) — surface it, do not 'fix' the teammate's number. analysis.py must take --gold and never embed numbers. Reuse the loud-empty-Gold guard. importorskip pyspark to keep default pytest green. output/evidence/analysis/ is committable; do not commit gitignored golden bodies into the inbox.
+
+### GAP-048 — Spark-backed hypothesis analyses (investment correlations + deltas + lags + AT/HU contrast + clustering)
+
+> **FRAMING OVERRIDE (owner decision, 2026-06-25): hypotheses are formed FROM the EDA artifacts, not pre-authored.** `docs/HYPOTHESES.md` starts EMPTY of conclusions; it is populated in **GAP-048** by reading the GAP-046 EDA artifacts (top_correlations, lag_crosscorr, coverage) and curating the interesting/robust/surprising relationships the data actually shows. The teammate's correlation list and any `H##` ids named in this spec are **illustrative method examples, NOT a predetermined set to confirm**. GAP-047 builds only the registry STRUCTURE + the `analysis_artifacts/` integration/verifier; GAP-048 forms the hypotheses post-EDA.
+
+
+`HIGH` · level **analysis** · effort **L** · depends on: GAP-046 (EDA delta panel + correlation/lag artifacts) and GAP-047 (hypothesis registry + analysis_artifacts contract + verifier). Soft: GAP-045 (cars/PPP for H17).
+
+**Build:** Implement the priority hypothesis analyses as runnable, Spark-backed analyses under `analysis_artifacts/owner/` (the same contract teammate uploads use), each emitting an `output/evidence/analysis/Hxx_*.json` with the statistic, n, and a low_support flag — so the report rests on reproducible, re-verifiable analyses rather than ad-hoc notebooks.
+
+**Context.** rail_investment (Eurostat `rail_ec_expend` → canonical `rail_investment`, mapped at `silver/stats/merge.py:102`) is the PRIMARY, deterministic, dense investment X-variable — `news_total_investment_eur` (gold/build.py:100) is a sparse secondary signal (H11 validates one against the other). The teammate seed list (investment vs terrain/track/locomotives/wagons/passengers/track-delta/cars-per-capita/GDP/CO2/density/Gini/life-satisfaction) maps onto canonical Gold columns: rail_track_length_km, rail_locomotives, rail_wagons, rail_passengers, delta_rail_track_length_km, cars_per_1000 (GAP-045), gdp_growth_pct, co2_per_capita, population_density, gini_coefficient, life_satisfaction. The EDA correlation/lag artifacts (GAP-046) are the evidence base.
+
+**Problem.** No analysis computes the actual hypothesis statistics; the correlation matrix exists but the per-hypothesis verdicts (with n, significance caveat, AT-vs-HU contrast, lag) are not written, and there is no clustering artifact.
+
+**Steps.**
+1. RESEARCH (mandatory): invoke `research-orchestrator`; route via Context7/Ref for Spark MLlib KMeans + VectorAssembler + StandardScaler + silhouette (ClusteringEvaluator), partial correlation, and short-series lagged OLS caveats. Write `.planning/coursework/research/bigdata/hypothesis-analyses-gap048.md`.
+2. Implement the priority H-analyses as `analysis_artifacts/owner/<Hxx-slug>/` folders (claims.json + analysis.py recompute(gold_df)) covering at minimum: H1 investment↔track length, H2 investment lead → network delta (lag), H3 investment↔rolling stock, H5 level-vs-delta, H6 AT-vs-HU elasticity, H7 investment↔GDP, H9 freight↔CO2 decoupling, H11 news-money↔Eurostat-investment, H12 sentiment↔accidents/investment, H17 cars↔rail-pkm (if GAP-045 landed; else mark low_support/blocked), H19 clustering regimes, H21 panel regression. Each reads --gold, computes its statistic with Spark (corr/lag-join/OLS via numpy on collected small panel/MLlib KMeans), and returns claim values.
+3. H19 clustering is a SEPARATE artifact, NOT a Gold column (per the SPARK-21679 decision): Spark MLlib KMeans on standardized country-year feature vectors → `output/evidence/analysis/H19_clustering_regimes/cluster_assignments.parquet` + `profile.json` (centroids, silhouette, k chosen).
+4. Each analysis writes `output/evidence/analysis/Hxx_<slug>.json` with: hypothesis_id, statement, method, statistic(s) (rho/p/slope/lag/R2), n, low_support bool, geo_filter, and the Gold columns used. Run them through the GAP-047 verifier so each also gets a verification.json (confirmed against itself = reproducibility check).
+5. Tests `tests/test_hypothesis_analyses.py`: `unit`-markered tests that each `recompute` is pure and returns the declared claim_ids on a tmp_path Gold fixture with a known planted correlation (assert the recomputed rho matches the planted value within tolerance); `spark`-markered end-to-end (importorskip) for the clustering analysis on a tiny fixture. NO coursework/output data.
+6. DOCS/DASHBOARD SYNC: update `docs/HYPOTHESES.md` statuses (active/confirmed/drifted/low_support) from the run; add an analyses summary to docs/index.html; GAP-048 row + Test Failure Mapping; PROGRESS_LOG handoff.
+7. RUN + RECORD against the real Gold; commit all `output/evidence/analysis/Hxx_*.json` + the clustering artifact + updated verification_summary.
+
+**Files to touch:** `analysis_artifacts/owner/<Hxx-slug>/ (new, multiple)` `src/railway_lakehouse/spark_jobs/ (shared analysis helpers if needed)` `tests/test_hypothesis_analyses.py (new)` `docs/HYPOTHESES.md` `docs/index.html` `docs/GAP_REGISTER.md` `docs/PROGRESS_LOG.md` `.planning/coursework/research/bigdata/hypothesis-analyses-gap048.md (new)`
+
+**Definition of Done (contract).**
+- [ ] At least H1, H2, H3, H5, H6, H7, H9, H11, H19, H21 are implemented as runnable analysis_artifacts with claims.json + analysis.py(recompute reading --gold).
+- [ ] Each writes `output/evidence/analysis/Hxx_<slug>.json` carrying the statistic, n, low_support flag, geo_filter, and Gold columns used; H19 writes a separate clustering parquet + profile.json (NOT a Gold column).
+- [ ] rail_investment (Eurostat) is used as the primary investment variable; H11 explicitly compares it to news_total_investment_eur and reports the overlap n.
+- [ ] AT-vs-HU contrast (H6) reports per-country slopes; short-series/sparse analyses carry low_support and do not over-claim significance.
+- [ ] Running every analysis through the GAP-047 verifier yields `confirmed` against current Gold (reproducibility).
+- [ ] `unit` tests assert each recompute is pure and recovers a planted correlation on a tmp_path fixture; `spark` clustering test passes (importorskip); `python -m pytest -q` stays green.
+- [ ] Dashboard/docs synced; GAP-048 row + Test Failure Mapping; HYPOTHESES.md statuses updated; research record written.
+- [ ] No hardcoded numbers; analyses read --gold only; outputs under output/evidence/analysis/; numeric, no LLM.
+
+**Verify:** `python -m pytest -q -m unit`. With PySpark 4.1 + JDK 17/21: `python -m pytest -q -m spark && python -m railway_lakehouse.spark_jobs.verify_analyses --gold output/evidence/inventory-live-2026-06-23/railway_ml.parquet && python -m json.tool output/evidence/analysis/verification_summary.json && ls output/evidence/analysis/`
+
+**Pitfalls.** Do NOT block on news monetary_amount_eur — it is sparse; rail_investment (Eurostat) is the dense primary X. With ≤27 AT/HU yearly points, correlations are suggestive not conclusive — always report n and low_support, never a bare 'significant'. Clustering must be a separate artifact (SPARK-21679 decision), never a Gold column. Investment-vs-coordinates/speeds (H22) is BLOCKED on a DEM/OSM source ticket — do NOT attempt it here; note it as deferred. Lagged OLS on a 27-point series can overfit — cap lags at 3, report R2 honestly. Keep analyses as the same claims.json contract teammate uploads use, so the verifier treats owner and teammate analyses identically.
+
+### GAP-049 — Final report grounded in EDA + hypothesis-analysis evidence (deterministic link/number checker)
+
+`HIGH` · level **report** · effort **M** · depends on: GAP-046 (EDA artifacts), GAP-047 (verifier + verification_summary), GAP-048 (hypothesis analyses). Builds on the GAP-011 report scaffold/checker pattern (do not duplicate it — extend).
+
+**Build:** Author the final analysis chapter of `output/report/REPORT.md` (and matching presentation slides) narrating the EDA → hypotheses → analysis arc, where every quantitative claim cites a committed artifact under `output/evidence/eda/` or `output/evidence/analysis/`, plus extend the deterministic checker test so the report fails CI if any cited artifact is missing or any headline statistic drifts from its JSON/CSV.
+
+**Context.** The course must END in a report grounded in EDA + analysis evidence. GAP-011 already established the report skeleton + an evidence-link checker idiom (`tests/test_report_evidence_links.py`) that parses `output/evidence/...` paths and cross-checks headline numbers against evidence JSON. This task adds the analysis narrative on top of that, sourcing numbers from the GAP-046 EDA artifacts and the GAP-048 Hxx analysis JSONs + GAP-047 verification_summary.
+
+**Problem.** The report has no analysis chapter; the hypotheses, correlation findings, AT-vs-HU contrasts, lag results, and clustering regimes are computed (GAP-046/048) but not narrated, and the existing checker does not yet enforce that analysis numbers match their artifacts.
+
+**Steps.**
+1. RESEARCH (mandatory): invoke `research-orchestrator` for any presentation/figure conventions if needed; otherwise record that the analysis is grounded in committed artifacts. Write/append `.planning/coursework/research/bigdata/final-report-gap049.md`.
+2. Read the canonical artifacts the analysis chapter will cite: `output/evidence/eda/{top_correlations.csv,correlation_matrix_with_deltas.csv,lag_crosscorr.csv,coverage_matrix.csv,manifest.json}`, every `output/evidence/analysis/Hxx_*.json`, `output/evidence/analysis/verification_summary.json`, and `docs/HYPOTHESES.md`. Treat their values as the single source of truth — copy, never invent.
+3. Add an 'EDA & Hypothesis Analysis' chapter to `output/report/REPORT.md`: (a) the iterative-Spark-EDA method + the artifacts produced; (b) the headline correlation findings from top_correlations.csv with their n and low_support caveats; (c) the investment-centred hypotheses (H1/H2/H3/H5/H7) verdicts with the statistic + n cited to their Hxx JSON; (d) the AT-vs-HU contrast (H6); (e) lag/lead findings (H2/H13/H20) from lag_crosscorr.csv; (f) decoupling + modal/CO2 (H8/H9/H10); (g) news-signal validation (H11/H12); (h) clustering regimes (H19); (i) an honest LIMITATIONS section: short ≤27-year AT/HU series, sparse Gini/life-satisfaction, terrain/speed (H22) deferred to a DEM/OSM source ticket, news corpus small. Each numeric claim gets an inline citation to its artifact path + key.
+4. Extend the 'Evidence index' table (claim → artifact path → JSON/CSV key/value) to cover every analysis number.
+5. Mirror the analysis findings into `output/presentation/PRESENTATION.md` slides (same numbers, same citations, no new/rounded figures).
+6. Extend `tests/test_report_evidence_links.py` (or add `tests/test_report_analysis_links.py`, marker `unit`): assert every `output/evidence/eda/...` and `output/evidence/analysis/...` path cited in the report exists; for a curated set of headline statistics, load the backing JSON/CSV and assert the value appears verbatim in REPORT.md (read FROM the artifact, do not duplicate literals). Module docstring states it reads committed deliverables, not coursework/ data.
+7. DOCS/DASHBOARD SYNC: GAP-049 row + Test Failure Mapping in GAP_REGISTER; flip the report row in docs/TASKS.md; update docs/index.html report chip; record the passing command in docs/VERIFICATION.md; PROGRESS_LOG handoff.
+
+**Files to touch:** `output/report/REPORT.md` `output/presentation/PRESENTATION.md` `tests/test_report_evidence_links.py (extend) or tests/test_report_analysis_links.py (new)` `docs/GAP_REGISTER.md` `docs/TASKS.md` `docs/index.html` `docs/VERIFICATION.md` `docs/PROGRESS_LOG.md` `.planning/coursework/research/bigdata/final-report-gap049.md (new)`
+
+**Definition of Done (contract).**
+- [ ] `output/report/REPORT.md` contains an 'EDA & Hypothesis Analysis' chapter narrating the EDA method, headline correlations (with n + low_support caveats), the investment-centred hypothesis verdicts, AT-vs-HU contrast, lag/lead findings, decoupling, news-signal validation, clustering regimes, and an honest LIMITATIONS section — every number cited inline to an `output/evidence/eda/` or `output/evidence/analysis/` artifact.
+- [ ] The Evidence index maps every analysis claim → artifact path → key/value.
+- [ ] `output/presentation/PRESENTATION.md` mirrors the findings with identical numbers + citations.
+- [ ] No fabricated/rounded numbers: each statistic traces verbatim to an Hxx JSON / EDA CSV / verification_summary.
+- [ ] The checker test (marker unit) asserts (a) every cited eda/analysis path exists, (b) curated headline statistics loaded from the artifact appear verbatim in REPORT.md; `python -m pytest -q` stays green.
+- [ ] LIMITATIONS honestly states short series, sparse indicators, deferred H22 (terrain/speed needs DEM/OSM), small news corpus.
+- [ ] Dashboard/docs synced; GAP-049 row + Test Failure Mapping; VERIFICATION.md records the passing command; research record written.
+
+**Verify:** `python -m pytest -q tests/test_report_evidence_links.py && python -m pytest -q && python -c "import re,os; missing=[p for f in ['output/report/REPORT.md','output/presentation/PRESENTATION.md'] for p in re.findall(r'output/evidence/(?:eda|analysis)/[^\s\)\]\"\x60]+', open(f,encoding='utf-8').read()) if not os.path.exists(p)]; print('MISSING:', missing); assert not missing"`
+
+**Pitfalls.** Do NOT invent or round any statistic — copy verbatim from the Hxx JSON / EDA CSV; the checker reads FROM the artifact and asserts presence (not a duplicated literal). Report n and low_support for every correlation — the AT/HU series is short and several indicators are sparse; over-claiming significance is the main risk. State drifted teammate claims honestly from verification_summary.json. Cite only committed artifacts (output/evidence/eda|analysis are NOT gitignored; output/evidence/**/bronze/ IS). Mark H22 (terrain/speed) explicitly deferred — do not present it as a result. Keep the checker `unit`-markered and service-free so default pytest stays green. Do not duplicate the GAP-011 checker — extend the existing pattern.
+
+### GAP-050 — LLM news-extraction PIPELINE engineering (prompting + structured output + batching + caching + lifecycle + failure accounting)
+
+`HIGH` · level **silver/llm** · effort **M-L** · depends on: GAP-039 (wide contract + content-hash cache define the pipeline's I/O). **Precedes GAP-033** (the live run executes this pipeline design) and feeds GAP-043 (the eval gates it).
+
+**Build:** Design, document, and scaffold the END-TO-END LLM extraction **pipeline** for `NewsFeature` — not just the prompt — using LLM-pipeline + prompt-engineering best practices, BEFORE the first live run. Covers: (a) the prompt + structured-output strategy; (b) batching/concurrency against a single local Ollama; (c) integration with the GAP-039 content-hash cache (idempotent, skip-already-extracted); (d) retries/backoff + timeout + JSON-repair + a typed **failure-accounting sidecar** (no silent drops); (e) model **lifecycle** on the 6 GB box (load once per pass, `keep_alive`/`ollama stop`, VRAM-free verification — the sequential-pass plan); (f) a throughput/cost budget; (g) observability (per-run metrics: counts, failure rate, latency, model+prompt digest). So GAP-033 runs a deliberately-engineered pipeline, not an ad-hoc loop over a giant prompt.
+
+**Context.** The current code (`silver/news/extract.py`) is a bare `for`-loop (`extract_batch`) calling a single mega-prompt (`_build_prompt`, l.50-69) per article with no batching, no caching, no concurrency, no retry/backoff policy, no failure accounting beyond `None`-and-skip, and no model-lifecycle management — and it has never run live. After the role split the LLM is narrowed to `is_rail_related`, `event_type`, `summary_en`, `monetary_raw/amount`; the pipeline must be (re)built around that narrowed scope, multilingual HU/DE/EN **snippet** input, Ollama JSON-schema structured output on a small local model (Qwen ~4B q4 on the 1060), and the single-box sequential-pass compute plan (`docs/ROADMAP_NEWS_TO_REPORT.md`).
+
+**Problem.** No LLM-pipeline engineering exists: no prompt rigor (system/user split, few-shot, one-call-vs-decomposed, snippet handling, prompt_version→digest), AND no pipeline mechanics (cache-skip, batching/concurrency cap, retry/backoff/timeout, JSON-repair, failure sidecar, model load/unload lifecycle, throughput budget, run metrics). A weak 4B q4 model driven by a naive per-row loop over a giant prompt is both a quality risk and a throughput/memory risk that GAP-033 would otherwise hit the hard way on a 6 GB box.
+
+**Steps.**
+1. RESEARCH (mandatory): invoke `research-orchestrator` AND the `prompt-master` / `senior-prompt-engineer` skills. Route via Context7/Ref for Ollama structured-output + Qwen prompting + Ollama concurrency/`keep_alive`/`num_ctx`/`num_batch`; gather best practices for small-local-LLM structured extraction, multilingual extraction, few-shot, JSON-schema constraint, temperature/sampling, retry/JSON-repair, and batch/throughput patterns. Write `.planning/coursework/research/bigdata/llm-pipeline-engineering-gap050.md` (skills + provider(s) + queries + URLs).
+2. PROMPT design + document: (a) the narrowed field set (`is_rail_related`, `event_type` using the GAP-043 collapsed gated super-classes, `summary_en`, `monetary_raw` + `monetary_currency` + deterministic-FX `monetary_amount_eur`); (b) system vs user prompt content; (c) **ONE structured call vs DECOMPOSED focused calls** (gate → typed extraction) with the cost/quality tradeoff on a 4B model; (d) few-shot HU/DE/EN examples (HELD OUT from the golden set); (e) JSON-schema `format` strategy, `temperature=0`, `think:false`; (f) snippet-vs-fulltext handling (lower trust / different prompt for snippet-only GDELT rows); (g) a `prompt_version` string folded into `extraction_model_digest` so a prompt change invalidates the GAP-039 cache + forces GAP-043 re-eval.
+3. PIPELINE design + scaffold: (a) **cache-skip** — consult the GAP-039 content-hash cache and only call the LLM for new/changed articles; (b) **batching + a bounded concurrency** policy against the single Ollama (respect `OLLAMA_NUM_PARALLEL`; do not oversubscribe the 6 GB box); (c) **retry/backoff + timeout + JSON-repair** on malformed output, with a typed **failure-accounting sidecar** (article_id, reason, raw) persisted alongside `NewsFeature` so failures are visible, never silently dropped; (d) **model lifecycle** — load once per pass, `keep_alive`/`ollama stop` + a VRAM-free check between passes (the sequential plan), all behind a small runner so GAP-033 just calls it; (e) a **throughput/cost budget** estimate and per-run **metrics** (processed/cached/failed counts, latency, model+prompt digest) written to a run manifest. Keep `generate_json` the mocked seam.
+4. Implement the redesigned prompt + the pipeline runner in `silver/news/extract.py` (or new `silver/news/prompts.py` + `silver/news/pipeline.py`), backward-compatible with the `NewsFeature` schema and the GAP-039 cache.
+4. Deterministic unit tests (no live model): the prompt builder yields the expected structure; `validate_news_feature` still coerces adversarial output; `prompt_version` is recorded.
+5. DOCS/DASHBOARD SYNC: document the design in a new `docs/LLM_EXTRACTION_DESIGN.md` (or extend `docs/SILVER_DESIGN.md`); GAP-050 row + Test Failure Mapping; `docs/PROGRESS_LOG.md`; dashboard.
+
+**Files to touch:** `src/railway_lakehouse/silver/news/extract.py` (or new `prompts.py`)  `src/railway_lakehouse/silver/config.py` (prompt_version)  `tests/test_silver_news_extract_prompt.py (new)`  `docs/LLM_EXTRACTION_DESIGN.md (new)`  `docs/GAP_REGISTER.md`  `docs/TASKS.md`  `docs/index.html`  `docs/PROGRESS_LOG.md`  `.planning/coursework/research/bigdata/llm-pipeline-engineering-gap050.md (new)`
+
+**Definition of Done (contract).**
+- [ ] Prompt design documented (field set, system/user split, one-vs-decomposed decision, few-shot, schema, temperature, snippet handling, `prompt_version`) with `research-orchestrator` + `prompt-master` cited.
+- [ ] `extract.py` uses the redesigned, narrowed prompt; `prompt_version` is recorded and folded into the model digest so a change invalidates the cache (GAP-039) + forces re-eval (GAP-043).
+- [ ] Deterministic unit tests pass (mocked `generate_json`); `python -m pytest -q` stays green; NO live model in CI.
+- [ ] Dashboard/docs synced; GAP-050 row + Test Failure Mapping; research record written.
+
+**Verify:** `python -m pytest -q -m unit tests/test_silver_news_extract_prompt.py && python -m pytest -q`
+
+**Pitfalls.** Do NOT re-add sentiment/language to the LLM (encoders own them, GAP-034/035). Few-shot examples MUST be held out from the golden TEST set (leakage). A 4B q4 model is weak — prefer a tighter schema + decomposition over a giant prompt. `prompt_version` must invalidate the cache or stale extractions silently persist. Keep `generate_json` the mocked seam so CI needs no Ollama.

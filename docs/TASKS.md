@@ -176,4 +176,31 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops
 - → re-run Spark on the larger dataset → finalize report.
 
+### Wave 6 — News & model preprocessing (GAP-031…044, added 2026-06-25)
+
+Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/cluster in Spark). Detailed specs: `GAP_TASKS.md`; design contract + the **8 must-fix review blockers** + single-box plan (Ryzen 5 1600 / GTX 1060 6 GB → **sequential model passes**, torch CPU-only on Py3.14): `SPEC_NEWS_PREPROCESSING.md`. Build **MVP-first**; model-heavy tasks are fast-follow gated on the MVP being green. Urgency: `P0` blocker · `P1` high · `P2` mid · `P3` deferred.
+
+- `[P0]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (THE unblocker; fix identity/cache-key soundness)
+- `[P0]` GAP-050 `silver/llm-pipeline-engineering` — full LLM pipeline (prompt + batching + cache-skip + retries + failure-accounting + model lifecycle + metrics); prompt-master + research-orchestrator; **precedes** the live run
+- `[P0]` GAP-033 `silver/news-llm-extraction-live` — run the LLM pass for REAL once + persist evidence (has never run live; needs `infra/ollama-model` = Qwen3-4B q4 on the 1060; uses the GAP-050 prompt)
+- `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
+- `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
+- `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage` ‖ GAP-042 `silver/stataustria-ods-reader`
+- `[P3]` GAP-037 `spark/news-clustering` (separate artifact, not a Gold column — SPARK-21679) ‖ GAP-038 `silver/news-ner` (conditional) ‖ GAP-031-v2 GKG csv.zip history parser
+
+**Contract D (verify before claiming the news-model track done):** real `NewsFeature` rows reach Gold from a live Ollama run; the eval harness reports per-feature metrics on a held-out golden TEST set; dedup is shown to deflate inflated `(geo,year)` counts; each gap synced `docs/TASKS.md` + `docs/index.html`.
+
+### Wave 7 — Spark EDA → hypotheses → analysis → report (GAP-045…049, the finale)
+
+The closing arc. Full plan + Contracts E/F: `docs/ROADMAP_NEWS_TO_REPORT.md`. **Strictly EDA-first: hypotheses are formed FROM the artifacts (GAP-048), never pre-listed.** Embedder default `multilingual-e5-base` (config knob). Investment X = Eurostat `rail_investment` (dense), news money secondary.
+
+- `[P2]` GAP-045 `add-macro-indicators` — `IS.VEH.PCAR.P3` + `PA.NUS.PPP` (only new-data ticket; 9/12 teammate correlates already collected). *(Session B — widens the matrix before EDA.)*
+- `[P1]` GAP-046 `spark-eda-harness` — iterative Spark EDA → artifacts only (all-pairs corr + YoY deltas + lag + panels + coverage + top-correlations) → `output/evidence/eda/`
+- `[P1]` GAP-047 `analysis-integration` — `analysis_artifacts/` inbox + Spark `verify_analyses` (teammate claims recompute vs current Gold → confirmed/drifted/broken) + empty `docs/HYPOTHESES.md`
+- `[P1]` GAP-048 `hypothesis-analyses-spark` — **form hypotheses from EDA**, then Spark analyses (corr/lag/panel/clustering; AT-vs-HU; investment↔everything+deltas)
+- `[P1]` GAP-049 `final-eda-analysis-report` — report grounded in EDA + analysis evidence, deterministic checker, honest limitations
+
+**Contract E (Session B):** every source parser → Silver → Gold; full feature matrix (rail + macro + news + UIC, geo-widened) builds end-to-end; all model passes run sequentially within the 6 GB budget.
+**Contract F (Session C):** every report claim cites a committed `output/evidence/eda|analysis/` artifact; teammate analyses re-verified vs current Gold; hypotheses trace to EDA artifacts; limitations stated honestly.
+
 See also: `GAP_TASKS.md` (detailed per-gap implementation specs + contracts), `STATE_AND_ROADMAP.md`, `GAP_REGISTER.md`, `WORK_SPLIT.md`.

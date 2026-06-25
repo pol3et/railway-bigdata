@@ -1373,6 +1373,103 @@ Evidence:
 Next:
 - Push PR #25 branch, let GitHub checks settle, merge PR #25.
 
+## 2026-06-24 - PR #21 Eurostat pipeline review
+
+Status: done.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/pr21-eurostat-pipeline-review-2026-06-24.md`.
+- Local files were researched first in the detached PR worktree `Halo-Skills-pr-21`.
+- External checks were bounded to Eurostat TOC / SDMX endpoint probes needed to verify PR claims.
+
+Changed:
+- `.ship/pr/21/report.md`
+- `.ship/pr/21/mode.json`
+- `.ship/pr/21/sources.json`
+- `.planning/coursework/research/bigdata/pr21-eurostat-pipeline-review-2026-06-24.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Evidence:
+- PR review report posted to https://github.com/pol3et/railway-bigdata/pull/21#issuecomment-4789471429.
+- Targeted Eurostat tests: 14 passed, 10 deselected.
+- Full suite in PR worktree: 121 passed, 1 skipped.
+- Unit-marker probe: 1 passed, 23 deselected.
+- Live bounded seed probe: `tran_r_rago` and `tran_r_rapa` produced zero Silver rows.
+
+Next:
+- Wait for PR #21 author updates or decide whether to merge with the documented Major findings accepted.
+
+## 2026-06-24 - News feature integration scan (state + options research)
+
+Status: done for read-only analysis/research; no source code changed.
+
+Research:
+- `research-orchestrator` used. Routed MCP providers (via the workflow sub-agents): Tavily, Exa,
+  Context7, WebFetch/WebSearch fallback, plus primary sources (GDELT GKG codebook, HuggingFace model
+  cards, spaCy/Spark NLP/sbert docs, pdfplumber/Camelot/Docling, Databricks).
+- Notes: `.planning/coursework/research/bigdata/news-feature-integration-scan-2026-06-24.md` (umbrella)
+  + sub-notes `local-llm-feature-extraction-role-2026-06-24.md`,
+  `nonllm-nlp-news-features-2026-06-24.md`, `images-nontext-pdf-mining-2026-06-24.md`.
+- Method: dynamic multi-agent workflow (4 codebase explorers + 5 routed research agents + synthesis).
+
+Findings (verified against source this session):
+- Parsers work and are tested, but GDELT is queried via DOC 2.0 ArtList (`gdelt.py:43-56`) which cannot
+  return GKG themes/tone/persons/orgs/locations; `gdelt_passthrough()` (`extract.py:86`) has zero callers;
+  GKG zips land unparsed. Richest free structured signal is discarded.
+- `NewsFeature` = 15 fields (`schema.py:39-54`); the LLM prompt asks for all of them incl. sentiment +
+  confidence (broader than recommended). The LLM news path has NEVER run live (all tests mock it).
+- Gold `aggregate_news()` (`gold/build.py:82`) wires ~20 news columns on (geo,year) but never aggregates
+  rail_lines/language/confidence; real production Gold is stats-only (news_rows=[]).
+- Besides news text: numeric stats only (WB/Eurostat/KSH). StatAustria ODS + UIC PDFs landed raw,
+  unparsed. No image/OCR/PDF code anywhere in `/src`.
+
+Recommendation:
+- Keep "extract-wide-in-Silver, filter-in-Spark"; multi-tool role split (LLM for generative slice only;
+  XLM-R sentiment; huBERT/German NER + gazetteer for entities if required; LaBSE embeddings for
+  dedup+MLlib clustering; wire GKG passthrough). Never call models row-wise inside Spark.
+- Do NOT process news images; only worthwhile non-text add is deterministic pdfplumber table extraction
+  of the UIC PDFs into numeric StatFacts.
+- Priority: (1) GKG passthrough, (2) run LLM news pass for real once + persist, (3) LaBSE + MLlib cluster
+  job, (4) XLM-R sentiment, (5) widen Gold aggregation.
+
+Evidence:
+- No source edits, tests, live collectors, MinIO, Ollama, or Spark runs were executed for this analysis.
+- Code claims verified by grep/read: dead `gdelt_passthrough`, `NewsFeature` 15 fields, `aggregate_news`
+  column set.
+
+Next:
+- If approved, start with GAP candidate "GDELT GKG passthrough" (free signal) and a real one-time LLM
+  news extraction run that persists `NewsFeature` rows under `output/evidence/`.
+
+## 2026-06-24 - PR #26 UIC PDF reader ship-pr review
+
+Status: done for read-only review; no PR comments posted.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/pr26-uic-pdf-reader-review-2026-06-24.md`.
+- Local files were researched first in detached worktree `Halo-Skills-pr-26`.
+- External checks used Context7 pdfplumber/Camelot docs, Tavily PDF extraction research, and a Ref attempt that was unavailable due credits.
+
+Changed:
+- `.ship/pr/26/report.md`
+- `.ship/pr/26/mode.json`
+- `.ship/pr/26/sources.json`
+- `.planning/coursework/research/bigdata/pr26-uic-pdf-reader-review-2026-06-24.md`
+- `docs/PROGRESS_LOG.md`
+- `.planning/COURSEWORK_PROGRESS.md`
+
+Evidence:
+- PR #26 review report: `.ship/pr/26/report.md`.
+- Merge-tree check failed with conflicts against `origin/main`.
+- Targeted UIC PDF tests: 4 passed.
+- Focused stats/gold suite: 14 passed.
+- Full suite in PR worktree: 135 passed, 1 skipped.
+- Real UIC PDF probe over the two landed UIC PDFs produced zero Silver rows and zero unified `build_silver_stats` rows.
+
+Next:
+- Rebase PR #26, resolve stale KSH overlap, and replace the UIC line-regex parser with table-aware PDF extraction plus a realistic fixture before changing UIC status to done.
+
 ## 2026-06-24 - PR 26 UIC PDF reader review fixes
 
 Status: done for review fixes.
@@ -1396,7 +1493,7 @@ Evidence:
 - Real UIC PDF probe: Synopsis -> 39 rows, Traffic Trends -> 0 rows, unified Silver -> 39 rows and 9 mapped features.
 
 Next:
-- Run focused/full verification, push PR #26, wait for GitHub checks, and merge if clean.
+- PR #26 is merged; keep GAP-005 open until UIC is scheduled through the Bronze runner and add UIC-to-Gold evidence in a future persisted run.
 
 ## 2026-06-25 - PR 27 Spark analysis review fixes
 
@@ -1429,3 +1526,50 @@ Evidence:
 Next:
 - Push PR #27 fixes, wait for GitHub checks, merge PR #27, and clean up the PR
   worktree.
+## 2026-06-25 - News multi-model preprocessing: spec + 14-task pack + adversarial review
+
+Status: done for design/planning; no source code changed (docs only; git left to the owner).
+
+Research:
+- `research-orchestrator` used. Routed MCP providers (via workflow sub-agents): Tavily, Exa, Context7, Ref, WebFetch.
+- Note: `.planning/coursework/research/bigdata/news-model-spec-task-pack-2026-06-25.md` (+ the 2026-06-24 scan + sub-notes).
+- Method: dynamic workflow (1 spec author + 14 task-spec authors + 5 independent reviewers + 1 synthesis = 21 agents).
+
+Changed (docs only):
+- Added `docs/SPEC_NEWS_PREPROCESSING.md` (design + eval strategy + single-box Ryzen 1600/GTX 1060 6GB sequential-pass plan + 8 must-fix review blockers + MVP build order + open decisions).
+- Appended 14 pick-up-cold specs (GAP-031…044) to `docs/GAP_TASKS.md`.
+- Added GAP-031…044 rows to `docs/GAP_REGISTER.md`; Wave 6 to `docs/TASKS.md`; WAVE 6 chips + footer to `docs/index.html`.
+
+Findings:
+- PDF decision recorded: capture everything (widen UIC geo, stage unmapped rows, mine traffic-trends text) but map deliberately → GAP-041.
+- Owner constraint: single box, no hosted infra, sequential model passes (6 GB VRAM); torch CPU-only on Py3.14, Ollama uses the GPU.
+- Review blockers (must-fix before build): torch CPU-only on Py3.14; GDELT/RSS = snippets not full-text; GKG absent for live DOC rows; LaBSE→e5/bge-m3; Spark KMeans non-deterministic (separate artifact, not Gold); NER ids were base LMs; cache-key/identity unsound; golden-set stats (TUNE/TEST split, collapsed taxonomy, CIs, N≥20).
+
+Evidence:
+- No source edits, tests, live collectors, MinIO, Ollama, or Spark runs. Spec claims grounded in agent file:line reads.
+
+Next:
+- Owner resolves the open decisions in the spec; then build MVP-first: GAP-039 (wide contract + sound cache key) → GAP-033 (first live LLM run) → P1 encoders/Gold/eval.
+
+## 2026-06-25 - Full roadmap (news→EDA→report) + compute/embedder/feature research + GAP-045…050
+
+Status: done for planning/roadmap; no source code changed (docs only; git left to the owner).
+
+Research:
+- `research-orchestrator` workflow `roadmap-research-and-eda-design` (3 research + 1 design agent; HU-sentiment agent failed structured-output cap — answered from small-corpus reasoning). Note: `.planning/coursework/research/bigdata/roadmap-compute-eda-2026-06-25.md`.
+
+Changed (docs only):
+- Added `docs/ROADMAP_NEWS_TO_REPORT.md` — Sessions A/B/C, Waves 6-7, Contracts D/E/F, EDA-first (hypotheses formed FROM artifacts in GAP-048), compute plan, data-location, investment finding.
+- Appended GAP-045…050 specs to `docs/GAP_TASKS.md` (with GAP-047/048 framing overrides). Added GAP-045…050 rows to `docs/GAP_REGISTER.md`; Wave 7 + GAP-050 to `docs/TASKS.md`; WAVE 7 + GAP-050 chips + footer to `docs/index.html`. Folded embedder/sidecar decision into `docs/SPEC_NEWS_PREPROCESSING.md`.
+
+Findings / decisions (owner-confirmed):
+- Embedder DEFAULT = `multilingual-e5-base` (short snippet texts; dedup quality is algorithm-dominated; model is a config knob; bge-m3 swappable). torch via Py3.12+cu126 GPU sidecar (sm_61) or CPU; sequential passes; kill idle MCP servers.
+- Investment X = Eurostat `rail_investment` (dense, deterministic); news money secondary. 9/12 teammate correlates already collected; only IS.VEH.PCAR.P3 + PA.NUS.PPP new (GAP-045); terrain/coords-speeds deferred (new source).
+- Hypotheses formed FROM EDA (GAP-048), NOT pre-listed (owner decision). All data local (MinIO volume + output/).
+- New GAP-050: LLM prompt-engineering design (prompt-master + research-orchestrator), precedes the live run GAP-033.
+
+Evidence:
+- No source edits, tests, or live runs. Research cites source URLs (PyTorch #169929, uv #14742 sm_61/cu126, WB indicator pages, Eurostat, MMTEB).
+
+Next:
+- Owner picks the embedder (e5-base confirmed) + resolves remaining spec decisions; then orchestrate Wave 6a: GAP-039 → GAP-050 → GAP-033 via `scripts/orch/codex_impl.sh`.
