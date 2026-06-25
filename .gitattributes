@@ -1,0 +1,5 @@
+*.gz binary
+*.ods binary
+*.parquet binary
+*.pdf binary
+*.xlsx binary

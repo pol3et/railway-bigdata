@@ -259,6 +259,37 @@ Research record:
 - GAP-036 deliberately does not change Gold counts. Spark-scale clustering and
   count enforcement remain GAP-037/GAP-040 work.
 
+## Field Availability and Coverage
+
+Parser field coverage is tracked in `docs/PARSER_FIELD_COVERAGE.md` with a JSON
+mirror at `docs/PARSER_FIELD_COVERAGE.json` for unit tests. The matrix documents
+which source fields are extracted today, which fields are deliberately dropped,
+and which fields are owned by future widening tasks.
+
+Current source decisions:
+
+- RSS captures the 6-field `ArticleRecord` contract and prefers
+  `content:encoded` over `description` for body text. RSS `author`, `category`,
+  `comments`, `guid`, and media/enclosure metadata are future GAP-032 widening.
+- GDELT DOC ArtList captures `title`, URL, date, and snippet/summary body into
+  `ArticleRecord`. DOC metadata such as `domain`, `language`, `sourcecountry`,
+  and `socialimage` is documented as available but not materialized yet. Full
+  GKG themes/persons/orgs/locations/tone require a separate GKG source/parser
+  rather than DOC ArtList alone.
+- World Bank captures the long stats contract from indicator time-series rows.
+  API metadata, `obs_status`, and decimal precision remain provenance/future
+  enrichment fields.
+- Eurostat captures coded dimensions into the long stats contract and parses
+  numeric values with attached flags. Observation flags and unit multiplier
+  metadata are not separate Silver fields yet.
+- KSH captures Hungary country-level rows from year-header, period-year, and
+  regional-total layouts. Unsupported workbook layouts return an empty frame and
+  log a warning rather than fabricating partial data.
+- UIC captures AT/HU country rows from matched Synopsis tables. GAP-041 owns
+  widening to all countries and staging non-matching/Traffic Trends rows.
+- Statistik Austria ODS is landed raw but has no Silver parser yet; GAP-042 owns
+  that implementation.
+
 ### Content-hash cache contract
 
 Silver news extraction has a local idempotency cache implemented by

@@ -1943,6 +1943,36 @@ Evidence:
 Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
 
+## 2026-06-25 - GAP-044 parser correctness audit
+
+Status: done; shipping via PR.
+
+Research:
+- `research-orchestrator` record written at `.planning/coursework/research/bigdata/parser-correctness-audit.md`.
+- Self-approved implementation plan written at `.planning/coursework/plans/bigdata/gap-044-parser-correctness-audit.md`.
+
+Changed:
+- Hardened parser and aggregation code in `src/railway_lakehouse/silver/news/rss.py`, `src/railway_lakehouse/silver/news/gdelt.py`, `src/railway_lakehouse/silver/news/extract.py`, `src/railway_lakehouse/silver/stats/load.py`, and `src/railway_lakehouse/gold/build.py`.
+- Added self-contained parser golden fixtures under `tests/fixtures/silver/` for RSS, GDELT, World Bank, Eurostat, KSH, and UIC.
+- Added parser golden-fixture, robustness, field-coverage, and import/schema guard tests.
+- Added `docs/PARSER_FIELD_COVERAGE.md` and `docs/PARSER_FIELD_COVERAGE.json`; synced `docs/DATA_CONTRACTS.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `README.md`.
+- Added `.gitattributes` binary guards for fixture formats such as PDF, XLSX, GZ, ODS, and Parquet.
+
+Findings:
+- The draft spec was stale on schema details: `NewsFeature` is a 43-field dataclass, not a 15-field Pydantic model.
+- The worktree did not contain raw KSH/UIC bytes under `output/evidence/`; KSH/UIC fixtures are deterministic parser-shape samples modeled on the current parser contract and evidence manifests, with no test-time network access.
+- RSS malformed XML now logs and skips a feed; GDELT malformed JSON/articles log and skip bad rows; Gold news aggregation handles ISO, GDELT compact, and RFC-822 dates plus dict rows missing optional fields.
+
+Evidence:
+- TDD red run before fixes: focused parser suite -> 7 failed, 14 passed.
+- Focused verify: `python -m pytest -q tests/test_silver_parser_golden_fixtures.py tests/test_parser_robustness.py tests/test_parser_field_coverage.py tests/test_parser_imports_and_schemas.py` -> 21 passed.
+- Full suite: `python -m pytest -q` -> 216 passed, 6 skipped.
+- Compileall: `python -m compileall -q src tests` -> passed.
+- Coverage smoke: `python -c "import json; m=json.load(open('docs/PARSER_FIELD_COVERAGE.json', encoding='utf-8')); assert len(m['sources']) >= 6; print('Parser coverage matrix OK')"` -> Parser coverage matrix OK.
+- `git diff --check` -> passed with line-ending warnings only.
+
+Next:
+- Open the GAP-044 PR against `main`; follow-up report-quality gaps remain GAP-040/GAP-043, Statistik Austria parser work remains GAP-042, and UIC widening remains GAP-041.
 ## 2026-06-25 - GAP-036 Silver news embeddings and dedup markers
 ## 2026-06-25 - GAP-031 GDELT GKG parser and passthrough
 ## 2026-06-25 - GAP-034 deterministic XLM-R sentiment encoder
@@ -2237,3 +2267,22 @@ Evidence:
 Next:
 - Use the GAP-045 evidence caveat in EDA/reporting: PPP is available for AT/HU; World Bank car ownership must be treated as not covered for AT/HU unless a later source supplies it.
 - GAP-034 can consume `language` for sentiment routing; GAP-038 can use it for conditional NER routing.
+
+## 2026-06-25 - GAP-044 PR #35 merge conflict resolution
+
+Status: done; pushed to PR #35.
+
+Changed:
+- Merged `origin/main` into `impl/gap-044`.
+- Resolved conflicts in `src/railway_lakehouse/gold/build.py` and `src/railway_lakehouse/silver/news/extract.py`.
+- Preserved GAP-044 parser audit guards while keeping main's language ID, sentiment, GKG passthrough, embedding, and dedup behavior.
+- Updated the GAP-044 schema guard/docs from 43 to 44 `NewsFeature` fields after main added `is_duplicate`.
+
+Evidence:
+- Focused conflict regression: 86 passed.
+- Schema/focused guard rerun: 25 passed.
+- Full suite: `python -m pytest -q` -> 289 passed, 7 skipped.
+- Compileall: `python -m compileall -q src tests` -> passed.
+
+Next:
+- PR #35 should be mergeable once GitHub refreshes the updated head.

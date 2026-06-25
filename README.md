@@ -22,6 +22,8 @@ The `-c constraints.txt` flag reproduces the graded Python 3.14 runtime/test sta
 Current verification result for this scaffold:
 
 - `python -m pip install --dry-run -e ".[test]" -c constraints.txt` confirmed pandas 3.0.3, pyarrow 24.0.0, and openpyxl 3.1.5 under the committed constraints.
+- `python -m pytest -q` passed with 216 tests after adding the parser correctness audit; six Spark guards skipped because `JAVA_HOME`/Windows Spark prerequisites are absent.
+- `python -m compileall -q src tests` passed.
 - `python -m pytest -q` passed with 197 tests after adding GAP-045 macro-indicator coverage; 6 Spark tests skipped on this Windows worktree because JDK/Hadoop native prerequisites are absent.
 - `python -m compileall -q src tests` passed after GAP-045.
 - GAP-004 fixture evidence was written to `output/evidence/fixture-e2e/railway_ml.parquet`.
@@ -48,6 +50,7 @@ The project now has one installable source tree:
 - `docs/WORKSTREAMS.md` - how multiple contributors can work in parallel.
 - `docs/GAP_REGISTER.md` - owner-ready gaps and test failure mapping.
 - `docs/PROGRESS_LOG.md` - persistent findings and session log.
+- `docs/PARSER_FIELD_COVERAGE.md` - per-source parser field coverage matrix.
 
 ## Intended Architecture
 

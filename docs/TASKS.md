@@ -175,6 +175,8 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
 - `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX and UIC PDF readers done; StatAustria ODS still pending
+- `M` GDELT history backfill + GKG parser (volume)
+- `M` robustness: GAP-015/016/021 (GAP-014 closed 2026-06-24; GAP-022/025/026 closed by GAP-044)
 - `M` GDELT history backfill (GKG parser/passthrough production-wired; live volume feed still later)
 - `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
 - `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — all three extra Silver readers done; scheduler wiring still pending
@@ -190,6 +192,9 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar)
 - `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints
 - `[x]` GAP-033 `silver/news-llm-extraction-live` — live `qwen3:4b` pass completed on 40 real articles; Silver Parquet, run manifest, empty failure sidecar, news-only Gold traceability, and human manifest committed under `output/evidence/news-extraction-sample/`
+- `[x]` GAP-044 `tests/parser-correctness-audit` — per-source golden parser fixtures, field-coverage matrix, and robustness guards for GAP-022/025/026
+- `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
+- `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016) ‖ GAP-043 `eval/news-model-quality-harness`
 - `[x]` GAP-031 `silver/gdelt-gkg-parser` — transient `GKGRecord`, GKG csv.zip parser, production runner passthrough routing, fixture-only tests
 - `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`

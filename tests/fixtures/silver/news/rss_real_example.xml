@@ -1,0 +1,27 @@
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Railway feed fixture</title>
+    <item>
+      <title>MAV timetable changes announced</title>
+      <link>https://example.test/rail/mav-timetable</link>
+      <pubDate>Mon, 24 Jun 2024 10:30:00 +0000</pubDate>
+      <description>Short teaser about timetable changes.</description>
+      <content:encoded><![CDATA[Full article text about MAV timetable changes and railway service planning.]]></content:encoded>
+      <author>newsdesk@example.test</author>
+      <category>rail</category>
+    </item>
+    <item>
+      <title>OBB night train investment</title>
+      <link>https://example.test/rail/obb-night-train</link>
+      <pubDate>2024-06-25T08:15:00Z</pubDate>
+      <description>Night train rolling stock investment described in the RSS summary.</description>
+      <category>transport</category>
+    </item>
+    <item>
+      <title>Station works without canonical URL</title>
+      <pubDate>Tue, 25 Jun 2024 12:00:00 +0200</pubDate>
+      <description>Station works item intentionally omits the link element.</description>
+      <comments>https://example.test/comments/station-works</comments>
+    </item>
+  </channel>
+</rss>
