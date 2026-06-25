@@ -140,3 +140,108 @@ Test run — **GAP-039 MERGED** (PR #28, squash `dafcbf8`):
 
 Ledger: GAP-039=merged. Everything else pending for the autonomous run. Other sessions push to main
 concurrently (origin moved 0a84012 → 7761e2e → dafcbf8).
+
+## Overnight run — started 2026-06-25 08:54:54
+
+```
+{
+  "GAP-039": {
+    "status": "merged",
+    "pr": "28",
+    "note": "test-run: codex impl + fix-resume green (187 passed,3 skipped); merged by owner decision (Opus gate waived for test wrap-up)"
+  },
+  "GAP-050": {
+    "status": "merged",
+    "pr": "29",
+    "note": "Opus approve after fix-resume #1 (P1 prod-path wired, P2 cache key, P3 max_attempts); squash 685d6d3; main 197 passed/3 skipped"
+  },
+  "GAP-033": {
+    "status": "merged",
+    "pr": "30",
+    "note": "Opus approve (data authenticity verified, digest 359d7dd4 matches /api/tags); 40 real rows; squash 882e130; main 198 passed/3 skipped. codex advisory P1/P2 reconciled (stale-doc model ref + lower-severity)"
+  },
+  "GAP-043": {
+    "status": "claude_subagent",
+    "pr": "",
+    "note": "orchestrator Opus design + Sonnet labelling"
+  },
+  "GAP-031": {
+    "status": "needs_opus_review",
+    "pr": "33",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-035": {
+    "status": "needs_opus_review",
+    "pr": "32",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-034": {
+    "status": "needs_opus_review",
+    "pr": "31",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-040": {
+    "status": "needs_opus_review",
+    "pr": "34",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-044": {
+    "status": "needs_opus_review",
+    "pr": "35",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-037": {
+    "status": "manual_skip",
+    "pr": "",
+    "note": "needs human"
+  },
+  "GAP-038": {
+    "status": "manual_skip",
+    "pr": "",
+    "note": "needs human"
+  },
+  "GAP-045": {
+    "status": "needs_opus_review",
+    "pr": "36",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-041": {
+    "status": "needs_opus_review",
+    "pr": "38",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-042": {
+    "status": "needs_opus_review",
+    "pr": "37",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  },
+  "GAP-036": {
+    "status": "needs_opus_review",
+    "pr": "39",
+    "note": "load-bearing PR: orchestrator Opus ship-reviewer required (codex review.json is advisory)"
+  }
+}```
+
+## Overnight autonomous run — Sessions A+B COMPLETE (2026-06-25)
+
+Orchestrator (Opus) drove the full unattended run per `docs/NIGHT_KICKOFF.md`. **All 13 in-scope gaps merged; main green (301 passed, 4 skipped).**
+
+| Gap | PR | Outcome |
+|---|---|---|
+| GAP-050 | #29 | merged — LLM pipeline engineering (Opus gate caught P1: run-contract unwired in prod path; codex fix-resume wired pipeline.py/silver/run.py → run_extraction_pipeline + failure sidecar; +P2 GDELT cache key, +P3 max_attempts) |
+| GAP-033 | #30 | merged — first REAL Ollama pass; 40 real NewsFeature rows (qwen3:4b, digest 359d7dd4, 0 failures). Spec corrected: qwen3:4b NOT qwen3.5:9b (6GB GPU). Opus verified data authenticity |
+| GAP-035 | #32 | merged — fastText/lingua language-id (prod-wired) |
+| GAP-040 | #34 | merged — widened Gold news aggregation (deterministic rollups) |
+| GAP-042 | #37 | merged — Statistik Austria ODS reader |
+| GAP-045 | #36 | merged — +2 World Bank macro indicators (values verbatim) |
+| GAP-041 | #38 | merged — UIC PDF widened 39→80 geos + staging (codex-integrated load.py conflict) |
+| GAP-031 | #33 | merged — GDELT GKG csv.zip passthrough (Opus P1: parser was dead in prod; codex wired _read_bronze_gkg_records → run_extraction_pipeline(gkg_records=)) |
+| GAP-034 | #31 | merged — XLM-R sentiment encoder (Opus P2: untruncated text→silent drop; codex added truncation=True/max_length=512) |
+| GAP-036 | #39 | merged — embeddings + cross-lingual dedup (Opus P1: cluster_near_duplicates never called in prod; codex wired it into run_extraction_pipeline) |
+| GAP-044 | #35 | merged — per-source parser-correctness audit + golden fixtures |
+| GAP-043 | #40 | merged — news eval HARNESS (Option C: metrics+bootstrap CIs+collapsed taxonomy+non-regression gate+model-digest; deterministic mocked test; metrics math-verified by Opus). **Real labeled golden set DEFERRED — see blocker below.** |
+| GAP-037/038 | — | manual_skip (NER / Spark clustering — human judgement, out of scope) |
+
+**Method:** WAVE 6a driven gap-by-gap (Opus review→codex fix→merge). 6b+B fanned out via run_night.sh (all parked needs_opus_review). 9 PRs Opus-reviewed in parallel; 3 had real P1/P2 (GAP-039-class prod-path misses) → codex fix-resume → re-review → merge. Merge-train docs conflicts auto-resolved via git `merge=union` driver on shared dashboard files; extract.py-touching gaps integrated serially via codex. Live-test GPU contention mitigated with `PYTEST_ADDOPTS='-m "not live"'`.
+
+**BLOCKER for owner (GAP-043 real golden set):** the 40 GAP-033 rows are unlabelable (no title/body; only url + the model's own summary_en, which is circular), and the raw Bronze that held bodies is gitignored + deleted from disk. Producing real quality numbers needs the design's **Option A**: a bounded re-extraction via `silver.run.run_news` that persists ArticleRecord bodies (hashes+excerpts+url per copyright) into a committed labelable corpus (N≈120-200, oversampled for AT/DE + hard negatives + duplicate families), then Sonnet labeling per `docs/GOLDEN_SET_PROTOCOL.md`. This is a material approach decision (fresh network fetch + new body-persistence + LIVE pass) → left for owner. Harness is merged and ready to consume a real golden set the moment one exists (corpus path is a parameter).
