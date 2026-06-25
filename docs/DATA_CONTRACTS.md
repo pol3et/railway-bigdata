@@ -112,17 +112,41 @@ Caching/audit fields:
 41. `extraction_timestamp_utc`
 42. `extraction_model_digest`
 43. `confidence_schema_version`
+44. `is_duplicate`
 
 Rules:
 
 - LLM output is untrusted until validated by `validate_news_feature(...)`.
-- The current GAP-039 implementation reserves the wide model fields but does not
-  populate language detection, XLM-R sentiment, NER, embeddings, clustering, or
-  deterministic monetary parsing; those are owned by GAP-031...038.
+- The current GAP-039 implementation reserves the wide model fields. GAP-036 now
+  populates `text_embedding`/`text_embedding_model` when the optional
+  `sentence-transformers` news extra is installed, and provides deterministic
+  local near-duplicate assignment via `cross_lingual_dedup_id` + `is_duplicate`.
+  Language detection, XLM-R sentiment, NER, Spark clustering, and deterministic
+  monetary parsing remain owned by GAP-031...038.
 - `monetary_raw` is explicitly part of the Silver news contract.
 - `sentiment` and `confidence` are the legacy fields consumed by current Gold.
   `sentiment_label`/`sentiment_score` and per-field confidences are the forward
   contract for later deterministic model passes.
+
+### Embeddings and Dedup
+
+Research record:
+`.planning/coursework/research/bigdata/labse-embeddings-dedup.md`.
+
+- `text_embedding_model` records the sentence-transformers model id used for the
+  row. GAP-036 defaults to `intfloat/multilingual-e5-base`, with BGE-M3 kept as
+  a config-level swap. LaBSE is not the project default.
+- `text_embedding` stores a normalized multilingual sentence embedding as
+  `list<float32>` in Parquet. The default e5-base vector has 768 dimensions and
+  uses the `passage: ` prefix for article/summary text.
+- `cross_lingual_dedup_id` is a deterministic group id assigned to rows whose
+  embedding cosine similarity is at or above the configured threshold
+  (default `0.95`) in the local helper. Group ids are derived from sorted member
+  article ids, so shuffled input produces the same id.
+- `is_duplicate` is `true` for non-canonical siblings inside a dedup group,
+  `false` for canonical grouped rows, and null when no grouping pass has run.
+- GAP-036 deliberately does not change Gold counts. Spark-scale clustering and
+  count enforcement remain GAP-037/GAP-040 work.
 
 ### Content-hash cache contract
 

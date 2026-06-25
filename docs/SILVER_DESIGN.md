@@ -56,6 +56,14 @@ GAP-050 refines the news LLM path into a cached extraction runner with a narrowe
 amounts only), retry/failure accounting, lifecycle hooks, and per-run manifests. See
 `docs/LLM_EXTRACTION_DESIGN.md`; the first live run remains GAP-033.
 
+GAP-036 adds the deterministic embedding pass after successful news extraction. When the
+optional `news` extra is installed, `silver.news.embeddings` loads
+`intfloat/multilingual-e5-base` through sentence-transformers, embeds `summary_en` (with
+article text fallbacks) into `text_embedding` as a normalized float32 vector, and records
+`text_embedding_model`. The local dedup helper assigns `cross_lingual_dedup_id` and
+`is_duplicate` deterministically at cosine threshold `0.95`; Spark-scale enforcement
+remains GAP-037/GAP-040.
+
 ## What was verified (offline, no Ollama)
 Static tests pass for: the Eurostat melt-to-long reader (flag stripping, geo extraction), the
 rule+LLM crosswalk (LLM stubbed), the merge into one unified table, schema validation hardening

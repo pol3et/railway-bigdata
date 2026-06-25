@@ -32,6 +32,9 @@ spark = [
   "delta-spark==4.1.*",
 ]
 ollama = []
+news = [
+  "sentence-transformers>=3.0",
+]
 dev = [
   "pytest>=8.2",
 ]

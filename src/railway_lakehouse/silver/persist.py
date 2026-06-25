@@ -17,6 +17,9 @@ so the persisted files can never silently drift from the contract:
   * stats -> StatFact   (geo, year, feature, value, unit, source_system,
                          source_dataset, source_column)
   * news  -> NewsFeature (article_id, source, url, ... sentiment, confidence)
+
+Embedding and dedup columns are optional; legacy NewsFeature rows and old
+Parquet files may omit them and are reindexed on load.
 """
 import logging
 from datetime import datetime, timezone
@@ -86,12 +89,13 @@ NEWS_FEATURE_ARROW_SCHEMA = pa.schema([
     ("gkg_emotions", pa.string()),
     ("gkg_tone_source", pa.string()),
     ("text_embedding_model", pa.string()),
-    ("text_embedding", pa.list_(pa.float64())),
+    ("text_embedding", pa.list_(pa.float32())),
     ("cluster_id", pa.string()),
     ("cross_lingual_dedup_id", pa.string()),
     ("extraction_timestamp_utc", pa.string()),
     ("extraction_model_digest", pa.string()),
     ("confidence_schema_version", pa.string()),
+    ("is_duplicate", pa.bool_()),
 ])
 
 
@@ -170,6 +174,7 @@ def _news_frame(news_rows) -> pd.DataFrame:
         df[column] = df[column].astype("string")
     df["confidence_schema_version"] = df["confidence_schema_version"].fillna("1.0")
     df["is_rail_related"] = df["is_rail_related"].astype("boolean")
+    df["is_duplicate"] = df["is_duplicate"].astype("boolean")
     for column in ("operators", "rail_lines"):
         df[column] = df[column].map(_as_string_list).astype("object")
     df["text_embedding"] = df["text_embedding"].map(_as_float_list).astype("object")
