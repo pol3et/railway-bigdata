@@ -67,7 +67,7 @@ develop against it independently with no schema collisions.
 
 | Task (slug) | RU title | Status | Maps to |
 |---|---|---|---|
-| `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (4 of 5 including KSH and UIC extra parsers) | GAP-006 · orig. task #9 |
+| `silver/stats-parsers` | Silver: Eurostat + World Bank → StatFact | done (5 of 5 including KSH, UIC, and Statistik Austria extra parsers) | GAP-006 · orig. task #9 |
 | `silver/news-parsers` | Silver: RSS + GDELT → ArticleRecord → NewsFeature | done (LLM mocked in tests) | GAP-006 · orig. task #10 |
 | `gold/feature-matrix` | Gold: (geo, year) матрица + Parquet + counts | done on a 4-row fixture | orig. task #11 |
 | `tests/s3-bronze-readback` | Deterministic s3/MinIO Bronze read-back coverage via fsspec memory:// | done (`tests/test_pipeline_s3_readback.py`; 6 unit tests; full suite 93 passed) | GAP-020 / GAP-014 |
@@ -100,7 +100,7 @@ develop against it independently with no schema collisions.
 |---|---|---|---|---|---|
 | `bronze/gdelt-history-backfill` | Бэкафилл истории GDELT до 100k+ статей (объём) | 4 | `infra/minio-storage` | later | volume track |
 | `silver/gdelt-gkg-parser` | Парсер GKG csv.zip → ArticleRecord (подключить `gdelt_passthrough`) | 4 | `bronze/gdelt-history-backfill` | later | volume track |
-| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | in_progress — KSH XLSX and UIC PDF done; Statistik Austria ODS pending | GAP-006 (extra) |
+| `silver/stats-parsers-extra` | KSH XLSX / Statistik Austria ODS / UIC PDF → StatFact (3 параллельных парсера) | 4 | `silver/persist-contract` | done — KSH XLSX, UIC PDF, and Statistik Austria ODS readers are registered and tested | GAP-006 (extra) |
 | `bronze/scheduler-wiring` | Завести KSH/StatAustria/UIC в `bronze/run.py` (автообновления) | 4 | — | later | GAP-005 |
 
 ## Newly found gaps (re-audit 2026-06-24)
@@ -170,7 +170,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
   no MinIO/Ollama/news/Spark claim).
 
 ### Wave 5 — Coverage · volume · polish (parallel, deferrable)
-- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — KSH XLSX and UIC PDF readers done; StatAustria ODS still pending
+- `M` KSH/StatAustria/UIC Silver readers + GAP-005 scheduler wiring — all three extra Silver readers done; scheduler wiring still pending
 - `M` GDELT history backfill + GKG parser (volume)
 - `M` robustness: GAP-015/016/021/022/025/026 (GAP-014 closed 2026-06-24)
 - `L` GAP-028 CI, GAP-027/029/030 docs/ops
@@ -183,9 +183,10 @@ Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/clust
 - `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar)
 - `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints
 - `[x]` GAP-033 `silver/news-llm-extraction-live` — live `qwen3:4b` pass completed on 40 real articles; Silver Parquet, run manifest, empty failure sidecar, news-only Gold traceability, and human manifest committed under `output/evidence/news-extraction-sample/`
+- `[x]` GAP-042 `silver/stataustria-ods-reader` — deterministic Statistik Austria ODS reader registered as `statistik_austria`; freight and rolling-stock ODS fixtures parse to `StatFact`
 - `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
-- `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage` ‖ GAP-042 `silver/stataustria-ods-reader`
+- `[P2]` GAP-032 `silver/news-capture-widening` ‖ GAP-036 `silver/news-embeddings-dedup` (**e5/bge-m3, NOT LaBSE**) ‖ GAP-041 `silver/uic-pdf-widen-and-stage`
 - `[P3]` GAP-037 `spark/news-clustering` (separate artifact, not a Gold column — SPARK-21679) ‖ GAP-038 `silver/news-ner` (conditional) ‖ GAP-031-v2 GKG csv.zip history parser
 
 **Contract D (verify before claiming the news-model track done):** `[x]` real `NewsFeature` rows reach Gold from a live Ollama run (GAP-033); `[ ]` the eval harness reports per-feature metrics on a held-out golden TEST set; `[ ]` dedup is shown to deflate inflated `(geo,year)` counts; `[x]` closed gaps sync `docs/TASKS.md` + `docs/index.html`.

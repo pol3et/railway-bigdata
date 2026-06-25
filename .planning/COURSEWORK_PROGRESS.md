@@ -1,5 +1,34 @@
 # Coursework Progress
 
+## 2026-06-25 - GAP-042 Statistik Austria ODS Reader
+
+Status: done; ready for PR.
+
+Research:
+- Required `research-orchestrator` record written at `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md`.
+- Local files were reviewed first; Context7 was used for pandas ODS IO, Ref was attempted and credit-blocked, and Firecrawl/Tavily were used for odfpy/Statistik Austria source checks.
+- Self-approved implementation plan written at `.planning/coursework/plans/bigdata/gap-042-stataustria-ods-reader.md`.
+
+Changed:
+- Added core dependency `odfpy>=1.4,<2`.
+- Added `load_stataustria_frame` and ODS layout helpers for freight report-year totals and rolling-stock year-column blocks.
+- Registered `statistik_austria` in `_SOURCES`.
+- Added deterministic German label rules for the emitted Statistik Austria total labels.
+- Added generated-ODS unit tests plus a `frames_from_bronze` routing integration test.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `docs/STATE_AND_ROADMAP.md`.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_silver_stats_stataustria.py` failed before implementation with missing loader/routing.
+- `python -m pip install -e ".[test]"` passed; `odfpy==1.4.1` satisfied the new dependency.
+- `python -m pytest -q tests/test_silver_stats_stataustria.py` -> 5 passed.
+- `python -m pytest -q -m unit` -> 175 passed, 31 deselected.
+- `python -m pytest -q` -> 200 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+
+Next:
+- Commit, push `impl/gap-042`, open the PR, and verify mergeability.
+
 ## 2026-06-25 - GAP-050 LLM Pipeline Engineering
 
 Status: done

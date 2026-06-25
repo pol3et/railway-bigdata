@@ -15,6 +15,7 @@ Bronze layout consumed (same as the RawLander wrote it):
     <root>/stats/eurostat/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.tsv[.gz]
     <root>/stats/ksh/<table>/ingest_date=YYYY-MM-DD/<file>.xlsx
     <root>/stats/uic/<publication>/ingest_date=YYYY-MM-DD/<file>.pdf
+    <root>/stats/statistik_austria/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.ods
 """
 import gzip
 import io
@@ -339,6 +340,239 @@ def load_ksh_frame(raw: bytes, dataset_id: str) -> pd.DataFrame:
         return _empty()
 
 
+def _stataustria_title(df: pd.DataFrame) -> str:
+    for _, row in df.head(5).iterrows():
+        text = _clean_ksh_text(row.get(0))
+        if text and not text.lower().startswith(("einheit", "q:")):
+            return text
+    return "Statistik Austria rail statistics"
+
+
+def _stataustria_single_cell_text(row: pd.Series) -> str:
+    values = [
+        _clean_ksh_text(value)
+        for value in row.tolist()
+        if not _ksh_is_blank(value)
+    ]
+    return values[0] if len(values) == 1 else ""
+
+
+def _stataustria_immediate_section(df: pd.DataFrame, header_row: int) -> str:
+    if header_row <= 0:
+        return ""
+    text = _stataustria_single_cell_text(df.iloc[header_row - 1])
+    if not text or text.lower().startswith("q:"):
+        return ""
+    return text
+
+
+def _stataustria_year_header_rows(df: pd.DataFrame) -> list[tuple[int, dict[int, int]]]:
+    headers = []
+    for idx, row in df.head(40).iterrows():
+        found = {}
+        for col, cell in row.items():
+            year = _coerce_ksh_year(cell)
+            if year is not None:
+                found[col] = year
+        if len(found) >= 2:
+            headers.append((int(idx), found))
+    return headers
+
+
+def _stataustria_year_from_text(value) -> int | None:
+    text = _clean_ksh_text(value)
+    match = re.search(r"(19\d{2}|20\d{2})", text)
+    return int(match.group(1)) if match else None
+
+
+def _stataustria_total_column(df: pd.DataFrame) -> int | None:
+    for _, row in df.head(10).iterrows():
+        for col, cell in row.items():
+            if _clean_ksh_text(cell).lower() == "insgesamt":
+                return int(col)
+    return None
+
+
+def _stataustria_normalize_number(value):
+    if value is None or pd.isna(value):
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+
+    text = _clean_ksh_text(value)
+    text = text.replace("\u202f", "").replace("\xa0", "").replace(" ", "")
+    if text in {"", "-", ".", ".."}:
+        return None
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"[-+]?\d{1,3}(?:\.\d{3})+", text):
+        text = text.replace(".", "")
+    return text
+
+
+def _stataustria_metric_context(metric: str) -> str:
+    low = metric.lower()
+    if "tkm" in low or "tonnenkilometer" in low:
+        return "Transportleistung"
+    if "tonnen" in low:
+        return "Transportaufkommen"
+    return metric
+
+
+def _stataustria_unit_for_label(label: str) -> str:
+    low = label.lower()
+    if "tkm" in low or "tonnenkilometer" in low:
+        return "1 000 tkm Inland" if "1 000" in low else "tonne-km"
+    if "tonnen" in low or "nutzlast" in low:
+        return "Tonnen"
+    return "count"
+
+
+def _stataustria_tidy_from_report_year_rows(df: pd.DataFrame, title: str) -> pd.DataFrame:
+    total_col = _stataustria_total_column(df)
+    if total_col is None:
+        return _empty_ksh_tidy()
+
+    rows = []
+    current_year = None
+    for _, row in df.iterrows():
+        first_cell = _clean_ksh_text(row.get(0))
+        year = _stataustria_year_from_text(first_cell)
+        if first_cell.lower().startswith("berichtsjahr") and year is not None:
+            current_year = year
+            continue
+        if current_year is None or not first_cell or first_cell.lower().startswith("q:"):
+            continue
+
+        value = _stataustria_normalize_number(row.get(total_col))
+        if value is None:
+            continue
+        metric_context = _stataustria_metric_context(first_cell)
+        label = f"{title} - {metric_context} - {first_cell} - Insgesamt"
+        rows.append({
+            "label": label,
+            "year": current_year,
+            "value": value,
+            "unit": first_cell,
+        })
+
+    return pd.DataFrame(rows, columns=_KSH_TIDY_COLS)
+
+
+def _stataustria_join_label(parts: list[str]) -> str:
+    clean_parts = []
+    for part in parts:
+        text = _clean_ksh_text(part).strip(" -")
+        if text and (not clean_parts or clean_parts[-1] != text):
+            clean_parts.append(text)
+    return " - ".join(clean_parts)
+
+
+def _stataustria_tidy_from_year_header_tables(df: pd.DataFrame, title: str) -> pd.DataFrame:
+    headers = _stataustria_year_header_rows(df)
+    if not headers:
+        return _empty_ksh_tidy()
+
+    rows = []
+    for idx, (header_row, year_map) in enumerate(headers):
+        label_col = _ksh_label_column(df, header_row, list(year_map))
+        if label_col is None:
+            continue
+        header_label = _clean_ksh_text(df.at[header_row, label_col])
+        section = _stataustria_immediate_section(df, header_row)
+        end_row = headers[idx + 1][0] if idx + 1 < len(headers) else len(df)
+
+        current_section = ""
+        for _, row in df.iloc[header_row + 1:end_row].iterrows():
+            raw_label = _clean_ksh_text(row.get(label_col))
+            if not raw_label:
+                continue
+            if raw_label.lower().startswith("q:"):
+                break
+
+            values = [row.get(col) for col in year_map]
+            if all(_ksh_is_blank(value) for value in values):
+                current_section = raw_label
+                continue
+            if all(_stataustria_normalize_number(value) is None for value in values):
+                continue
+
+            label = _stataustria_join_label([
+                title,
+                section,
+                current_section,
+                header_label,
+                raw_label,
+            ])
+            unit = _stataustria_unit_for_label(label)
+            for col, year in year_map.items():
+                value = _stataustria_normalize_number(row.get(col))
+                if value is None:
+                    continue
+                rows.append({
+                    "label": label,
+                    "year": year,
+                    "value": value,
+                    "unit": unit,
+                })
+
+    return pd.DataFrame(rows, columns=_KSH_TIDY_COLS)
+
+
+def _stataustria_tidy_from_ods(raw: bytes) -> pd.DataFrame:
+    df = pd.read_excel(io.BytesIO(raw), sheet_name=0, header=None,
+                       dtype=object, engine="odf")
+    if df.empty:
+        return _empty_ksh_tidy()
+
+    title = _stataustria_title(df)
+    frames = [
+        _stataustria_tidy_from_report_year_rows(df, title),
+        _stataustria_tidy_from_year_header_tables(df, title),
+    ]
+    frames = [frame for frame in frames if not frame.empty]
+    if not frames:
+        return _empty_ksh_tidy()
+    return pd.concat(frames, ignore_index=True)
+
+
+def load_stataustria_frame(raw: bytes, dataset_id: str) -> pd.DataFrame:
+    """Read Statistik Austria rail ODS bytes into the Silver long stats contract.
+
+    Statistik Austria rail ODS files are Austria-only, so geo is fixed to AT.
+    Numeric cells are parsed deterministically through pandas/read_tabular_long;
+    no LLM is used for values.
+    """
+    try:
+        if not raw or not zipfile.is_zipfile(io.BytesIO(raw)):
+            logger.warning("stataustria %s: non-ODS payload; skipping", dataset_id)
+            return _empty()
+
+        tidy = _stataustria_tidy_from_ods(raw)
+        if tidy.empty:
+            logger.warning("stataustria %s: no tidy year/value rows; skipping", dataset_id)
+            return _empty()
+
+        frame = read_tabular_long(
+            tidy,
+            dataset_id,
+            geo="AT",
+            label_col="label",
+            year_col="year",
+            value_col="value",
+            unit="stataustria_native",
+        )
+        frame["unit"] = tidy["unit"].astype(str).to_numpy()
+        frame = frame.dropna(subset=["year", "value"])
+        if frame.empty:
+            return _empty()
+        frame["source_system"] = "statistik_austria"
+        return frame[_LONG_COLS]
+    except Exception as exc:
+        logger.warning("stataustria %s: ODS parse failed: %s", dataset_id, exc)
+        return _empty()
+
+
 _UIC_GEO_CODES = {
     "AT": "AT",
     "AUT": "AT",
@@ -541,6 +775,7 @@ _SOURCES = {
     "eurostat": (load_eurostat_frame, (".tsv", ".tsv.gz", ".gz")),
     "ksh": (load_ksh_frame, (".xlsx",)),
     "uic": (load_uic_frame, (".pdf",)),
+    "statistik_austria": (load_stataustria_frame, (".ods",)),
 }
 
 def _latest_partition(dataset_dir: Path):

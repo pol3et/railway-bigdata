@@ -207,7 +207,7 @@
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord → NewsFeature sample</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live partial (429 on AT)</span></td><td><span class="sig amber"><span class="dot amber"></span>NewsFeature sample · quality caveat</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
-          <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
+          <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>DONE — ODS → StatFact</span></td></tr>
           <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG missing</span></td></tr>
         </tbody>
@@ -291,12 +291,12 @@
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">statistik_austria</span>
-          <div class="plevels"><span class="lvl amber" title="Bronze: ingest coded, live unproven">B</span><span class="lvl red" title="Silver: no reader">S</span><span class="lvl red" title="Gold: missing">G</span></div></div>
-        <div class="lvlnote">Austria ODS. Ingest is coded but not in live_check; no ODS→StatFact reader.</div>
+          <div class="plevels"><span class="lvl amber" title="Bronze: live raw ODS evidence, unscheduled">B</span><span class="lvl green" title="Silver: ODS StatFact reader">S</span><span class="lvl amber" title="Gold: available after next matrix refresh">G</span></div></div>
+        <div class="lvlnote">Austria ODS. Ingest is coded but not in live_check; ODS→StatFact reader parses freight totals and rolling-stock counts.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw ODS · 5 rail .ods resources (kind="ods" validated)</div>
-          <div class="sl"><span class="c">     live landing unproven (absent from live_check)</span></div>
-          <div class="sl"><span class="x">S</span> — no ODS→StatFact reader</div>
+          <div class="sl"><span class="c">     live raw ODS evidence exists; scheduler pending</span></div>
+          <div class="sl"><span class="k">S</span> ODS → StatFact · geo=AT</div>
         </div>
       </div>
 
@@ -377,7 +377,7 @@
       <div class="ucol silver">
         <h3>Silver</h3>
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-043/GAP-040</b> add news quality evaluation and widen Gold aggregation before report-grade use.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS / UIC PDF → StatFact; KSH XLSX reader done.</span></div>
+        <div class="uitem"><span class="u done">DONE</span><span class="ug"><b>parsers-extra</b> KSH XLSX, StatAustria ODS, and UIC PDF → StatFact readers done.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-021</b> crosswalk "unmapped" is terminal — add retry/rebuild.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-025</b> RSS <span class="mono">ParseError</span> aborts the whole batch — isolate per feed.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-022</b> robust mixed-format <span class="mono">published_date</span> parsing.</span></div>
@@ -458,7 +458,7 @@
       <div class="wave defer">
         <div class="wave-head"><span class="wave-no">WAVE 5</span><span class="wave-title">Coverage · volume · polish</span><span class="wave-par">parallel · deferrable</span></div>
         <div class="wbatch">
-          <span class="wtask"><span class="u mid">MID</span> AT/UIC readers + GAP-005 scheduler; KSH reader done</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>done</span> KSH/AT/UIC Silver readers; GAP-005 scheduler pending</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
@@ -480,7 +480,7 @@
           <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness ‖ GAP-044 parser audit</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
-          <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
         </div>
         <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path; the committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>

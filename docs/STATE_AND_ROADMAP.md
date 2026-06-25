@@ -71,7 +71,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 | `rss_media` | XML | HU/AT media + MAV/OEBB press · all-topic, rail-filtered in Silver | scheduled · live-proven | ArticleRecord · tested |
 | `gdelt` | JSON (DOC 2.0) | HU + AT · rail news | scheduled · **live FAILS (429)** | ArticleRecord · tested (fixture) |
 | `ksh` | XLSX | HU only · freight, passengers, rolling stock, network, regional + narrow-gauge lines | live-proven · **not scheduled** | StatFact reader · tested |
-| `statistik_austria` | ODS | AT only · freight, rolling-stock fleet (passengers/network are login-only -> use Eurostat) | live-proven · **not scheduled** | **MISSING — no ODS reader** |
+| `statistik_austria` | ODS | AT only · freight, rolling-stock fleet (passengers/network are login-only -> use Eurostat) | live-proven · **not scheduled** | StatFact reader · tested |
 | `uic` | PDF | global UIC members · passenger-km, tonne-km, network, rolling stock, employees | live-proven · **not scheduled** | StatFact reader · tested |
 | `past_recordings` | JSON · GKG csv.zip | HU + AT · deep news backfill (DOC ~10y; GKG v1 1979-2016) — the real volume play | CLI one-off · not scheduled | DOC pages OK · **GKG csv MISSING** |
 
@@ -79,14 +79,13 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 - World Bank rail series -> `StatFact` (verbatim values, ISO3->geo map).
 - Eurostat rail series (TSV incl. gzip) -> `StatFact` (flag-stripped, labels mapped).
+- Statistik Austria ODS -> `StatFact` (freight report-year totals and rolling-stock year-column layouts).
 - RSS XML and GDELT ArtList JSON -> `ArticleRecord` (stable IDs).
 - `ArticleRecord` -> validated `NewsFeature` (Ollama; tested with mocked LLM output).
 - A unified `(geo, year)` Gold matrix from Bronze fixtures (proven on 4 rows).
 
-### Extractable next (bytes already land; only parsers missing)
+### Extractable next
 
-- Statistik Austria ODS -> `StatFact` (`read_excel engine=odf` -> `read_tabular_long`).
-- UIC PDF -> `StatFact` (public Synopsis table via `pdfplumber`; Traffic Trends has no country-level synopsis table).
 - GDELT history backfill via `past_recordings` to 100k+ articles, plus a GKG
   `.csv.zip` parser wiring the dormant `extract.gdelt_passthrough` stub — the
   highest-leverage move for real volume.
@@ -103,7 +102,7 @@ What each source fetches, and whether it reaches structured Silver rows today.
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| 9 | silver/stats-parsers | **4 / 5** (GAP-006) | Eurostat ✓, World Bank ✓, KSH XLSX ✓, UIC PDF ✓; Statistik Austria ODS ✗. |
+| 9 | silver/stats-parsers | **5 / 5** (GAP-006) | Eurostat ✓, World Bank ✓, KSH XLSX ✓, UIC PDF ✓, Statistik Austria ODS ✓. |
 | 10 | silver/news-parsers | **3 / 3** (GAP-006, PR #9) | RSS ✓, GDELT ArtList ✓, ArticleRecord->NewsFeature ✓ (LLM step tested with mocked Ollama; live LLM unproven). |
 | 11 | gold/feature-matrix | **done on fixture + persisted Silver CLI** | Assemble `(geo, year)` ✓, write Parquet ✓, save row/col counts ✓ (4x3). `gold/run.py` now loads persisted local Silver Parquet and writes counts (GAP-007 closed). |
 | 12 | spark/evidence-job | **3 / 3 — local evidence written** (GAP-009) | `spark_jobs.coverage` reads the real Gold Parquet, writes `output/evidence/spark/coverage_by_geo_year/`, and records Spark version, counts, files, duration, and timestamps in `manifest.json`. |
@@ -363,7 +362,7 @@ Verified:
 
 Boundary:
 - KSH XLSX can now flow from Bronze raw files into the Silver StatFact contract.
-- Statistik Austria ODS remains pending; UIC PDF is covered by the follow-up update below.
+- UIC PDF is covered by the follow-up update below; Statistik Austria ODS is covered by the 2026-06-25 GAP-042 update.
 
 ## Update 2026-06-24 — UIC PDF stats reader
 

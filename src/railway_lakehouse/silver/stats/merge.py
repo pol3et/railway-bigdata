@@ -19,6 +19,7 @@ alignment problem entirely.
 import json
 import logging
 import os
+import unicodedata
 from typing import Optional
 
 import pandas as pd
@@ -436,10 +437,24 @@ def _map_label_by_rule(label: str) -> Optional[str]:
     if label in CANON_KEYS:          # reader may emit a canonical key directly
         return label
     low = label.lower()
+    folded = unicodedata.normalize("NFKD", low).encode("ascii", "ignore").decode("ascii")
+    low = f"{low} {folded}"
     candidates = [low.rsplit(" - ", 1)[-1], low] if " - " in low else [low]
     for candidate in candidates:
         if "road network" in candidate and "rail" not in candidate:
             return None
+        if "transportleistung" in candidate or " tkm" in candidate:
+            return "rail_freight_tonne_km"
+        if "transportaufkommen" in candidate:
+            return "rail_freight_tonnes"
+        if "insgesamt" in candidate:
+            if "lokomotivbestand" in candidate:
+                return "rail_locomotives"
+            if "schienenguterwagenbestand" in candidate:
+                return "rail_wagons"
+            if ("schienentriebfahrzeugbestand" in candidate
+                    or "schienenpersonenwagenbestand" in candidate):
+                return "rail_rolling_stock"
         for needle, key in _ENGLISH_LABEL_RULES:
             if needle in candidate:
                 return key
