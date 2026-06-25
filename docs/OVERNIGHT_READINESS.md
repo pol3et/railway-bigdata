@@ -27,10 +27,14 @@ The Spark EDA→hypotheses→report finale (GAP-046/048/049) and the eval golden
 human judgement / hand-labelled data and/or winutils — they are **parked**, not auto-run. Tonight:
 
 - **AUTO** (build + mock/fixture tests, auto-merge on clean verdict + approving review):
-  GAP-039, GAP-050, GAP-035, GAP-034, GAP-031, GAP-040, GAP-044, GAP-045, GAP-041, GAP-042, GAP-047.
+  GAP-039, GAP-050, GAP-035, GAP-034, GAP-031, GAP-040, GAP-044, GAP-045, GAP-041, GAP-042, GAP-047, GAP-043.
 - **LIVE** (serialized, need the GPU/Ollama): GAP-033 (first real LLM run), GAP-036 (embeddings).
-- **MANUAL** (skipped + logged — need you): GAP-043 (golden set labelling), GAP-037 (clustering),
-  GAP-038 (NER), GAP-046 / GAP-048 / GAP-049 (Session C judgement).
+- **MANUAL** (skipped + logged — need you): GAP-037 (clustering), GAP-038 (NER),
+  GAP-046 / GAP-048 / GAP-049 (Session C judgement).
+- **GAP-043 eval — now AUTO (owner decision 2026-06-25):** the golden set is **created + labelled by an
+  agent** (Codex/Sonnet — a *stronger* model than the evaluated `qwen3:4b`, never the pipeline model, to
+  avoid self-evaluation circularity). Labels are agent silver-standard, not human gold → gate on
+  **non-regression**, report absolute numbers as indicative. See the GAP-043 spec note in `docs/GAP_TASKS.md`.
 
 Classification lives in `scripts/orch/night.config.sh` — edit it to move a gap in/out of scope.
 
@@ -80,7 +84,12 @@ $body = @{ model="qwen3:4b"; stream=$false; format="json"; options=@{temperature
   valid JSON** (e.g. `{"is_rail_related":true,"country":"HU",...}`) at **~16 s/article** — fine for the
   small one-time cached pass. The knob is wired: `ollama_client` sends `options.num_gpu` only when
   `OLLAMA_NUM_GPU` is set, and `lib_run.sh` exports `OLLAMA_NUM_GPU=0` so implementers inherit it.
-  (Optional later experiment for GPU speed: restart `ollama serve` with `OLLAMA_FLASH_ATTENTION=0`.)
+  (Optional time-boxed GPU-speed experiment: driver ≥570 is met (581.42); restart `ollama serve` with
+  `OLLAMA_FLASH_ATTENTION=0` — flash-attn is broken on Pascal — but it may not fix the JSON path and can
+  balloon the compute graph past 6 GB, so keep CPU on the critical path. **vLLM is ruled out**: it needs
+  compute capability ≥7.0 and the GTX 1060 is 6.1 (Linux/WSL doesn't bypass that). The only real Pascal-GPU
+  option is llama.cpp/KoboldCpp with GBNF + FA off. Full sourcing:
+  `.planning/coursework/research/bigdata/llm-serving-vllm-vs-ollama-pascal-2026-06-25.md`.)
 - Config: `OLLAMA_HOST` (default `http://localhost:11434`), `OLLAMA_MODEL=qwen3:4b` (now the code default).
 - Memory hygiene (single box): `ollama stop qwen3:4b` (or `OLLAMA_KEEP_ALIVE=0`) **before** any GPU encoder
   pass; confirm `ollama ps` empty so the sidecar gets the VRAM.
@@ -94,7 +103,9 @@ The 3.11 env already has CUDA torch, so the sidecar inherits it via `--system-si
 $PY311 = "C:\Users\XxX360QUICKSCOPERXxX\pyver\311\python.exe"
 & $PY311 -m venv --system-site-packages output\runtime\sidecar-venv
 $SC = "output\runtime\sidecar-venv\Scripts\python.exe"
-& $SC -m pip install -U transformers sentence-transformers pyarrow pandas
+# PIN versions for the box's torch 2.1.1+cu118 — latest transformers/sentence-transformers break on
+# import with this old torch ("NameError: name 'nn' is not defined"). Verified-compatible pins:
+& $SC -m pip install "transformers==4.40.2" "sentence-transformers==2.7.0" "huggingface_hub==0.23.5" pyarrow pandas
 # (language-id: add fasttext-wheel, or use lingua-py — pure-Python fallback, no compiler)
 # Pre-cache weights once (HF reachable on the host; avoids a mid-night download):
 & $SC -c "from sentence_transformers import SentenceTransformer as S; S('intfloat/multilingual-e5-base')"

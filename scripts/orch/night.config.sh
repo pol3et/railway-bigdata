@@ -20,7 +20,7 @@ declare -gA GAP_CLASS=(
   [GAP-031]=AUTO     # GDELT DOC-field recovery + wire passthrough (no model)
   [GAP-040]=AUTO     # widen Gold news aggregation (+GAP-016/022/026)
   [GAP-044]=AUTO     # per-source parser-correctness audit (fixtures)
-  [GAP-043]=MANUAL   # eval harness — BLOCKED: golden set must be hand-labelled first
+  [GAP-043]=AUTO     # eval harness + golden set LABELLED BY AGENT (Codex/Sonnet, NOT qwen3:4b); needs GAP-033 real rows
   # --- Session B (parallel; stats-side + encoders) ---
   [GAP-045]=AUTO     # +2 World Bank macro indicators (IS.VEH.PCAR.P3, PA.NUS.PPP)
   [GAP-041]=AUTO     # UIC PDF widen-to-all-countries + stage unmapped rows
