@@ -2,6 +2,40 @@
 
 This is the single persistent log for `bigdata/course_proj`. Future agents should append here before stopping.
 
+## 2026-06-25 - GAP-042 Statistik Austria ODS Reader
+
+Status: done; ready for PR.
+
+Changed:
+- `pyproject.toml`
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `tests/test_silver_stats_stataustria.py`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `docs/STATE_AND_ROADMAP.md`
+- `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md`
+- `.planning/coursework/plans/bigdata/gap-042-stataustria-ods-reader.md`
+
+Findings:
+- The original GAP-042 spec was right on `odfpy`/pandas ODS IO, but thin on real file layout: the freight ODS stores years as `Berichtsjahr YYYY` rows with totals under `Insgesamt`, while rolling-stock files use repeated year-column header blocks.
+- `load_stataustria_frame` now reads ODS bytes deterministically, emits `geo=AT` `StatFact` rows, preserves German source labels, and registers `statistik_austria` in `_SOURCES`.
+- Narrow German crosswalk rules map the emitted total freight and rolling-stock labels without LLM use; numeric values still come only from pandas coercion.
+
+Evidence:
+- TDD RED: `python -m pytest -q tests/test_silver_stats_stataustria.py` failed before implementation with missing `load_stataustria_frame` and missing `.ods` routing.
+- `python -m pip install -e ".[test]"` passed and installed/confirmed `odfpy==1.4.1`.
+- `python -m pytest -q tests/test_silver_stats_stataustria.py` -> 5 passed.
+- `python -m pytest -q -m unit` -> 175 passed, 31 deselected.
+- `python -m pytest -q` -> 200 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+- Bounded runtime smoke over direct Statistik Austria ODS downloads under `output/runtime/gap-042-layout/` parsed all five current ODS files; raw downloads remain uncommitted runtime output.
+
+Next:
+- Commit, push `impl/gap-042`, open the PR against `main`, and confirm mergeability.
+
 ## 2026-06-24 - GAP-019 Deployable Bronze Scheduler
 
 Status: closed — implemented by the Codex agent (its exec sandbox could not spawn `python`/`git`/`gh`, recorded honestly below); verified + shipped by the orchestrator: `python -m pytest -q -m unit tests/test_bronze_scheduler.py` → 4 passed; full `python -m pytest -q` (JAVA_HOME=jdk-21) → 127 passed, 1 skipped; `python -m compileall -q src tests` clean. Rebased on GAP-013 and merged via PR.
