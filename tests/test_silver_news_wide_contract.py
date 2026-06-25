@@ -63,6 +63,7 @@ WIDE_NEWS_FIELDS = [
     "extraction_timestamp_utc",
     "extraction_model_digest",
     "confidence_schema_version",
+    "is_duplicate",
 ]
 
 
@@ -127,6 +128,7 @@ def test_news_feature_wide_schema_is_backward_compatible():
     assert row["gkg_themes"] is None
     assert row["text_embedding"] is None
     assert row["confidence_schema_version"] == "1.0"
+    assert row["is_duplicate"] is None
 
     wide = _feature(language_detected_code="hu", sentiment_score=0.6)
     assert wide.confidence_schema_version == "1.0"
@@ -154,6 +156,7 @@ def test_validate_news_feature_coerces_wide_fields():
         "gkg_emotions": "",
         "gkg_tone_source": "unknown",
         "text_embedding": ["1.0", 2],
+        "is_duplicate": "true",
     }
 
     feature = validate_news_feature(
@@ -185,6 +188,7 @@ def test_validate_news_feature_coerces_wide_fields():
     assert feature.gkg_emotions is None
     assert feature.gkg_tone_source is None
     assert feature.text_embedding == [1.0, 2.0]
+    assert feature.is_duplicate is True
 
     valid_language = validate_news_feature(
         _valid_raw() | {"language_detected_code": "EN"},
@@ -324,7 +328,7 @@ def test_gdelt_passthrough_cached_populates_gkg_without_llm(monkeypatch, tmp_pat
     assert feature.sentiment_label == "positive"
     assert feature.gkg_themes == "ECON_TRADE_AGREEMENT;LABOR_STRIKE"
     assert feature.gkg_tone_source == "gdelt_gkg"
-    assert feature.extraction_model_digest == "gdelt_gkg_passthrough"
+    assert feature.extraction_model_digest == news_extract.GDELT_PASSTHROUGH_DIGEST
 
 
 def test_gdelt_passthrough_preserves_zero_tone(monkeypatch, tmp_path):
@@ -391,6 +395,13 @@ def test_gdelt_passthrough_cache_key_includes_gkg_annotations(tmp_path):
 def test_extract_batch_returns_successes_and_failures(monkeypatch, tmp_path, caplog):
     cache = FileSystemCache(tmp_path / ".news_extraction_cache")
     monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _valid_raw())
+    embedding_calls = {"rows": 0}
+
+    def fake_compute_embeddings(rows, *, use_model=True):
+        embedding_calls["rows"] += len(rows)
+        return rows
+
+    monkeypatch.setattr(news_extract, "compute_embeddings", fake_compute_embeddings)
 
     successes, failures = news_extract.extract_batch(
         [
@@ -426,6 +437,7 @@ def test_extract_batch_returns_successes_and_failures(monkeypatch, tmp_path, cap
     assert len(failures) == 2
     assert {failure.article_id for failure in failures} == {"missing-title", "bad-url"}
     assert "news extraction failed" in caplog.text
+    assert embedding_calls["rows"] == 1
 
 
 def test_news_feature_wide_parquet_round_trip(tmp_path):
@@ -441,6 +453,7 @@ def test_news_feature_wide_parquet_round_trip(tmp_path):
         text_embedding=[0.1, 0.2, 0.3],
         cluster_id="cluster_001",
         cross_lingual_dedup_id="dedup_001",
+        is_duplicate=True,
         extraction_timestamp_utc="2026-06-25T00:00:00Z",
         extraction_model_digest="digest-a",
     )
@@ -451,12 +464,14 @@ def test_news_feature_wide_parquet_round_trip(tmp_path):
 
     assert list(loaded.columns) == persist.NEWS_FEATURE_COLUMNS
     assert set(WIDE_NEWS_FIELDS).issubset(schema.names)
-    assert schema.field("text_embedding").type == pa.list_(pa.float64())
+    assert schema.field("text_embedding").type == pa.list_(pa.float32())
+    assert schema.field("is_duplicate").type == pa.bool_()
     row = loaded.iloc[0]
     assert row["article_id"] == feature.article_id
     assert row["language_detected_code"] == "hu"
     assert row["gkg_themes"] == "RAIL;ECON"
-    assert list(row["text_embedding"]) == [0.1, 0.2, 0.3]
+    assert list(row["text_embedding"]) == pytest.approx([0.1, 0.2, 0.3])
+    assert bool(row["is_duplicate"]) is True
 
 
 def test_load_news_backfills_wide_columns_for_legacy_parquet(tmp_path):
@@ -472,3 +487,4 @@ def test_load_news_backfills_wide_columns_for_legacy_parquet(tmp_path):
     assert loaded.iloc[0]["article_id"] == "a1"
     assert pd.isna(loaded.iloc[0]["language_detected_code"])
     assert loaded.iloc[0]["confidence_schema_version"] == "1.0"
+    assert pd.isna(loaded.iloc[0]["is_duplicate"])

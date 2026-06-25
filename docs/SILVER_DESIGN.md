@@ -56,6 +56,14 @@ GAP-050 refines the news LLM path into a cached extraction runner with a narrowe
 amounts only), retry/failure accounting, lifecycle hooks, and per-run manifests. See
 `docs/LLM_EXTRACTION_DESIGN.md`; the first live run remains GAP-033.
 
+GAP-036 adds the deterministic embedding pass after successful news extraction. When the
+optional `news` extra is installed, `silver.news.embeddings` loads
+`intfloat/multilingual-e5-base` through sentence-transformers, embeds `summary_en` (with
+article text fallbacks) into `text_embedding` as a normalized float32 vector, and records
+`text_embedding_model`. The local dedup helper assigns `cross_lingual_dedup_id` and
+`is_duplicate` deterministically at cosine threshold `0.95`; Spark-scale enforcement
+remains GAP-037/GAP-040.
+
 ## What was verified (offline, no Ollama)
 Static tests pass for: the Eurostat melt-to-long reader (flag stripping, geo extraction), the
 rule+LLM crosswalk (LLM stubbed), the merge into one unified table, schema validation hardening
@@ -68,6 +76,28 @@ converted into the same `ArticleRecord` shape, and both parser outputs can be pa
 the GAP-050 `run_extraction_pipeline()` production path with Ollama mocked in tests.
 The local Bronze pipeline reader also accepts RSS XML fixtures, so parser coverage is wired
 into the deterministic offline path rather than only tested as isolated functions.
+
+### GDELT GKG passthrough
+
+GAP-031 adds a deterministic GKG parser for raw GDELT `.gkg.csv.zip` files.
+The parser supports fixture-covered GKG 1.0 daily rows and GKG 2.x tab-delimited
+rows, extracts a transient `GKGRecord`, and does not write a separate Silver GKG
+table. The production Bronze reader discovers
+`bronze/news/gdelt_history/gkg_v1_daily/.../*.gkg.csv.zip`, parses those records,
+forwards them through `run_extraction_pipeline(..., gkg_records=...)`, and creates
+bounded GDELT article-shaped rows from unmatched GKG records so GKG-only Bronze
+fixtures still produce `NewsFeature` rows. Callers that already have article rows
+can also pass explicit GKG records to
+`article_records_to_news_features(..., gkg_records=...)`; matching GDELT rows are
+routed through `gdelt_passthrough_cached()` instead of the Ollama path.
+
+GKG passthrough populates only fields that GDELT already provides or that can be
+derived deterministically: `sentiment` from tone thresholds, `country` from GKG
+source/location fields, `event_type` from explicit GKG rail/transport theme
+tokens, and `operators` from the bounded `KNOWN_OPERATORS` gazetteer. It keeps
+`summary_en=None` and `confidence=None` because GKG does not provide summaries
+or model confidence. Live high-volume GKG backfill evidence remains separate
+follow-up work.
 
 ## Known limitations / what you must wire
 - **Ollama cannot run in the build sandbox** (local server + model download, network-locked), so

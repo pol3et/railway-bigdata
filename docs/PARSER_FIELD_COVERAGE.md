@@ -18,7 +18,7 @@ filter, or aggregate.
 ## Rationale
 
 - RSS and GDELT DOC intentionally emit the 6-field `ArticleRecord` contract.
-  Wider article metadata is reserved by the 43-field `NewsFeature` contract but
+  Wider article metadata is reserved by the 44-field `NewsFeature` contract but
   not all source metadata is materialized yet.
 - World Bank, Eurostat, KSH, and UIC all emit the long stats contract:
   `geo`, `year`, `value`, `unit`, `source_dataset`, `source_column`,

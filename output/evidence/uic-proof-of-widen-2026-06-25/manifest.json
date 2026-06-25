@@ -1,0 +1,42 @@
+{
+  "run_id": "live-check-20260625-071838",
+  "timestamp_utc": "2026-06-25T07:18:38.572149+00:00",
+  "scope": "bounded local Bronze live check; no scheduler, MinIO, Ollama, Spark, or long historical GDELT backfill",
+  "sources": [
+    {
+      "source": "uic",
+      "status": "passed",
+      "artifact_count": 2,
+      "byte_count": 2109240,
+      "http_statuses": [
+        200,
+        200
+      ],
+      "failures": []
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "uic",
+      "domain": "stats",
+      "dataset_id": "uic_traffic_trends_2024",
+      "path": "output/evidence/uic-proof-of-widen-2026-06-25/bronze/stats/uic/uic_traffic_trends_2024/ingest_date=2026-06-25/uic_traffic_trends_2024.pdf",
+      "meta_path": "output/evidence/uic-proof-of-widen-2026-06-25/bronze/stats/uic/uic_traffic_trends_2024/ingest_date=2026-06-25/uic_traffic_trends_2024.pdf.meta.json",
+      "bytes": 591749,
+      "sha256": "eb6483271689a67ee43c67f4890af7a21d1e594d990bf57945cc9db29542c425",
+      "http_status": 200
+    },
+    {
+      "source": "uic",
+      "domain": "stats",
+      "dataset_id": "uic_railway_statistics_synopsis_2025",
+      "path": "output/evidence/uic-proof-of-widen-2026-06-25/bronze/stats/uic/uic_railway_statistics_synopsis_2025/ingest_date=2026-06-25/uic_railway_statistics_synopsis_2025.pdf",
+      "meta_path": "output/evidence/uic-proof-of-widen-2026-06-25/bronze/stats/uic/uic_railway_statistics_synopsis_2025/ingest_date=2026-06-25/uic_railway_statistics_synopsis_2025.pdf.meta.json",
+      "bytes": 1517491,
+      "sha256": "32e4b8e6db06206bc5fc93e81538251b5d9aa38f34441cc28c6e6a6db4295ec6",
+      "http_status": 200
+    }
+  ],
+  "artifact_count": 2,
+  "byte_count": 2109240
+}

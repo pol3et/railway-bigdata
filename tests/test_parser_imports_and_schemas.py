@@ -77,4 +77,4 @@ def test_dataclass_schema_field_counts_are_stable():
     assert dataclasses.is_dataclass(ArticleRecord)
     assert dataclasses.is_dataclass(NewsFeature)
     assert len(ArticleRecord.__dataclass_fields__) == 6
-    assert len(NewsFeature.__dataclass_fields__) == 43
+    assert len(NewsFeature.__dataclass_fields__) == 44

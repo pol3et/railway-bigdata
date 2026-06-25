@@ -124,6 +124,10 @@ def test_validate_news_feature_coerces_invalid_model_output_safely():
 
 
 def test_extract_article_uses_mocked_ollama_output(monkeypatch):
+    class FakeEncoder:
+        def encode(self, text):
+            return {"label": "positive", "score": 0.82}
+
     def fake_generate_json(prompt, *, schema=None, system=None):
         assert "Article title: New rail investment" in prompt
         assert schema is not None
@@ -142,6 +146,11 @@ def test_extract_article_uses_mocked_ollama_output(monkeypatch):
         }
 
     monkeypatch.setattr(news_extract, "generate_json", fake_generate_json)
+    monkeypatch.setattr(
+        news_extract.sentiment_encoder,
+        "get_encoder",
+        lambda: FakeEncoder(),
+    )
 
     feature = news_extract.extract_article(
         article_id="a2",
@@ -157,7 +166,8 @@ def test_extract_article_uses_mocked_ollama_output(monkeypatch):
     assert feature.country == "AT"
     assert feature.event_type == "investment"
     assert feature.operators == ["RailCargo"]
-    assert feature.confidence == 0.8
+    assert feature.sentiment == "positive"
+    assert feature.confidence == 0.82
 
 
 def test_ollama_json_call_uses_chat_schema_and_disables_thinking(monkeypatch):

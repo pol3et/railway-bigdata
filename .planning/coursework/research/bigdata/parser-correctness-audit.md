@@ -50,7 +50,21 @@ Findings:
 
 Spec refinements applied before implementation:
 - No live fixture fetching: the task text mentions fetching RSS and copying raw bytes from `output/evidence/*/bronze`, but this worktree currently commits only manifests for KSH/UIC evidence, not the raw XLSX/PDF bytes. Tests must remain self-contained. The new fixtures will live under `tests/fixtures/silver/**`; where source bytes are already committed under `tests/fixtures/bronze/**`, they are copied/adapted from there. KSH/UIC golden files are deterministic parser-shape fixtures modeled on the real live table shapes already encoded in existing tests and evidence manifests, not new live downloads.
-- `NewsFeature` is now a 43-field dataclass after GAP-039, not a 15-field Pydantic model. Import/schema guard tests must assert dataclass field counts: `ArticleRecord=6`, `NewsFeature=43`.
+- `NewsFeature` became a 43-field dataclass after GAP-039, not a 15-field Pydantic model. After merging current `main` for GAP-036, `is_duplicate` brings the current field count to 44. Import/schema guard tests must assert dataclass field counts: `ArticleRecord=6`, `NewsFeature=44`.
 - `parse_gdelt_artlist_json()` does not currently handle malformed JSON gracefully. The drafted spec said it already did; implementation must add this guard.
 - GAP-023 geo filtering is not widened into this change. Eurostat parser tests for this task assert explicit behavior and coverage documentation; they do not silently add a separate geo-filtering policy.
 - Statistik Austria remains documented as available raw ODS with no Silver parser; GAP-042 owns implementation. GAP-044 documents it in the matrix but does not add an ODS reader.
+
+## 2026-06-25 merge-conflict update
+
+Workflow:
+- Used `research-orchestrator` for a local conflict-resolution pass; no external API or library claims were needed.
+
+Local files/commits reviewed:
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/rss.py`
+- `src/railway_lakehouse/silver/news/gdelt.py`
+- Recent `main` commits touching `silver/news/extract.py`: GAP-031 GDELT GKG passthrough, GAP-034 sentiment encoder, GAP-036 embeddings/dedup, plus production-runner fixes.
+
+Conflict-resolution rule:
+- Preserve GAP-044's parser audit guards and `gdelt_passthrough()` compatibility parameters while retaining all current `main` behavior for language identification, sentiment truncation/classification, GKG passthrough wiring, embeddings, and cross-lingual dedup.

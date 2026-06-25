@@ -7,6 +7,7 @@ documented, stable location instead of in-memory frames. Layout mirrors Bronze
 
     <silver_root>/stats/stat_fact/ingest_date=YYYY-MM-DD/stat_fact.parquet
     <silver_root>/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
+    <lakehouse_root>/silver/uic_staging/ingest_date=YYYY-MM-DD/uic_staging.parquet
 
 ``<silver_root>`` is a local filesystem Silver tree for fixtures and local
 evidence. MinIO/s3fs persistence is intentionally left to the storage wiring
@@ -17,6 +18,9 @@ so the persisted files can never silently drift from the contract:
   * stats -> StatFact   (geo, year, feature, value, unit, source_system,
                          source_dataset, source_column)
   * news  -> NewsFeature (article_id, source, url, ... sentiment, confidence)
+
+Embedding and dedup columns are optional; legacy NewsFeature rows and old
+Parquet files may omit them and are reindexed on load.
 """
 import logging
 from datetime import datetime, timezone
@@ -33,9 +37,28 @@ logger = logging.getLogger("silver.persist")
 
 STATS_DOMAIN, STATS_TABLE = "stats", "stat_fact"
 NEWS_DOMAIN, NEWS_TABLE = "news", "news_feature"
+UIC_STAGING_DOMAIN, UIC_STAGING_TABLE = "silver", "uic_staging"
 
 STAT_FACT_COLUMNS = list(StatFact.__dataclass_fields__)
 NEWS_FEATURE_COLUMNS = list(NewsFeature.__dataclass_fields__)
+UIC_STAGING_COLUMNS = [
+    "table_name",
+    "dataset_id",
+    "table_id",
+    "table_idx",
+    "row_type",
+    "row_idx",
+    "parse_status",
+    "geo",
+    "year",
+    "source_dataset",
+    "source_system",
+    "raw_geo_cell",
+    "raw_year_cell",
+    "raw_value_cells",
+    "text_chunk",
+    "created_at",
+]
 
 STAT_FACT_ARROW_SCHEMA = pa.schema([
     ("geo", pa.string()),
@@ -86,12 +109,32 @@ NEWS_FEATURE_ARROW_SCHEMA = pa.schema([
     ("gkg_emotions", pa.string()),
     ("gkg_tone_source", pa.string()),
     ("text_embedding_model", pa.string()),
-    ("text_embedding", pa.list_(pa.float64())),
+    ("text_embedding", pa.list_(pa.float32())),
     ("cluster_id", pa.string()),
     ("cross_lingual_dedup_id", pa.string()),
     ("extraction_timestamp_utc", pa.string()),
     ("extraction_model_digest", pa.string()),
     ("confidence_schema_version", pa.string()),
+    ("is_duplicate", pa.bool_()),
+])
+
+UIC_STAGING_ARROW_SCHEMA = pa.schema([
+    ("table_name", pa.string()),
+    ("dataset_id", pa.string()),
+    ("table_id", pa.string()),
+    ("table_idx", pa.int64()),
+    ("row_type", pa.string()),
+    ("row_idx", pa.int64()),
+    ("parse_status", pa.string()),
+    ("geo", pa.string()),
+    ("year", pa.int64()),
+    ("source_dataset", pa.string()),
+    ("source_system", pa.string()),
+    ("raw_geo_cell", pa.string()),
+    ("raw_year_cell", pa.string()),
+    ("raw_value_cells", pa.list_(pa.string())),
+    ("text_chunk", pa.string()),
+    ("created_at", pa.string()),
 ])
 
 
@@ -170,6 +213,7 @@ def _news_frame(news_rows) -> pd.DataFrame:
         df[column] = df[column].astype("string")
     df["confidence_schema_version"] = df["confidence_schema_version"].fillna("1.0")
     df["is_rail_related"] = df["is_rail_related"].astype("boolean")
+    df["is_duplicate"] = df["is_duplicate"].astype("boolean")
     for column in ("operators", "rail_lines"):
         df[column] = df[column].map(_as_string_list).astype("object")
     df["text_embedding"] = df["text_embedding"].map(_as_float_list).astype("object")
@@ -180,6 +224,23 @@ def _news_frame(news_rows) -> pd.DataFrame:
         "monetary_raw_parsed_eur", "monetary_confidence", "gkg_tone",
     ):
         df[column] = pd.to_numeric(df[column], errors="coerce").astype("Float64")
+    return df
+
+
+def _uic_staging_frame(staging_rows) -> pd.DataFrame:
+    if isinstance(staging_rows, pd.DataFrame):
+        df = staging_rows.reindex(columns=UIC_STAGING_COLUMNS).copy()
+    else:
+        df = pd.DataFrame(staging_rows or []).reindex(columns=UIC_STAGING_COLUMNS)
+    for column in (
+        "table_name", "dataset_id", "table_id", "row_type", "parse_status",
+        "geo", "source_dataset", "source_system", "raw_geo_cell",
+        "raw_year_cell", "text_chunk", "created_at",
+    ):
+        df[column] = df[column].astype("string")
+    for column in ("table_idx", "row_idx", "year"):
+        df[column] = pd.to_numeric(df[column], errors="coerce").astype("Int64")
+    df["raw_value_cells"] = df["raw_value_cells"].map(_as_string_list).astype("object")
     return df
 
 
@@ -213,6 +274,17 @@ def persist_news(news_rows, root, *, ingest_date: str = None) -> Path:
     return path
 
 
+def persist_uic_staging(staging_rows, root, *, ingest_date: str = None) -> Path:
+    """Write UIC parser audit rows to the canonical staging Parquet path."""
+    ingest_date = ingest_date or _today()
+    df = _uic_staging_frame(staging_rows)
+    path = silver_table_path(root, UIC_STAGING_DOMAIN, UIC_STAGING_TABLE, ingest_date)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write_parquet(df, path, UIC_STAGING_ARROW_SCHEMA)
+    logger.info("persisted Silver UIC staging: %s (%d rows)", path, len(df))
+    return path
+
+
 def persist_news_failures(failures, root, *, ingest_date: str = None) -> Path:
     """Write extraction failures as a JSON sidecar, not a Parquet table."""
     ingest_date = ingest_date or _today()
@@ -221,13 +293,16 @@ def persist_news_failures(failures, root, *, ingest_date: str = None) -> Path:
     return path
 
 
-def persist_silver(stats_long, news_rows, root, *, ingest_date: str = None) -> dict:
+def persist_silver(stats_long, news_rows, root, *, ingest_date: str = None, uic_staging_rows=None) -> dict:
     """Persist both Silver tables in one call; returns {'stats': path, 'news': path}."""
     ingest_date = ingest_date or _today()
-    return {
+    paths = {
         "stats": persist_stats(stats_long, root, ingest_date=ingest_date),
         "news": persist_news(news_rows, root, ingest_date=ingest_date),
     }
+    if uic_staging_rows is not None:
+        paths["uic_staging"] = persist_uic_staging(uic_staging_rows, root, ingest_date=ingest_date)
+    return paths
 
 
 # --------------------------------------------------------------------------
@@ -252,3 +327,12 @@ def load_news(root, *, ingest_date: str = None) -> pd.DataFrame:
     if "confidence_schema_version" in df:
         df["confidence_schema_version"] = df["confidence_schema_version"].fillna("1.0")
     return df
+
+
+def load_uic_staging(root, *, ingest_date: str = None) -> pd.DataFrame:
+    """Load the persisted UIC staging table (latest partition unless a date given)."""
+    path = (silver_table_path(root, UIC_STAGING_DOMAIN, UIC_STAGING_TABLE, ingest_date)
+            if ingest_date else _latest_path(root, UIC_STAGING_DOMAIN, UIC_STAGING_TABLE))
+    if not path or not Path(path).exists():
+        return pd.DataFrame(columns=UIC_STAGING_COLUMNS)
+    return pd.read_parquet(path).reindex(columns=UIC_STAGING_COLUMNS)

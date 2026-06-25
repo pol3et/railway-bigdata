@@ -26,7 +26,6 @@ def _raw_feature():
         "monetary_raw": None,
         "summary_en": "Railway investment was announced.",
         "sentiment": "positive",
-        "language": "en",
         "confidence": 0.9,
     }
 
@@ -239,6 +238,67 @@ def test_run_news_production_entrypoint_writes_manifest_and_failure_sidecar(monk
     assert manifest["counts"]["failed"] == 1
     assert sidecar["failure_count"] == 1
     assert sidecar["failures"][0]["article_id"] == "prod-missing-title"
+
+
+def test_run_news_production_entrypoint_clusters_cross_lingual_duplicates(monkeypatch, tmp_path):
+    articles = [
+        {
+            "article_id": "hu-story",
+            "source": "rss",
+            "title": "MAV railway upgrade",
+            "url": "https://example.test/hu-story",
+            "body": "MAV announced a railway upgrade in Budapest.",
+            "published_date": "2026-06-25",
+        },
+        {
+            "article_id": "de-story",
+            "source": "rss",
+            "title": "MAV Eisenbahnausbau",
+            "url": "https://example.test/de-story",
+            "body": "MAV kuendigte einen Eisenbahnausbau in Budapest an.",
+            "published_date": "2026-06-25",
+        },
+        {
+            "article_id": "other-story",
+            "source": "rss",
+            "title": "Rail timetable update",
+            "url": "https://example.test/other-story",
+            "body": "A separate timetable update was published.",
+            "published_date": "2026-06-25",
+        },
+    ]
+
+    def fake_compute_embeddings(rows, *, use_model=True, model_name=None):
+        vectors = {
+            "de-story": [1.0, 0.0, 0.0],
+            "hu-story": [1.0, 0.0, 0.0],
+            "other-story": [0.0, 1.0, 0.0],
+        }
+        for row in rows:
+            row.text_embedding = vectors[row.article_id]
+            row.text_embedding_model = model_name or "test-model"
+        return rows
+
+    monkeypatch.setattr(silver_run, "health_check", lambda: True)
+    monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _raw_feature())
+    monkeypatch.setattr(news_extract, "compute_embeddings", fake_compute_embeddings)
+
+    features = silver_run.run_news(
+        articles,
+        cache_root=tmp_path / ".news_extraction_cache",
+        artifact_root=tmp_path / "output" / "silver",
+        ingest_date="2026-06-25",
+        lifecycle=_FakeLifecycle(),
+    )
+
+    by_id = {feature.article_id: feature for feature in features}
+
+    assert by_id["de-story"].cross_lingual_dedup_id
+    assert by_id["de-story"].cross_lingual_dedup_id == by_id["hu-story"].cross_lingual_dedup_id
+    assert by_id["de-story"].is_duplicate is False
+    assert by_id["hu-story"].is_duplicate is True
+    assert by_id["other-story"].cross_lingual_dedup_id is None
+    assert by_id["other-story"].is_duplicate is False
 
 
 def test_gap050_pipeline_manifest_and_failure_sidecar(monkeypatch, tmp_path):
