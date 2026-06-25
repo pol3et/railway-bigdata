@@ -13,6 +13,7 @@ logger = logging.getLogger("silver.news.sentiment_encoder")
 MODEL_NAME = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 MODEL_REVISION = "f2f1202b1bdeb07342385c3f807f9c07cd8f5cf8"
 DEVICE = -1
+MODEL_MAX_LENGTH = 512
 LABELS = {"negative", "neutral", "positive"}
 LABEL_ID_MAP = {"label_0": "negative", "label_1": "neutral", "label_2": "positive"}
 
@@ -35,7 +36,7 @@ class SentimentEncoder:
         if pipe is None:
             return None
         try:
-            raw = pipe(str(text))
+            raw = pipe(str(text), truncation=True, max_length=MODEL_MAX_LENGTH)
             item = self._first_result(raw)
             if item is None:
                 return None

@@ -1947,3 +1947,29 @@ Evidence:
 
 Next:
 - GAP-035 can add deterministic language ID; GAP-043 should evaluate sentiment quality, especially for Hungarian transfer behavior.
+
+## 2026-06-25 - GAP-034 PR #31 long-text sentiment review fix
+
+Status: done; PR #31 updated.
+
+Changed:
+- `src/railway_lakehouse/silver/news/sentiment_encoder.py`
+- `tests/test_silver_sentiment_encoder.py`
+- `docs/GAP_REGISTER.md`
+
+Findings:
+- Review P2 was valid: `SentimentEncoder.encode()` called the Hugging Face pipeline without truncation kwargs, so an over-length article could raise at the 512-token XLM-R boundary and be reduced to null sentiment.
+- P3 cache replay was left out of this narrow fix because skipping cache writes for null sentiment would change broader production cache semantics and manifest counts; backend dependency declaration was also left out because a trivial torch pin is not available for this Python 3.14 stack.
+
+Evidence:
+- RED regression before fix: `test_sentiment_encoder_truncates_long_text_at_model_boundary` failed because encode returned `None` after a mocked length error.
+- `python -m pytest -q tests/test_silver_sentiment_encoder.py::test_sentiment_encoder_truncates_long_text_at_model_boundary` -> 1 passed.
+- `python -m pytest -q tests/test_silver_sentiment_encoder.py` -> 8 passed.
+- `python -m pytest -q tests/test_silver_sentiment_encoder.py tests/test_silver_news_sentiment_imports.py tests/test_silver_news_parsers.py` -> 16 passed.
+- `python -m pytest -q tests/test_silver_news_extract_prompt.py tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py tests/test_pipeline_gaps.py tests/test_gold_characterization.py` -> 41 passed.
+- `python -m pytest -q` -> 205 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with line-ending warnings only.
+
+Next:
+- Push the review-fix commit to `origin/impl/gap-034`.

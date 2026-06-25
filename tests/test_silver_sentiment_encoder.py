@@ -12,7 +12,7 @@ class _FakeSentimentPipeline:
         self.score = score
         self.seen_texts = []
 
-    def __call__(self, text):
+    def __call__(self, text, **kwargs):
         self.seen_texts.append(text)
         return [{"label": self.label, "score": self.score}]
 
@@ -58,6 +58,35 @@ def test_sentiment_encoder_encodes_labels(raw_label, raw_score, text, expected_l
     assert result == {"label": expected_label, "score": pytest.approx(raw_score)}
     assert isinstance(result["score"], float)
     assert 0.0 <= result["score"] <= 1.0
+
+
+def test_sentiment_encoder_truncates_long_text_at_model_boundary():
+    class LongTextPipeline:
+        def __init__(self):
+            self.calls = []
+
+        def __call__(self, text, **kwargs):
+            self.calls.append({"text": text, "kwargs": kwargs})
+            if len(text.split()) > sentiment_encoder.MODEL_MAX_LENGTH and kwargs != {
+                "truncation": True,
+                "max_length": sentiment_encoder.MODEL_MAX_LENGTH,
+            }:
+                raise ValueError("sequence length exceeds model limit")
+            return [{"label": "positive", "score": 0.88}]
+
+    pipeline = LongTextPipeline()
+    encoder = sentiment_encoder.SentimentEncoder(
+        pipeline_factory=lambda *args, **kwargs: pipeline,
+    )
+    long_text = "railway " * 700
+
+    result = encoder.encode(long_text)
+
+    assert result == {"label": "positive", "score": pytest.approx(0.88)}
+    assert pipeline.calls[0]["kwargs"] == {
+        "truncation": True,
+        "max_length": sentiment_encoder.MODEL_MAX_LENGTH,
+    }
 
 
 def test_sentiment_encoder_returns_none_on_model_unavailable():

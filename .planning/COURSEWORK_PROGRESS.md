@@ -1702,3 +1702,24 @@ Evidence:
 
 Next:
 - GAP-035 should add deterministic language ID; GAP-043 should evaluate XLM-R sentiment quality on held-out multilingual news, especially HU transfer behavior.
+
+## 2026-06-25 - GAP-034 PR #31 long-text sentiment review fix
+
+Status: done; PR #31 update pending push.
+
+Changed:
+- Added a regression test for articles well over the XLM-R 512-token limit.
+- Updated `SentimentEncoder.encode()` to call the Hugging Face pipeline with `truncation=True` and `max_length=512`.
+- Updated GAP-034 test-evidence rows in `docs/GAP_REGISTER.md`.
+
+Evidence:
+- RED: long-text regression failed before the fix because encode returned `None`.
+- Focused regression: 1 passed.
+- Sentiment encoder unit file: 8 passed.
+- GAP-034/import/parser suite: 16 passed.
+- Affected news/gold slice: 41 passed.
+- Full suite: 205 passed, 6 skipped.
+- Compileall: passed.
+
+Next:
+- Commit and push the PR #31 review fix.
