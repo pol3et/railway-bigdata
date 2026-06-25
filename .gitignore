@@ -25,6 +25,8 @@ dist/
 # Runtime outputs and local services
 output/runtime/
 output/evidence/**/bronze/
+output/evidence/orch/run_state.json
+/silver/
 tmp/
 temp/
 lakehouse/
