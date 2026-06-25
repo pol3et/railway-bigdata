@@ -2729,6 +2729,11 @@ cat output/evidence/news_eval/manifest.json
 > batch API (LangChain's `ChatOllama.batch()` parallelizes calls) — but on this single 6 GB GPU
 > `OLLAMA_NUM_PARALLEL` must stay 1 (one model pass at a time), so LangChain-style concurrent batching does NOT
 > help the VRAM-bound single-GPU case; document the chosen approach (a sequential cached pass is the default).
+> (3) **Lifecycle / speed (the box has 32 GB RAM):** the unload/`ollama stop` discipline is **VRAM-only** —
+> reserve it strictly for the GPU-LLM↔GPU-encoder handoff. Host the torch encoders (sentiment / embeddings /
+> language-id) **CPU-resident and keep them WARM**: they never touch the 6 GB VRAM, need NO unload, and can
+> run **in parallel with the GPU LLM**. **Optimize wall-clock** — keep models warm, avoid reload churn, overlap
+> CPU encoder work with the GPU LLM pass; do NOT serialize CPU passes or kill MCP servers for RAM.
 
 **Context.** The current code (`silver/news/extract.py`) is a bare `for`-loop (`extract_batch`) calling a single mega-prompt (`_build_prompt`, l.50-69) per article with no batching, no caching, no concurrency, no retry/backoff policy, no failure accounting beyond `None`-and-skip, and no model-lifecycle management — and it has never run live. After the role split the LLM is narrowed to `is_rail_related`, `event_type`, `summary_en`, `monetary_raw/amount`; the pipeline must be (re)built around that narrowed scope, multilingual HU/DE/EN **snippet** input, Ollama JSON-schema structured output on a small local model (Qwen ~4B q4 on the 1060), and the single-box sequential-pass compute plan (`docs/ROADMAP_NEWS_TO_REPORT.md`).
 

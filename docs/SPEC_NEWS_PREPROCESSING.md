@@ -27,8 +27,16 @@ These eight items were raised as blockers by the review panel and **must be reso
 - **torch / transformers models are CPU-only on Python 3.14 Windows** (no CUDA `cp314` wheels — PyTorch #169929). This is the panel blocker. Two sanctioned options for XLM-R sentiment, e5/bge-m3 embeddings, and BERT NER: **(a)** stand up a **separate Python 3.12 + CUDA-torch env** (Pascal `sm_61` is still supported) and run the encoder passes there, handing Parquet back to the 3.14 pipeline; **(b)** run them **CPU-only** — the corpus is small (low thousands of articles), so a one-time *cached* pass is minutes-to-low-hours on the Ryzen, not days. **Recommend (b) first, measure, escalate to (a) only if CPU latency hurts.**
 - **fastText lid.176 and Spark (`local[*]`) are CPU** and trivially fine on the Ryzen.
 
-### Sequential pass schedule — one model resident at a time (6 GB cannot hold them all)
-Each model is a **separate cached pass** over the article set; results merge by `content_sha256`. Run in this order, unloading each model before the next:
+### Sequential pass schedule — VRAM-exclusive only (one GPU model at a time)
+> **Owner correction (2026-06-25):** the binding constraint is **VRAM (6 GB)**, NOT system RAM — the box has
+> **32 GB RAM** (~12 GB free under load). Unload/sequence ONLY between **GPU** residents (the Ollama LLM vs a
+> GPU encoder). **Prioritize processing speed:** host the torch encoders **CPU-resident and keep them warm**
+> (e5-base + XLM-R + fastText ≈ 1.1 GB) — they never use VRAM, need NO unload, and can run **in parallel with
+> the GPU LLM**, so the pipeline avoids load/unload/reload churn entirely. The earlier "kill idle MCP servers
+> to reclaim ~6 GB RAM" guidance was wrong (RAM is 32 GB) — disregard it.
+
+Each model is a **separate cached pass** over the article set; results merge by `content_sha256`. For the
+**GPU** passes (the LLM, and a GPU encoder if chosen), run in this order, unloading each GPU model before the next:
 1. **Ollama LLM pass (GPU):** `is_rail_related`, `event_type`, `summary_en`, `monetary_raw`. `ollama stop` after → frees VRAM.
 2. **Embedding pass (GPU-via-Py3.12 or CPU):** e5/bge-m3 vectors → dedup + clustering input.
 3. **Sentiment (XLM-R) + language (fastText, CPU):** cheap, can share CPU.
