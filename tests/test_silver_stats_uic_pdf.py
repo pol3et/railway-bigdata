@@ -5,6 +5,7 @@ import pytest
 
 from railway_lakehouse.silver.stats import load as stats_load
 from railway_lakehouse.silver.stats import merge as stats_merge
+from railway_lakehouse.silver import persist
 
 pytestmark = pytest.mark.unit
 
@@ -43,6 +44,44 @@ def _minimal_table_pdf(rows: list[list[str]]) -> bytes:
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 700 800] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(content)).encode("ascii") + b" >>\nstream\n" + content + b"\nendstream",
+    ]
+
+    out = BytesIO()
+    out.write(b"%PDF-1.4\n")
+    offsets = [0]
+    for obj_num, obj in enumerate(objects, 1):
+        offsets.append(out.tell())
+        out.write(f"{obj_num} 0 obj\n".encode("ascii"))
+        out.write(obj)
+        out.write(b"\nendobj\n")
+
+    xref = out.tell()
+    out.write(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    out.write(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        out.write(f"{offset:010d} 00000 n \n".encode("ascii"))
+    out.write(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref}\n%%EOF\n".encode("ascii")
+    )
+    return out.getvalue()
+
+
+def _minimal_text_pdf(lines: list[str]) -> bytes:
+    ops = ["/F1 11 Tf"]
+    y = 760
+    for line in lines:
+        ops.append(f"BT 1 0 0 1 40 {y} Tm ({_escape_pdf_text(line)}) Tj ET")
+        y -= 18
+
+    content = "\n".join(ops).encode("latin-1")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
         b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Length " + str(len(content)).encode("ascii") + b" >>\nstream\n" + content + b"\nendstream",
@@ -352,6 +391,111 @@ def test_uic_table_parser_does_not_treat_preposition_at_as_austria():
     frame = stats_load._uic_rows_from_tables([table], "uic_synopsis")
 
     assert frame.empty
+
+
+def test_uic_rows_from_tables_staging_captures_unmapped_geos():
+    assert stats_load._uic_geo_from_cells("CZE") == "CZ"
+    assert stats_load._uic_geo_from_cells("FRA") == "FR"
+
+    table = [
+        [
+            "Country Code",
+            "Railway company",
+            "Length of lines worked at end of year Total",
+            "Passenger.kilometres",
+        ],
+        ["AT", "OBB (2024)", "5 018", "12 756"],
+        ["HU", "MAV (2024)", "6 876", "11 298"],
+        ["CZ", "CD (2024)", "9 355", "8 912"],
+        ["FR", "SNCF (2024)", "27 716", "84 200"],
+    ]
+
+    golden = stats_load._uic_rows_from_tables_golden([table], "uic_synopsis")
+    staging = stats_load._uic_rows_from_tables_staging([table], "uic_synopsis", created_at="2026-06-25T00:00:00Z")
+
+    assert set(golden["geo"]) == {"AT", "HU", "CZ", "FR"}
+    data_rows = staging[staging["row_type"] == "data_row"]
+    assert set(data_rows["geo"]) == {"AT", "HU", "CZ", "FR"}
+    assert set(data_rows["parse_status"]) == {"success"}
+    assert len(staging) > len(data_rows)
+    assert len(staging) > len(golden) / 2
+
+
+def test_uic_rows_from_tables_staging_preserves_unparseable_values():
+    table = [
+        [
+            "Country Code",
+            "Railway company",
+            "Length of lines worked at end of year Total",
+            "Passenger.kilometres",
+        ],
+        ["SK", "ZSSK (2024)", "pending", "N/A"],
+        ["IT", "FS", "16 800", "53 000"],
+    ]
+
+    staging = stats_load._uic_rows_from_tables_staging([table], "uic_synopsis", created_at="2026-06-25T00:00:00Z")
+
+    bad_value = staging[(staging["raw_geo_cell"] == "SK") & (staging["row_type"] == "data_row")].iloc[0]
+    assert bad_value["geo"] == "SK"
+    assert bad_value["year"] == 2024
+    assert bad_value["parse_status"] == "value_unparseable"
+    assert list(bad_value["raw_value_cells"]) == ["pending", "N/A"]
+
+    missing_year = staging[(staging["raw_geo_cell"] == "IT") & (staging["row_type"] == "data_row")].iloc[0]
+    assert missing_year["geo"] == "IT"
+    assert missing_year["parse_status"] == "year_missing"
+    assert missing_year["raw_year_cell"] == "FS"
+
+
+def test_load_uic_frame_extracts_traffic_trends_text_chunks():
+    raw = _minimal_text_pdf([
+        "Traffic Trends Among UIC Member Companies in 2024",
+        "Passenger traffic continued to recover across member companies.",
+        "Freight volumes varied by corridor and market segment.",
+    ])
+
+    golden = stats_load.load_uic_frame(raw, "uic_traffic_trends_2024")
+    staging = stats_load.load_uic_staging_frame(raw, "uic_traffic_trends_2024", created_at="2026-06-25T00:00:00Z")
+
+    assert golden.empty
+    assert set(staging["row_type"]) == {"text_chunk"}
+    assert len(staging) == 3
+    assert set(staging["parse_status"]) == {"text_only"}
+    assert staging.iloc[0]["text_chunk"].startswith("Traffic Trends")
+
+
+def test_uic_staging_roundtrip_persists_and_reloads(tmp_path):
+    table = [
+        [
+            "Country Code",
+            "Railway company",
+            "Length of lines worked at end of year Total",
+            "Passenger.kilometres",
+        ],
+        ["AT", "OBB (2024)", "5 018", "12 756"],
+        ["FR", "SNCF (2024)", "27 716", "84 200"],
+    ]
+    table_rows = stats_load._uic_rows_from_tables_staging(
+        [table],
+        "uic_synopsis",
+        created_at="2026-06-25T00:00:00Z",
+    )
+    text_rows = stats_load.load_uic_staging_frame(
+        _minimal_text_pdf(["Traffic trends headline", "Traffic trends paragraph"]),
+        "uic_traffic_trends_2024",
+        created_at="2026-06-25T00:00:00Z",
+    )
+    staging = pd.concat([table_rows, text_rows], ignore_index=True)
+
+    path = persist.persist_uic_staging(staging, tmp_path, ingest_date="2026-06-25")
+    loaded = persist.load_uic_staging(tmp_path, ingest_date="2026-06-25")
+
+    assert path.as_posix().endswith("silver/uic_staging/ingest_date=2026-06-25/uic_staging.parquet")
+    assert list(loaded.columns) == persist.UIC_STAGING_COLUMNS
+    assert len(loaded) == len(staging)
+    assert set(loaded["row_type"]) == {"header", "data_row", "text_chunk"}
+    assert len(loaded[loaded["row_type"] == "text_chunk"]) == 2
+    assert list(loaded[loaded["raw_geo_cell"] == "FR"].iloc[0]["raw_value_cells"]) == ["27 716", "84 200"]
 
 
 def test_load_uic_frame_returns_empty_for_non_pdf_bytes():

@@ -1669,3 +1669,35 @@ Evidence:
 
 Next:
 - GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.
+
+## 2026-06-25 - GAP-041 UIC Widen And Staging
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/persist.py`
+- `tests/test_silver_stats_uic_pdf.py`
+- `docs/DATA_CONTRACTS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/silver-uic-pdf-widen-and-stage.md`
+- `.planning/coursework/plans/GAP-041-uic-widen-and-stage.md`
+- `output/evidence/uic-proof-of-widen-2026-06-25/`
+
+Findings:
+- The old AT/HU-only UIC parser gate is removed from Silver parsing; the live Synopsis PDF parses to 738 golden rows across 80 geos with deterministic label/value parsing.
+- The Traffic Trends PDF still has no country-level synopsis table, but its extractable text is staged as text chunks; live staging evidence contains 747 rows total and 476 text chunks.
+- The Silver `uic_staging` Parquet contract is documented and covered by a tmp_path round-trip test.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py` -> 10 passed.
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py::test_uic_staging_roundtrip_persists_and_reloads -v` -> 1 passed.
+- `python -m pytest -q` -> 199 passed, 6 skipped.
+- `python -m compileall -q src tests` -> clean.
+- `python -m html.parser docs/index.html` -> clean.
+- UIC live check under `output/evidence/uic-proof-of-widen-2026-06-25/` -> 2 PDF artifacts, 2,109,240 bytes, passed.
+
+Next:
+- Open the PR for `impl/gap-041` and keep the dashboard/docs status synced through review.
