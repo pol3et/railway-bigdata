@@ -27,6 +27,7 @@ output/runtime/
 output/evidence/**/bronze/
 output/evidence/orch/run_state.json
 /silver/
+silver/.news_extraction_cache/
 tmp/
 temp/
 lakehouse/

@@ -32,6 +32,7 @@ from railway_lakehouse.bronze.sources import worldbank
 from railway_lakehouse.silver.stats import load as stats_load
 from railway_lakehouse.silver.stats import merge as stats_merge
 from railway_lakehouse.silver.news import extract as news_extract
+from railway_lakehouse.silver.news.cache import FileSystemCache
 from railway_lakehouse.silver.news.rss import parse_rss_xml
 from railway_lakehouse.silver.ollama_client import health_check
 
@@ -68,6 +69,11 @@ def main(argv=None):
         default=None,
         help="write a JSON row/column summary for the generated Gold Parquet",
     )
+    ap.add_argument(
+        "--news-cache-root",
+        default=None,
+        help="local root for the Silver news extraction cache",
+    )
     args = ap.parse_args(argv)
 
     return run_pipeline(
@@ -77,6 +83,7 @@ def main(argv=None):
         skip_news_extraction=args.skip_news_extraction,
         crosswalk_path=args.crosswalk_path,
         counts_out=args.counts_out,
+        news_cache_root=args.news_cache_root,
     )
 
 
@@ -88,6 +95,7 @@ def run_pipeline(
     skip_news_extraction: bool = False,
     crosswalk_path: str | None = None,
     counts_out: str | None = None,
+    news_cache_root: str | None = None,
 ) -> str:
     ollama_reachable = False if skip_news_extraction else health_check()
     local_bronze_root = None
@@ -137,7 +145,21 @@ def run_pipeline(
         log.info("Skipping news extraction by request.")
         news_rows = []
     elif ollama_reachable:
-        news_rows = news_extract.extract_batch(articles)      # Ollama -> NewsFeature
+        news_cache = FileSystemCache(news_cache_root)
+        news_rows, news_failures = news_extract.extract_batch(
+            articles,
+            cache=news_cache,
+        )      # Ollama/GDELT -> NewsFeature
+        cache_stats = news_cache.cache_stats()
+        log.info(
+            "SILVER news cache: %d hits, %d misses, %d cached rows at %s",
+            cache_stats.get("hits", 0),
+            cache_stats.get("misses", 0),
+            cache_stats.get("cached_count", 0),
+            cache_stats.get("root"),
+        )
+        if news_failures:
+            log.warning("SILVER news: %d extraction failures", len(news_failures))
     else:
         log.warning("Ollama unreachable; skipping news extraction.")
         news_rows = []
@@ -369,14 +391,42 @@ def _article_records(payload) -> list:
     return []
 
 
+_GDELT_PASSTHROUGH_FIELDS = {
+    "language",
+    "sourcecountry",
+    "source_country",
+    "domain",
+    "socialimage",
+    "tone",
+    "themes",
+    "persons",
+    "organizations",
+    "locations",
+    "emotions",
+    "gkg_themes",
+    "gkg_persons",
+    "gkg_organizations",
+    "gkg_locations",
+    "gkg_tone",
+    "gkg_emotions",
+}
+
+
 def _normalize_article(raw: dict, *, source: str, path, index: int) -> dict | None:
     if not isinstance(raw, dict):
         return None
     url = str(raw.get("url") or raw.get("URL") or "")
     title = str(raw.get("title") or raw.get("headline") or "")
-    body = str(raw.get("body") or raw.get("description") or raw.get("content") or "")
+    body = str(
+        raw.get("body")
+        or raw.get("description")
+        or raw.get("content")
+        or raw.get("snippet")
+        or raw.get("summary")
+        or ""
+    )
     article_id = str(raw.get("article_id") or url or f"{_stable_path_key(path)}#{index}")
-    return {
+    article = {
         "article_id": article_id,
         "source": source,
         "url": url,
@@ -386,6 +436,10 @@ def _normalize_article(raw: dict, *, source: str, path, index: int) -> dict | No
             raw.get("published_date") or raw.get("seendate") or raw.get("date")
         ),
     }
+    for key, value in raw.items():
+        if key in _GDELT_PASSTHROUGH_FIELDS or str(key).startswith("gkg_"):
+            article[key] = value
+    return article
 
 
 def _normalize_article_date(value) -> str | None:

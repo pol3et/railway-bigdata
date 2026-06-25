@@ -1573,3 +1573,42 @@ Evidence:
 
 Next:
 - Owner picks the embedder (e5-base confirmed) + resolves remaining spec decisions; then orchestrate Wave 6a: GAP-039 → GAP-050 → GAP-033 via `scripts/orch/codex_impl.sh`.
+
+## 2026-06-25 - GAP-039 wide NewsFeature contract + cache
+
+Status: done; shipping via PR.
+
+Research:
+- `research-orchestrator` record written at `.planning/coursework/research/bigdata/newsfeature-wide-contract.md`.
+
+Changed:
+- Added the 43-field article-grain `NewsFeature` contract, validation/coercion, content-hash/model-digest cache, cached extraction wrappers, failure accounting helper, persisted wide schema support, focused unit/integration tests, and docs/dashboard sync.
+
+Evidence:
+- Targeted unit: 10 passed.
+- Targeted integration: 1 passed.
+- Compileall passed.
+- Full suite was already green before ship: 183 passed, 3 skipped.
+
+Next:
+- PR `impl/gap-039` to `main`; downstream unblocked tasks are GAP-031-GAP-038 and GAP-040, with live LLM prompt/run work continuing in GAP-050/GAP-033.
+
+## 2026-06-25 - GAP-039 PR review fixes
+
+Status: done; pushed to PR #28.
+
+Research:
+- Local review only; the existing GAP-039 research record was updated with review-fix notes.
+
+Changed:
+- Wired `FileSystemCache` into `pipeline.run_pipeline()` and `silver.run.run_news()`.
+- Preserved GDELT/GKG metadata through `_normalize_article()`.
+- Fixed zero-tone passthrough and added focused regressions.
+
+Evidence:
+- Focused regressions: 4 passed.
+- Compileall passed.
+- Full suite: 187 passed, 3 skipped.
+
+Next:
+- Monitor PR #28 mergeability/checks and proceed to GAP-050/GAP-033 after merge.

@@ -48,24 +48,104 @@ Rule: numeric values must be parsed and merged deterministically. LLM use is lim
 
 Target row: `NewsFeature` from `src/railway_lakehouse/silver/schema.py`.
 
-Important fields:
+Field order is authoritative in `src/railway_lakehouse/silver/schema.py`
+(`NewsFeature.__dataclass_fields__`) and is preserved in Parquet by
+`src/railway_lakehouse/silver/persist.py`.
 
-- `article_id`
-- `source`
-- `url`
-- `published_date`
-- `language`
-- `is_rail_related`
-- `country`
-- `event_type`
-- `operators`
-- `rail_lines`
-- `monetary_amount_eur`
-- `summary_en`
-- `sentiment`
-- `confidence`
+Provided by Bronze / article lineage:
 
-Rule: LLM output is untrusted until validated by `validate_news_feature(...)`.
+1. `article_id`
+2. `source`
+3. `url`
+4. `published_date`
+
+Legacy LLM/generative fields retained for backward compatibility:
+
+5. `language`
+6. `is_rail_related`
+7. `country`
+8. `event_type`
+9. `operators`
+10. `rail_lines`
+11. `monetary_amount_eur`
+12. `monetary_raw`
+13. `summary_en`
+14. `sentiment`
+15. `confidence`
+
+Reserved model-extracted fields for the GAP-031...038 passes:
+
+16. `language_detected_code`
+17. `language_confidence`
+18. `sentiment_label`
+19. `sentiment_score`
+20. `sentiment_confidence`
+21. `is_rail_related_confidence`
+22. `event_type_confidence`
+23. `summary_en_source`
+24. `operators_ner_model`
+25. `operators_confidence`
+26. `rail_lines_ner_model`
+27. `rail_lines_confidence`
+28. `monetary_raw_parsed_eur`
+29. `monetary_confidence`
+
+GDELT GKG passthrough fields:
+
+30. `gkg_themes`
+31. `gkg_persons`
+32. `gkg_organizations`
+33. `gkg_locations`
+34. `gkg_tone`
+35. `gkg_emotions`
+36. `gkg_tone_source`
+
+Embedding, deduplication, and clustering fields:
+
+37. `text_embedding_model`
+38. `text_embedding`
+39. `cluster_id`
+40. `cross_lingual_dedup_id`
+
+Caching/audit fields:
+
+41. `extraction_timestamp_utc`
+42. `extraction_model_digest`
+43. `confidence_schema_version`
+
+Rules:
+
+- LLM output is untrusted until validated by `validate_news_feature(...)`.
+- The current GAP-039 implementation reserves the wide model fields but does not
+  populate language detection, XLM-R sentiment, NER, embeddings, clustering, or
+  deterministic monetary parsing; those are owned by GAP-031...038.
+- `monetary_raw` is explicitly part of the Silver news contract.
+- `sentiment` and `confidence` are the legacy fields consumed by current Gold.
+  `sentiment_label`/`sentiment_score` and per-field confidences are the forward
+  contract for later deterministic model passes.
+
+### Content-hash cache contract
+
+Silver news extraction has a local idempotency cache implemented by
+`src/railway_lakehouse/silver/news/cache.py`.
+
+- `extract_cache_key(article)` is a SHA-256 over `article_id`, `title`, `body`,
+  `url`, and `published_date`. A changed URL or changed article text is treated
+  as new extraction work.
+- `model_digest_key()` is a SHA-256 over the current `OLLAMA_MODEL` value,
+  Ollama config values, the JSON schema, prompt system text, and temperature.
+  It invalidates cached LLM extractions after prompt/model/config changes; it is
+  not a hash of model weights.
+- `FileSystemCache` stores one JSON file per article under
+  `silver/.news_extraction_cache/<model_digest>/<cache_key>.json`, plus
+  `_manifest.json` with cached count, hits, misses, last update, and the last
+  100 hit/miss events.
+- The cache is a local optimization and is git-ignored. It is not committed and
+  is not the MinIO/S3 Silver table.
+- Extraction failures are collected as `ExtractionFailure` objects and can be
+  written to a JSON sidecar under
+  `silver/news/news_extraction_failures/ingest_date=YYYY-MM-DD/failures.json`.
+  A Parquet failure table remains a follow-up persistence decision.
 
 ## Silver Persisted Outputs (Parquet)
 
@@ -94,8 +174,8 @@ silver/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
 - An empty news run still writes a valid 0-row, schema-shaped Parquet so Gold
   always has a deterministic input.
 - `news_feature` stores validated successful `NewsFeature` rows. Extraction
-  failure accounting remains separate GAP-006 follow-up work until a failure
-  table or sidecar manifest is defined.
+  failures are not mixed into the success table; GAP-039 defines the JSON
+  sidecar above while leaving a Parquet failure table to a later storage task.
 
 ## Gold Contract
 

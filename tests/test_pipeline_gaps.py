@@ -113,6 +113,8 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
             str(out_path),
             "--crosswalk-path",
             str(crosswalk_path),
+            "--news-cache-root",
+            str(tmp_path / ".news_extraction_cache"),
             "--counts-out",
             str(counts_path),
         ]
@@ -136,6 +138,126 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
     assert hu_2020["news_n_investment"] == 1
     assert hu_2020["news_total_investment_eur"] == 1000
     assert at_2020["news_article_count"] == 0
+
+
+def test_pipeline_news_extraction_uses_filesystem_cache_between_runs(
+    tmp_path,
+    monkeypatch,
+):
+    import railway_lakehouse.pipeline as pipeline
+    from railway_lakehouse.silver.news.cache import model_digest_key
+
+    out_path = tmp_path / "gold" / "railway_ml.parquet"
+    cache_root = tmp_path / ".news_extraction_cache"
+    crosswalk_path = tmp_path / "crosswalk.json"
+    calls = {"count": 0}
+
+    monkeypatch.setattr(pipeline, "health_check", lambda: True)
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:4b")
+
+    def fake_generate_json(prompt, *, schema=None, system=None):
+        calls["count"] += 1
+        return {
+            "is_rail_related": True,
+            "country": "HU",
+            "event_type": "investment",
+            "operators": ["RailCargo"],
+            "rail_lines": [],
+            "monetary_amount_eur": 1000,
+            "summary_en": "A railway investment was announced.",
+            "sentiment": "positive",
+            "language": "en",
+            "confidence": 0.9,
+        }
+
+    monkeypatch.setattr(pipeline.news_extract, "generate_json", fake_generate_json)
+
+    pipeline.run_pipeline(
+        bronze_root=str(FIXTURE_BRONZE),
+        news=2,
+        out=str(out_path),
+        crosswalk_path=str(crosswalk_path),
+        news_cache_root=str(cache_root),
+    )
+    first_call_count = calls["count"]
+
+    pipeline.run_pipeline(
+        bronze_root=str(FIXTURE_BRONZE),
+        news=2,
+        out=str(out_path),
+        crosswalk_path=str(crosswalk_path),
+        news_cache_root=str(cache_root),
+    )
+
+    manifest = json.loads(
+        (cache_root / model_digest_key() / "_manifest.json").read_text(encoding="utf-8")
+    )
+    assert first_call_count > 0
+    assert calls["count"] == first_call_count
+    assert manifest["hits"] >= first_call_count
+
+
+def test_pipeline_preserves_gdelt_gkg_fields_for_passthrough(
+    tmp_path,
+    monkeypatch,
+):
+    import railway_lakehouse.pipeline as pipeline
+    from railway_lakehouse.silver import persist
+    from railway_lakehouse.silver.news import extract as news_extract
+    from railway_lakehouse.silver.news.cache import FileSystemCache
+
+    bronze_root = tmp_path / "bronze"
+    gdelt_path = (
+        bronze_root
+        / "news"
+        / "gdelt"
+        / "HU"
+        / "ingest_date=2026-06-25"
+        / "gdelt_gkg.json"
+    )
+    gdelt_path.parent.mkdir(parents=True)
+    gdelt_path.write_text(
+        json.dumps(
+            {
+                "articles": [
+                    {
+                        "url": "https://example.test/gdelt-gkg",
+                        "title": "Rail strike update",
+                        "description": "Rail service update.",
+                        "seendate": "20260625000000",
+                        "language": "eng",
+                        "sourcecountry": "HU",
+                        "gkg_tone": 0,
+                        "gkg_themes": "TRANSPORT;RAIL",
+                        "gkg_persons": "Person A",
+                        "gkg_organizations": "MAV",
+                        "gkg_locations": "Hungary",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        news_extract,
+        "generate_json",
+        lambda *args, **kwargs: pytest.fail("GDELT GKG passthrough must not call Ollama"),
+    )
+
+    articles = pipeline._read_bronze_news(SimpleNamespace(bronze_root=bronze_root), limit=1)
+    successes, failures = news_extract.extract_batch(
+        articles,
+        cache=FileSystemCache(tmp_path / ".news_extraction_cache"),
+    )
+    persist.persist_news(successes, tmp_path / "silver", ingest_date="2026-06-25")
+    loaded = persist.load_news(tmp_path / "silver", ingest_date="2026-06-25")
+
+    assert not failures
+    assert articles[0]["gkg_tone"] == 0
+    assert loaded.iloc[0]["extraction_model_digest"] == "gdelt_gkg_passthrough"
+    assert loaded.iloc[0]["gkg_tone"] == 0.0
+    assert loaded.iloc[0]["sentiment"] == "neutral"
+    assert loaded.iloc[0]["gkg_themes"] == "TRANSPORT;RAIL"
 
 
 def test_pipeline_missing_bronze_root_raises_before_gold_write(tmp_path):
