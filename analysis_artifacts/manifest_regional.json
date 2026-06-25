@@ -1,0 +1,190 @@
+{
+  "command": "python -m railway_lakehouse.spark_jobs.regional",
+  "spark_version": "4.1.2",
+  "ansi_enabled": false,
+  "input_path": "output/evidence/bigdata/railway_ml.parquet",
+  "region_rows": 9667,
+  "nuts2_regions": 276,
+  "top_nuts2_by_network_km": [
+    {
+      "geo": "FI1D",
+      "country": "FI",
+      "mean_network_km": 2917.7
+    },
+    {
+      "geo": "DE40",
+      "country": "DE",
+      "mean_network_km": 2857.6
+    },
+    {
+      "geo": "FRK2",
+      "country": "FR",
+      "mean_network_km": 2648.1
+    },
+    {
+      "geo": "DEE0",
+      "country": "DE",
+      "mean_network_km": 2374.8
+    },
+    {
+      "geo": "ES41",
+      "country": "ES",
+      "mean_network_km": 2317.5
+    },
+    {
+      "geo": "ES61",
+      "country": "ES",
+      "mean_network_km": 2304.0
+    },
+    {
+      "geo": "FRB0",
+      "country": "FR",
+      "mean_network_km": 2239.4
+    },
+    {
+      "geo": "LV00",
+      "country": "LV",
+      "mean_network_km": 2124.9
+    },
+    {
+      "geo": "AT12",
+      "country": "AT",
+      "mean_network_km": 2115.0
+    },
+    {
+      "geo": "PL41",
+      "country": "PL",
+      "mean_network_km": 2060.3
+    }
+  ],
+  "top_nuts2_by_electrification": [
+    {
+      "geo": "HR05",
+      "country": "HR",
+      "mean_elec_share": 1.0
+    },
+    {
+      "geo": "TR10",
+      "country": "TR",
+      "mean_elec_share": 1.0
+    },
+    {
+      "geo": "PT1B",
+      "country": "PT",
+      "mean_elec_share": 1.0
+    },
+    {
+      "geo": "AT34",
+      "country": "AT",
+      "mean_elec_share": 1.0
+    },
+    {
+      "geo": "NL23",
+      "country": "NL",
+      "mean_elec_share": 1.0
+    },
+    {
+      "geo": "BE10",
+      "country": "BE",
+      "mean_elec_share": 1.0
+    },
+    {
+      "geo": "BE24",
+      "country": "BE",
+      "mean_elec_share": 0.995
+    },
+    {
+      "geo": "NL13",
+      "country": "NL",
+      "mean_elec_share": 0.984
+    },
+    {
+      "geo": "NO09",
+      "country": "NO",
+      "mean_elec_share": 0.983
+    },
+    {
+      "geo": "PL91",
+      "country": "PL",
+      "mean_elec_share": 0.982
+    }
+  ],
+  "most_unequal_countries": [
+    {
+      "country": "ES",
+      "avg_cv_network": 1.017
+    },
+    {
+      "country": "EL",
+      "avg_cv_network": 1.011
+    },
+    {
+      "country": "AT",
+      "avg_cv_network": 1.009
+    },
+    {
+      "country": "DE",
+      "avg_cv_network": 0.789
+    },
+    {
+      "country": "FI",
+      "avg_cv_network": 0.727
+    },
+    {
+      "country": "HR",
+      "avg_cv_network": 0.69
+    },
+    {
+      "country": "TR",
+      "avg_cv_network": 0.662
+    },
+    {
+      "country": "IT",
+      "avg_cv_network": 0.659
+    },
+    {
+      "country": "PT",
+      "avg_cv_network": 0.625
+    },
+    {
+      "country": "FR",
+      "avg_cv_network": 0.592
+    }
+  ],
+  "least_unequal_countries": [
+    {
+      "country": "PL",
+      "avg_cv_network": 0.349
+    },
+    {
+      "country": "NO",
+      "avg_cv_network": 0.339
+    },
+    {
+      "country": "HU",
+      "avg_cv_network": 0.319
+    },
+    {
+      "country": "IE",
+      "avg_cv_network": 0.308
+    },
+    {
+      "country": "BG",
+      "avg_cv_network": 0.2
+    }
+  ],
+  "investment_vs_disparity": {
+    "target": "rail_investment_pps",
+    "metric": "cv_network",
+    "pearson_r": -0.091,
+    "p_value": 0.0994,
+    "n": 329
+  },
+  "outputs": {
+    "descriptives_csv": "output/evidence/spark-regional/regional_descriptives.csv",
+    "inequality_csv": "output/evidence/spark-regional/regional_inequality.csv"
+  },
+  "duration_seconds": 12.545,
+  "status": "passed",
+  "generated_at_utc": "2026-06-24T23:19:33.617095+00:00"
+}

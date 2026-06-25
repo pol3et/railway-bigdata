@@ -1,0 +1,513 @@
+{
+  "command": "python -m railway_lakehouse.spark_jobs.correlations",
+  "spark_version": "4.1.2",
+  "ansi_enabled": false,
+  "mode": "levels + deltas",
+  "targets": [
+    "rail_investment_pps",
+    "rail_investment_per_capita",
+    "rail_investment_pct_gdp",
+    "rail_investment_per_network_km"
+  ],
+  "country_only": true,
+  "min_obs": 30,
+  "input_path": "output/evidence/bigdata/railway_ml.parquet",
+  "n_features": 132,
+  "n_rows_reported": 520,
+  "output_path": "output/evidence/spark-correlations/correlations",
+  "csv_path": "output/evidence/spark-correlations/correlations.csv",
+  "top_by_target": {
+    "rail_investment_pct_gdp": [
+      {
+        "feature": "inflation_pct",
+        "kind": "level",
+        "pearson_r": 0.3649,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1483,
+        "n": 642
+      },
+      {
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "level",
+        "pearson_r": 0.2416,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1558,
+        "n": 602
+      },
+      {
+        "feature": "infant_mortality_rate",
+        "kind": "level",
+        "pearson_r": 0.2166,
+        "p_pearson": 0.0,
+        "spearman_r": -0.0133,
+        "n": 647
+      },
+      {
+        "feature": "poverty_risk_rate_pct",
+        "kind": "level",
+        "pearson_r": 0.2075,
+        "p_pearson": 0.0629,
+        "spearman_r": 0.1031,
+        "n": 81
+      },
+      {
+        "feature": "rail_wagons",
+        "kind": "level",
+        "pearson_r": 0.1984,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1848,
+        "n": 540
+      },
+      {
+        "feature": "poverty_risk_rate_pct",
+        "kind": "delta",
+        "pearson_r": -0.1807,
+        "p_pearson": 0.1715,
+        "spearman_r": -0.2061,
+        "n": 59
+      },
+      {
+        "feature": "life_satisfaction_high_pct",
+        "kind": "delta",
+        "pearson_r": 0.179,
+        "p_pearson": 0.1609,
+        "spearman_r": 0.2388,
+        "n": 63
+      },
+      {
+        "feature": "cars_per_1000_inhabitants",
+        "kind": "level",
+        "pearson_r": -0.1633,
+        "p_pearson": 0.0,
+        "spearman_r": -0.1462,
+        "n": 650
+      },
+      {
+        "feature": "electricity_access_pct",
+        "kind": "level",
+        "pearson_r": -0.1563,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.0632,
+        "n": 615
+      },
+      {
+        "feature": "life_expectancy_years",
+        "kind": "level",
+        "pearson_r": -0.1542,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.2193,
+        "n": 647
+      },
+      {
+        "feature": "gov_revenue_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.1411,
+        "p_pearson": 0.0007,
+        "spearman_r": -0.0931,
+        "n": 575
+      },
+      {
+        "feature": "price_level_index",
+        "kind": "level",
+        "pearson_r": -0.1384,
+        "p_pearson": 0.0005,
+        "spearman_r": -0.1526,
+        "n": 633
+      },
+      {
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.1328,
+        "p_pearson": 0.0007,
+        "spearman_r": -0.3722,
+        "n": 643
+      },
+      {
+        "feature": "gdp_per_capita_pps",
+        "kind": "level",
+        "pearson_r": -0.1323,
+        "p_pearson": 0.001,
+        "spearman_r": -0.3091,
+        "n": 618
+      },
+      {
+        "feature": "gov_expenditure_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.1246,
+        "p_pearson": 0.0027,
+        "spearman_r": 0.0073,
+        "n": 575
+      }
+    ],
+    "rail_investment_per_capita": [
+      {
+        "feature": "life_satisfaction",
+        "kind": "level",
+        "pearson_r": 0.4656,
+        "p_pearson": 0.0,
+        "spearman_r": 0.4304,
+        "n": 138
+      },
+      {
+        "feature": "life_satisfaction_high_pct",
+        "kind": "level",
+        "pearson_r": 0.4618,
+        "p_pearson": 0.0,
+        "spearman_r": 0.4136,
+        "n": 138
+      },
+      {
+        "feature": "inflation_pct",
+        "kind": "level",
+        "pearson_r": 0.2809,
+        "p_pearson": 0.0,
+        "spearman_r": 0.134,
+        "n": 632
+      },
+      {
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "level",
+        "pearson_r": 0.2089,
+        "p_pearson": 0.0,
+        "spearman_r": 0.2667,
+        "n": 612
+      },
+      {
+        "feature": "rail_wagons",
+        "kind": "level",
+        "pearson_r": 0.2007,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1225,
+        "n": 517
+      },
+      {
+        "feature": "life_satisfaction",
+        "kind": "delta",
+        "pearson_r": -0.1981,
+        "p_pearson": 0.12,
+        "spearman_r": -0.048,
+        "n": 63
+      },
+      {
+        "feature": "infant_mortality_rate",
+        "kind": "level",
+        "pearson_r": 0.1919,
+        "p_pearson": 0.0,
+        "spearman_r": -0.0874,
+        "n": 622
+      },
+      {
+        "feature": "electricity_access_pct",
+        "kind": "level",
+        "pearson_r": -0.1837,
+        "p_pearson": 0.0,
+        "spearman_r": 0.0711,
+        "n": 595
+      },
+      {
+        "feature": "poverty_risk_rate_pct",
+        "kind": "level",
+        "pearson_r": 0.1757,
+        "p_pearson": 0.0997,
+        "spearman_r": 0.031,
+        "n": 89
+      },
+      {
+        "feature": "cars_per_1000_inhabitants",
+        "kind": "level",
+        "pearson_r": -0.1595,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.0076,
+        "n": 638
+      },
+      {
+        "feature": "life_expectancy_years",
+        "kind": "level",
+        "pearson_r": -0.1525,
+        "p_pearson": 0.0001,
+        "spearman_r": -0.058,
+        "n": 622
+      },
+      {
+        "feature": "poverty_risk_rate_pct",
+        "kind": "delta",
+        "pearson_r": -0.1429,
+        "p_pearson": 0.2534,
+        "spearman_r": -0.1592,
+        "n": 66
+      },
+      {
+        "feature": "price_level_index",
+        "kind": "level",
+        "pearson_r": -0.133,
+        "p_pearson": 0.0006,
+        "spearman_r": 0.0352,
+        "n": 653
+      },
+      {
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.1311,
+        "p_pearson": 0.0011,
+        "spearman_r": -0.2009,
+        "n": 620
+      },
+      {
+        "feature": "gdp_per_capita_pps",
+        "kind": "level",
+        "pearson_r": -0.1289,
+        "p_pearson": 0.0013,
+        "spearman_r": -0.0358,
+        "n": 616
+      }
+    ],
+    "rail_investment_per_network_km": [
+      {
+        "feature": "life_satisfaction",
+        "kind": "level",
+        "pearson_r": 0.3838,
+        "p_pearson": 0.0,
+        "spearman_r": 0.3835,
+        "n": 138
+      },
+      {
+        "feature": "inflation_pct",
+        "kind": "level",
+        "pearson_r": 0.2892,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1587,
+        "n": 635
+      },
+      {
+        "feature": "life_satisfaction_high_pct",
+        "kind": "level",
+        "pearson_r": 0.2677,
+        "p_pearson": 0.0014,
+        "spearman_r": 0.2973,
+        "n": 138
+      },
+      {
+        "feature": "poverty_risk_rate_pct",
+        "kind": "level",
+        "pearson_r": 0.2597,
+        "p_pearson": 0.0137,
+        "spearman_r": 0.1545,
+        "n": 89
+      },
+      {
+        "feature": "rail_wagons",
+        "kind": "level",
+        "pearson_r": 0.2099,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1409,
+        "n": 520
+      },
+      {
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "level",
+        "pearson_r": 0.2037,
+        "p_pearson": 0.0,
+        "spearman_r": 0.2365,
+        "n": 612
+      },
+      {
+        "feature": "infant_mortality_rate",
+        "kind": "level",
+        "pearson_r": 0.1985,
+        "p_pearson": 0.0,
+        "spearman_r": -0.0203,
+        "n": 625
+      },
+      {
+        "feature": "electricity_access_pct",
+        "kind": "level",
+        "pearson_r": -0.1854,
+        "p_pearson": 0.0,
+        "spearman_r": 0.0519,
+        "n": 597
+      },
+      {
+        "feature": "cars_per_1000_inhabitants",
+        "kind": "level",
+        "pearson_r": -0.1533,
+        "p_pearson": 0.0001,
+        "spearman_r": 0.0039,
+        "n": 644
+      },
+      {
+        "feature": "life_expectancy_years",
+        "kind": "level",
+        "pearson_r": -0.1481,
+        "p_pearson": 0.0002,
+        "spearman_r": -0.0177,
+        "n": 625
+      },
+      {
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.146,
+        "p_pearson": 0.0003,
+        "spearman_r": -0.2153,
+        "n": 623
+      },
+      {
+        "feature": "rail_employees",
+        "kind": "level",
+        "pearson_r": 0.1429,
+        "p_pearson": 0.01,
+        "spearman_r": 0.1512,
+        "n": 324
+      },
+      {
+        "feature": "gdp_per_capita_pps",
+        "kind": "level",
+        "pearson_r": -0.1304,
+        "p_pearson": 0.0011,
+        "spearman_r": -0.0282,
+        "n": 618
+      },
+      {
+        "feature": "gov_revenue_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.1304,
+        "p_pearson": 0.0018,
+        "spearman_r": 0.04,
+        "n": 571
+      },
+      {
+        "feature": "price_level_index",
+        "kind": "level",
+        "pearson_r": -0.1289,
+        "p_pearson": 0.0009,
+        "spearman_r": 0.0163,
+        "n": 659
+      }
+    ],
+    "rail_investment_pps": [
+      {
+        "feature": "inflation_pct",
+        "kind": "level",
+        "pearson_r": 0.2941,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1138,
+        "n": 635
+      },
+      {
+        "feature": "rail_wagons",
+        "kind": "level",
+        "pearson_r": 0.2235,
+        "p_pearson": 0.0,
+        "spearman_r": 0.4768,
+        "n": 520
+      },
+      {
+        "feature": "passenger_modal_split_rail_pct",
+        "kind": "level",
+        "pearson_r": 0.2071,
+        "p_pearson": 0.0,
+        "spearman_r": 0.4537,
+        "n": 612
+      },
+      {
+        "feature": "infant_mortality_rate",
+        "kind": "level",
+        "pearson_r": 0.2003,
+        "p_pearson": 0.0,
+        "spearman_r": -0.0466,
+        "n": 625
+      },
+      {
+        "feature": "poverty_risk_rate_pct",
+        "kind": "level",
+        "pearson_r": 0.1888,
+        "p_pearson": 0.0764,
+        "spearman_r": 0.1172,
+        "n": 89
+      },
+      {
+        "feature": "electricity_access_pct",
+        "kind": "level",
+        "pearson_r": -0.1859,
+        "p_pearson": 0.0,
+        "spearman_r": 0.1235,
+        "n": 597
+      },
+      {
+        "feature": "rail_employees",
+        "kind": "level",
+        "pearson_r": 0.1653,
+        "p_pearson": 0.0028,
+        "spearman_r": 0.4657,
+        "n": 324
+      },
+      {
+        "feature": "internet_users_pct",
+        "kind": "level",
+        "pearson_r": -0.15,
+        "p_pearson": 0.0002,
+        "spearman_r": -0.2194,
+        "n": 623
+      },
+      {
+        "feature": "cars_per_1000_inhabitants",
+        "kind": "level",
+        "pearson_r": -0.1416,
+        "p_pearson": 0.0003,
+        "spearman_r": 0.117,
+        "n": 644
+      },
+      {
+        "feature": "life_expectancy_years",
+        "kind": "level",
+        "pearson_r": -0.1401,
+        "p_pearson": 0.0004,
+        "spearman_r": 0.1157,
+        "n": 625
+      },
+      {
+        "feature": "rail_locomotives",
+        "kind": "level",
+        "pearson_r": 0.138,
+        "p_pearson": 0.0011,
+        "spearman_r": 0.5649,
+        "n": 560
+      },
+      {
+        "feature": "rail_high_speed_pkm",
+        "kind": "delta",
+        "pearson_r": 0.1368,
+        "p_pearson": 0.0753,
+        "spearman_r": 0.5514,
+        "n": 170
+      },
+      {
+        "feature": "gov_revenue_pct_gdp",
+        "kind": "level",
+        "pearson_r": -0.1287,
+        "p_pearson": 0.002,
+        "spearman_r": 0.1309,
+        "n": 571
+      },
+      {
+        "feature": "gdp_per_capita_pps",
+        "kind": "level",
+        "pearson_r": -0.1239,
+        "p_pearson": 0.002,
+        "spearman_r": 0.0655,
+        "n": 618
+      },
+      {
+        "feature": "rail_seat_km",
+        "kind": "delta",
+        "pearson_r": -0.1226,
+        "p_pearson": 0.1568,
+        "spearman_r": -0.0298,
+        "n": 135
+      }
+    ]
+  },
+  "duration_seconds": 19.038,
+  "status": "passed",
+  "started_at_utc": "2026-06-24T23:02:01.959659+00:00",
+  "finished_at_utc": "2026-06-24T23:02:20.998306+00:00"
+}
