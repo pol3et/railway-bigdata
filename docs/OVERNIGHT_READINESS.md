@@ -78,18 +78,19 @@ $body = @{ model="qwen3:4b"; stream=$false; format="json"; options=@{temperature
   messages=@(@{role="user"; content="Reply with JSON {""is_rail_related"": true} only."}) } | ConvertTo-Json -Depth 6
 (Invoke-RestMethod -Uri http://localhost:11434/api/chat -Method Post -Body $body -ContentType "application/json").message.content
 ```
-- **⚠️ Run the LLM on CPU (`OLLAMA_NUM_GPU=0`).** Verified 2026-06-25: on the GTX 1060 (Pascal sm_61)
-  the **GPU `format=json` path crashes** with `CUDA error: an illegal memory access was encountered`
-  (the plain generate path works on GPU, but the pipeline needs JSON mode). On **CPU it works and returns
-  valid JSON** (e.g. `{"is_rail_related":true,"country":"HU",...}`) at **~16 s/article** — fine for the
-  small one-time cached pass. The knob is wired: `ollama_client` sends `options.num_gpu` only when
-  `OLLAMA_NUM_GPU` is set, and `lib_run.sh` exports `OLLAMA_NUM_GPU=0` so implementers inherit it.
-  (Optional time-boxed GPU-speed experiment: driver ≥570 is met (581.42); restart `ollama serve` with
-  `OLLAMA_FLASH_ATTENTION=0` — flash-attn is broken on Pascal — but it may not fix the JSON path and can
-  balloon the compute graph past 6 GB, so keep CPU on the critical path. **vLLM is ruled out**: it needs
-  compute capability ≥7.0 and the GTX 1060 is 6.1 (Linux/WSL doesn't bypass that). The only real Pascal-GPU
-  option is llama.cpp/KoboldCpp with GBNF + FA off. Full sourcing:
-  `.planning/coursework/research/bigdata/llm-serving-vllm-vs-ollama-pascal-2026-06-25.md`.)
+- **✅ Run the LLM on GPU with flash attention OFF.** Verified 2026-06-25: on the GTX 1060 (Pascal sm_61)
+  `format=json` **crashes WITH flash attention** (`CUDA illegal memory access` — Pascal has no tensor cores,
+  ollama#4979) but runs **100% on GPU with it OFF** — valid JSON, 4.0 GB resident, ~0.8 GB free at `num_ctx=8192`.
+  Durable config (persisted via `setx`, inherited by the Ollama app + the runner):
+  - `OLLAMA_FLASH_ATTENTION=0` (REQUIRED on Pascal); `lib_run.sh` also exports it so implementers inherit it.
+  - leave `OLLAMA_KV_CACHE_TYPE` **unset (f16)** — a quantized KV cache without FA warns + OOMs (ollama#11471).
+  - leave `OLLAMA_NUM_GPU` **unset** (GPU placement); the repo knob = CPU fallback only — do NOT set it to 0.
+  - driver ≥570 (have 581.42); **pin Ollama 0.30.9** — Pascal is routed to `cuda_v12` (PR#12300); later
+    `cuda_v13`-only builds may drop the 1060, so disable auto-update.
+  - `num_ctx=8192` fits; drop to 4096 for extra headroom under sustained batches (snippets don't need 8192).
+  - CPU still works (~16 s/article) as a fallback. **vLLM ruled out** (needs CC ≥7.0; the 1060 is 6.1).
+  - Sourcing: `.planning/coursework/research/bigdata/gpu-hosting-ollama-pascal-flashattn-2026-06-25.md`
+    (+ `llm-serving-vllm-vs-ollama-pascal-2026-06-25.md`).
 - Config: `OLLAMA_HOST` (default `http://localhost:11434`), `OLLAMA_MODEL=qwen3:4b` (now the code default).
 - Memory hygiene (single box): `ollama stop qwen3:4b` (or `OLLAMA_KEEP_ALIVE=0`) **before** any GPU encoder
   pass; confirm `ollama ps` empty so the sidecar gets the VRAM.

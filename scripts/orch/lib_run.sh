@@ -4,10 +4,12 @@
 
 # JDK for the post-merge full-suite re-run (Spark tests skip without winutils).
 export JAVA_HOME="${JAVA_HOME:-C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.11.10-hotspot}"
-# Force the Ollama LLM onto CPU for the live news pass: on the GTX 1060 (Pascal), the GPU
-# format=json path crashes with "CUDA error: illegal memory access" (verified 2026-06-25).
-# Codex implementers inherit this env, so GAP-033's live run is reliable. ~16 s/article (CPU).
-export OLLAMA_NUM_GPU="${OLLAMA_NUM_GPU:-0}"
+# Ollama on the GTX 1060 (Pascal sm_61): the format=json GPU path crashes WITH flash attention
+# (Pascal has no tensor cores) but runs 100% on GPU with it OFF (verified 2026-06-25; ollama#4979).
+# So keep the GPU and disable flash attention; leave KV cache f16 (quantized KV without FA -> OOM,
+# ollama#11471). Codex implementers inherit this. Pin Ollama 0.30.9 (Pascal routed to cuda_v12 per
+# PR#12300; later cuda_v13 builds may drop the 1060). Do NOT force OLLAMA_NUM_GPU=0 (slow CPU fallback).
+export OLLAMA_FLASH_ATTENTION="${OLLAMA_FLASH_ATTENTION:-0}"
 
 # --- implementer verdict / review JSON decisions -----------------------------
 # Exit 0 only if the implementer verdict is clean enough to consider merging.

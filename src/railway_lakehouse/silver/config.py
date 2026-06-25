@@ -13,12 +13,11 @@ OLLAMA_NUM_RETRIES = int(os.environ.get("OLLAMA_NUM_RETRIES", "3"))
 OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "1024"))
 OLLAMA_THINK = os.environ.get("OLLAMA_THINK", "false").strip().lower() in {"1", "true", "yes", "on"}
-# Number of model layers to offload to the GPU. Empty = let Ollama decide (its default).
-# Set OLLAMA_NUM_GPU=0 to force CPU — REQUIRED on Pascal cards (GTX 1060, sm_61): with
-# format=json (grammar-constrained sampling) the GPU path crashes with
-# "CUDA error: an illegal memory access was encountered" (verified 2026-06-25). The minimal
-# generate path works on GPU, but the JSON extraction the pipeline relies on does not. CPU is
-# ~16 s/article on this box — fine for the small (hundreds-of-articles) cached one-time pass.
+# Number of model layers to offload to the GPU. Empty = let Ollama decide (GPU placement — the
+# normal case). Set OLLAMA_NUM_GPU=0 only to force CPU as a fallback. NOTE on Pascal (GTX 1060,
+# sm_61): the format=json GPU path crashes WITH flash attention but works with it OFF — the fix is
+# OLLAMA_FLASH_ATTENTION=0 (server-side), NOT num_gpu=0. See
+# .planning/coursework/research/bigdata/gpu-hosting-ollama-pascal-flashattn-2026-06-25.md.
 _OLLAMA_NUM_GPU = os.environ.get("OLLAMA_NUM_GPU", "").strip()
 OLLAMA_NUM_GPU = int(_OLLAMA_NUM_GPU) if _OLLAMA_NUM_GPU != "" else None
 
