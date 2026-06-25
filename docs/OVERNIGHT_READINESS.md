@@ -98,7 +98,9 @@ $body = @{ model="qwen3:4b"; stream=$false; format="json"; options=@{temperature
 
 ## Recipe B — GPU encoder sidecar (for GAP-034 sentiment / GAP-036 embeddings)
 
-The 3.11 env already has CUDA torch, so the sidecar inherits it via `--system-site-packages`:
+✅ **Built + verified 2026-06-25**: venv at `output/runtime/sidecar-venv` (gitignored), `torch 2.1.1+cu118`
+(GPU available), `multilingual-e5-base` encodes (768-dim). **Do NOT use `--force-reinstall` or `-U`** — they
+clobber the cu118 torch with a CPU torch and trigger a numpy ABI break. Re-create cleanly with:
 ```powershell
 $PY311 = "C:\Users\XxX360QUICKSCOPERXxX\pyver\311\python.exe"
 & $PY311 -m venv --system-site-packages output\runtime\sidecar-venv
