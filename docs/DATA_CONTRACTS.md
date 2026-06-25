@@ -27,6 +27,33 @@ bronze/<domain>/<source>/<dataset_id>/ingest_date=YYYY-MM-DD/<file>
 bronze/<domain>/<source>/<dataset_id>/ingest_date=YYYY-MM-DD/<file>.meta.json
 ```
 
+### GDELT GKG Bronze Raw Contract
+
+Producer: `src/railway_lakehouse/bronze/sources/past_recordings.py`
+when run with the historical GKG engine.
+
+Path:
+
+```text
+bronze/news/gdelt_history/gkg_v1_daily/ingest_date=YYYY-MM-DD/YYYYMMDD.gkg.csv.zip
+bronze/news/gdelt_history/gkg_v1_daily/ingest_date=YYYY-MM-DD/YYYYMMDD.gkg.csv.zip.meta.json
+```
+
+Content:
+
+- Raw GDELT GKG daily ZIP bytes, landed unchanged.
+- The ZIP member is a tab-delimited `.csv` file despite the CSV suffix.
+- Bronze does not unzip, filter, normalize, deduplicate, or re-land parsed rows.
+- GKG 1.0 rows group articles into namesets; GKG 2.x rows are document-grain.
+
+Silver parsing is transient: `silver/news/gkg_parser.py` unzips and parses
+records only to feed deterministic `NewsFeature` passthrough fields. The
+production pipeline reader parses these ZIPs from Bronze, forwards the resulting
+`GKGRecord` objects into the news extraction runner, and emits bounded
+GKG-sourced `NewsFeature` rows through passthrough when no matching article row
+already exists. The project does not persist a separate `GKGRecord` Silver table
+in GAP-031.
+
 ## Silver Stats Contract
 
 Target row: `StatFact` from `src/railway_lakehouse/silver/schema.py`.
@@ -150,6 +177,29 @@ GDELT GKG passthrough fields:
 34. `gkg_tone`
 35. `gkg_emotions`
 36. `gkg_tone_source`
+
+### Transient GKGRecord Contract
+
+`GKGRecord` in `src/railway_lakehouse/silver/schema.py` is an in-memory domain
+object for GDELT GKG parser output. It is not a persisted table.
+
+| Field | Meaning |
+|---|---|
+| `gkg_id` | GKG record id, or deterministic hash fallback when a source id is absent. |
+| `gkg_date` | GKG date string (`YYYYMMDD` for 1.0, often `YYYYMMDDHHMMSS` for 2.x). |
+| `document_identifier` | Source document identifier / URL field, used only for explicit best-effort matching. |
+| `source_common_name` | Source host/name when provided by GKG. |
+| `gkg_themes` | Semicolon-delimited GKG theme tokens. |
+| `gkg_tone` | First numeric tone value from the comma-delimited tone field. |
+| `gkg_persons` | Semicolon-delimited persons. |
+| `gkg_organizations` | Semicolon-delimited organizations. |
+| `gkg_locations` | Semicolon-delimited GKG location blocks or names. |
+| `gkg_emotions` | Remaining comma-delimited tone/emotion values when available. |
+
+GKG-derived `NewsFeature` rows populate `sentiment` from tone,
+`country` from source/location fields, `event_type` from explicit GKG theme
+tokens, and `operators` from deterministic known-operator matching. Unknown or
+missing GKG fields remain `None`/`other`; no LLM inference fills them.
 
 Embedding, deduplication, and clustering fields:
 

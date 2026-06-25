@@ -50,6 +50,7 @@ def run_stats(frames_with_system: list) -> "object":
 def run_news(
     articles: list,
     *,
+    gkg_records: list | None = None,
     cache_root=None,
     artifact_root=None,
     ingest_date: str | None = None,
@@ -69,6 +70,7 @@ def run_news(
         articles,
         cache=cache,
         manifest_path=manifest_path,
+        gkg_records=gkg_records,
         warm_up=True,
         lifecycle=lifecycle,
     )

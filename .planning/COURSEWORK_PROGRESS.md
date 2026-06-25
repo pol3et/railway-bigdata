@@ -1,5 +1,38 @@
 # Coursework Progress
 
+## 2026-06-25 - GAP-031 GDELT GKG Parser And Passthrough
+
+Status: done; shipping via PR.
+
+Review update:
+- PR #33 request-changes fixes are included: `pipeline.run_pipeline(...)` now reads Bronze GKG `.gkg.csv.zip` files into transient `GKGRecord` objects, forwards them to the production extraction runner, and creates bounded GKG-sourced GDELT article rows when no matching article row exists.
+- `run_extraction_pipeline(..., gkg_records=...)` and `silver.run.run_news(..., gkg_records=...)` now expose the deterministic GKG passthrough path to production entrypoints, not only unit tests.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/silver/gdelt-gkg-codebook-2026-06-25.md`.
+- Used `research-orchestrator` with local files first, then Tavily/Firecrawl MCP against official GDELT GKG codebooks, theme lists, and the GDELT data overview.
+- Approved local implementation plan: `.planning/coursework/plans/bigdata/gap-031-gdelt-gkg-parser.md`.
+
+Changed:
+- Added transient `GKGRecord` and `silver/news/gkg_parser.py` for fixture-covered GKG 1.0/2.x tab-delimited CSV.zip parsing.
+- Extended `gdelt_passthrough()` to accept `GKGRecord` while preserving old bare `gkg_tone/gkg_themes/gkg_locations` calls.
+- Added deterministic tone->sentiment, location->country, theme->event_type, and GKG org/person->known-operator mapping.
+- Added explicit `article_records_to_news_features(..., gkg_records=...)` routing so matched GDELT articles avoid Ollama.
+- Wired Bronze GKG zip parsing through `pipeline.run_pipeline(...)`, including GKG-only tmp Bronze fixture coverage.
+- Synced `docs/DATA_CONTRACTS.md`, `docs/SILVER_DESIGN.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `docs/PROGRESS_LOG.md`.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_silver_gkg_parser.py` failed on missing `GKGRecord`.
+- RED review regressions: targeted production-runner tests failed on missing `gkg_records` plumbing and ignored Bronze GKG zip input.
+- `python -m pytest -q tests/test_silver_gkg_parser.py` -> 28 passed.
+- `python -m pytest -q tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py` -> 16 passed.
+- `python -m pytest -q -m integration` -> 25 passed, 204 deselected.
+- `python -m pytest -q` -> 223 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF warnings only.
+
+Next:
+- Real high-volume historical GKG backfill evidence and richer DOC-to-GKG dedup/cross-linking remain separate follow-ups; this change claims fixture-backed production runner wiring and deterministic passthrough behavior.
 ## 2026-06-25 - GAP-042 Statistik Austria ODS Reader
 
 Status: done; ready for PR.
