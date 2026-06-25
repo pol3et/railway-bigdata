@@ -1,5 +1,34 @@
 # Coursework Progress
 
+## 2026-06-25 - GAP-031 GDELT GKG Parser And Passthrough
+
+Status: done; shipping via PR.
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/silver/gdelt-gkg-codebook-2026-06-25.md`.
+- Used `research-orchestrator` with local files first, then Tavily/Firecrawl MCP against official GDELT GKG codebooks, theme lists, and the GDELT data overview.
+- Approved local implementation plan: `.planning/coursework/plans/bigdata/gap-031-gdelt-gkg-parser.md`.
+
+Changed:
+- Added transient `GKGRecord` and `silver/news/gkg_parser.py` for fixture-covered GKG 1.0/2.x tab-delimited CSV.zip parsing.
+- Extended `gdelt_passthrough()` to accept `GKGRecord` while preserving old bare `gkg_tone/gkg_themes/gkg_locations` calls.
+- Added deterministic tone->sentiment, location->country, theme->event_type, and GKG org/person->known-operator mapping.
+- Added explicit `article_records_to_news_features(..., gkg_records=...)` routing so matched GDELT articles avoid Ollama.
+- Synced `docs/DATA_CONTRACTS.md`, `docs/SILVER_DESIGN.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `docs/PROGRESS_LOG.md`.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_silver_gkg_parser.py` failed on missing `GKGRecord`.
+- `python -m pytest -q tests/test_silver_gkg_parser.py` -> 25 passed.
+- `python -m pytest -q -m unit tests/test_silver_gkg_parser.py` -> 25 passed.
+- `python -m pytest -q tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py` -> 16 passed.
+- `python -m pytest -q -m integration` -> 24 passed, 202 deselected.
+- `python -m pytest -q` -> 220 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF warnings only.
+
+Next:
+- Real historical GKG backfill and automatic DOC-to-GKG cross-linking remain separate follow-ups; this change claims only fixture-backed parser/passthrough behavior.
+
 ## 2026-06-25 - GAP-050 LLM Pipeline Engineering
 
 Status: done

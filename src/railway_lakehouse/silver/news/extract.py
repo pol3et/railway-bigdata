@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import time
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -21,7 +22,7 @@ from urllib.parse import urlparse
 
 from .. import config
 from ..ollama_client import generate_json
-from ..schema import NewsFeature, validate_news_feature
+from ..schema import GKGRecord, NewsFeature, validate_news_feature
 from ..config import NEWS_EVENT_TYPES, KNOWN_OPERATORS
 from .cache import (
     CacheBackend,
@@ -31,6 +32,7 @@ from .cache import (
     model_digest_key,
 )
 from .failures import ExtractionFailure, utc_now
+from .gkg_parser import match_gkg_to_article
 
 logger = logging.getLogger("silver.news.extract")
 
@@ -300,14 +302,75 @@ def _country_from_gkg(gkg: dict) -> Optional[str]:
     source_country = str(gkg.get("sourcecountry") or gkg.get("source_country") or "").upper()
     if source_country in {"HU", "HUN"}:
         return "HU"
-    if source_country in {"AT", "AUT"}:
+    if source_country in {"AT", "AUT", "AU"}:
         return "AT"
     locations = str(gkg.get("gkg_locations") or gkg.get("locations") or "")
-    if "Hungary" in locations:
-        return "HU"
-    if "Austria" in locations:
-        return "AT"
+    for segment in [item.strip() for item in locations.split(";") if item.strip()]:
+        parts = segment.split("#")
+        text = " ".join(parts).casefold()
+        country_code = parts[2].upper() if len(parts) > 2 else ""
+        if country_code in {"HU", "HUN"} or "hungary" in text or "hungarian" in text:
+            return "HU"
+        if country_code in {"AT", "AUT", "AU"} or "austria" in text or "austrian" in text:
+            return "AT"
     return None
+
+
+_GKG_EVENT_THEME_RULES = (
+    ("accident", ("RAIL_INCIDENT", "DERAIL", "ACCIDENT", "DISASTER")),
+    ("strike", ("LABOR_STRIKE", "STRIKE", "PROTEST")),
+    ("investment", ("ECON_INVESTMENT", "INVESTMENT", "INFRASTRUCTURE")),
+    ("delay", ("DELAY", "DISRUPTION", "CANCEL")),
+    ("service_change", ("PUBLIC_TRANSPORT", "RAIL_TRANSPORT", "TRANSPORT")),
+)
+
+_OPERATOR_ALIASES = {
+    "MÁV": ("MÁV", "MAV", "Hungarian Railways"),
+    "GYSEV": ("GYSEV", "Raaberbahn"),
+    "ÖBB": ("ÖBB", "OBB", "OEBB"),
+    "Westbahn": ("Westbahn",),
+    "RailCargo": ("RailCargo", "Rail Cargo"),
+}
+
+
+def _event_type_from_gkg_themes(themes: Optional[str]) -> str:
+    normalized = _normalize_search_text(themes or "")
+    if not normalized:
+        return "other"
+    for event_type, needles in _GKG_EVENT_THEME_RULES:
+        if event_type not in NEWS_EVENT_TYPES:
+            continue
+        if any(_normalize_search_text(needle) in normalized for needle in needles):
+            return event_type
+    return "other"
+
+
+def _operators_from_gkg(gkg: dict) -> list[str]:
+    haystack = _normalize_search_text(
+        " ".join(
+            str(gkg.get(key) or "")
+            for key in (
+                "gkg_organizations",
+                "organizations",
+                "gkg_persons",
+                "persons",
+            )
+        )
+    )
+    operators = []
+    for operator in KNOWN_OPERATORS:
+        if operator == "other":
+            continue
+        aliases = _OPERATOR_ALIASES.get(operator, (operator,))
+        if any(_normalize_search_text(alias) in haystack for alias in aliases):
+            operators.append(operator)
+    return operators
+
+
+def _normalize_search_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(value))
+    ascii_text = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return ascii_text.casefold()
 
 
 def _is_snippet_article(article: dict) -> bool:
@@ -454,20 +517,49 @@ def extract_article(*, article_id: str, source: str, url: str,
     return extract_article_cached(article, cache or NoOpCache())
 
 
+def _gkg_record_to_passthrough_dict(gkg_record: GKGRecord) -> dict:
+    return {
+        "gkg_id": gkg_record.gkg_id,
+        "date": gkg_record.gkg_date,
+        "document_identifier": gkg_record.document_identifier,
+        "url": gkg_record.document_identifier,
+        "source_common_name": gkg_record.source_common_name,
+        "gkg_tone": gkg_record.gkg_tone,
+        "gkg_themes": gkg_record.gkg_themes,
+        "gkg_persons": gkg_record.gkg_persons,
+        "gkg_organizations": gkg_record.gkg_organizations,
+        "gkg_locations": gkg_record.gkg_locations,
+        "gkg_emotions": gkg_record.gkg_emotions,
+    }
+
+
 def gdelt_passthrough(*, article_id: str, url: str, published_date: Optional[str],
-                      gkg_tone: Optional[float], gkg_themes: Optional[str],
-                      gkg_locations: Optional[str]) -> NewsFeature:
-    return gdelt_passthrough_cached(
+                      gkg_tone: Optional[float] = None,
+                      gkg_themes: Optional[str] = None,
+                      gkg_locations: Optional[str] = None,
+                      gkg_persons: Optional[str] = None,
+                      gkg_organizations: Optional[str] = None,
+                      gkg_emotions: Optional[str] = None,
+                      gkg_record: Optional[GKGRecord] = None) -> NewsFeature:
+    gkg = _gkg_record_to_passthrough_dict(gkg_record) if gkg_record is not None else {}
+    gkg.update(
         {
             "article_id": article_id,
             "url": url,
             "published_date": published_date,
-            "gkg_tone": gkg_tone,
-            "gkg_themes": gkg_themes,
-            "gkg_locations": gkg_locations,
-        },
-        NoOpCache(),
+        }
     )
+    for key, value in {
+        "gkg_tone": gkg_tone,
+        "gkg_themes": gkg_themes,
+        "gkg_locations": gkg_locations,
+        "gkg_persons": gkg_persons,
+        "gkg_organizations": gkg_organizations,
+        "gkg_emotions": gkg_emotions,
+    }.items():
+        if value is not None:
+            gkg[key] = value
+    return gdelt_passthrough_cached(gkg, NoOpCache())
 
 
 def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeature:
@@ -494,8 +586,10 @@ def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeatu
         language=gkg.get("language"),
         is_rail_related=True,
         country=_country_from_gkg(gkg),
-        event_type="other",
-        operators=[],
+        event_type=_event_type_from_gkg_themes(
+            gkg.get("gkg_themes") or gkg.get("themes")
+        ),
+        operators=_operators_from_gkg(gkg),
         rail_lines=[],
         summary_en=None,
         sentiment=sentiment,
@@ -517,6 +611,30 @@ def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeatu
 
 def _has_gkg_fields(article: dict) -> bool:
     return any(str(key).startswith("gkg_") for key in article) or "tone" in article
+
+
+def _merge_gkg_record(article: dict, gkg_record: GKGRecord) -> dict:
+    merged = dict(article)
+    gkg = _gkg_record_to_passthrough_dict(gkg_record)
+    merged.update({key: value for key, value in gkg.items() if value is not None})
+    merged["article_id"] = article.get("article_id")
+    merged["source"] = article.get("source")
+    merged["title"] = article.get("title")
+    merged["body"] = article.get("body")
+    merged["url"] = article.get("url") or gkg_record.document_identifier or ""
+    merged["published_date"] = article.get("published_date") or gkg_record.gkg_date
+    return merged
+
+
+def _find_matching_gkg_record(article: dict, gkg_records: list[GKGRecord]) -> Optional[GKGRecord]:
+    article_id = str(article.get("article_id") or "")
+    article_url = str(article.get("url") or "")
+    for record in gkg_records:
+        if article_id and article_id in {record.gkg_id, record.document_identifier}:
+            return record
+        if article_url and match_gkg_to_article(record, article_url):
+            return record
+    return None
 
 
 def _effective_concurrency() -> int:
@@ -707,11 +825,34 @@ def extract_batch(articles: list, *, cache: CacheBackend = None) -> tuple[list, 
     return result.features, result.failures
 
 
-def article_records_to_news_features(records: list) -> list:
+def article_records_to_news_features(
+    records: list,
+    *,
+    gkg_records: Optional[list[GKGRecord]] = None,
+) -> list:
     articles = [
         r.to_row() if hasattr(r, "to_row") else dict(r)
         for r in records
     ]
+    if gkg_records:
+        enriched = []
+        for article in articles:
+            if str(article.get("source") or "").lower() == "gdelt":
+                match = _find_matching_gkg_record(article, gkg_records)
+                if match is not None:
+                    logger.info(
+                        "GDELT article %s using GKG passthrough record %s",
+                        article.get("article_id"),
+                        match.gkg_id,
+                    )
+                    enriched.append(_merge_gkg_record(article, match))
+                    continue
+            logger.info(
+                "article %s using LLM extraction path",
+                article.get("article_id"),
+            )
+            enriched.append(article)
+        articles = enriched
     successes, failures = extract_batch(articles)
     if failures:
         logger.warning("article_records_to_news_features dropped %d failed articles", len(failures))

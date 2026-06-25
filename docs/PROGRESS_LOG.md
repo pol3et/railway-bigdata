@@ -1908,3 +1908,35 @@ Evidence:
 
 Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
+
+## 2026-06-25 - GAP-031 GDELT GKG parser and passthrough
+
+Status: done; shipping via PR.
+
+Changed:
+- `src/railway_lakehouse/silver/schema.py`
+- `src/railway_lakehouse/silver/news/gkg_parser.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `tests/test_silver_gkg_parser.py`
+- `docs/DATA_CONTRACTS.md`, `docs/SILVER_DESIGN.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`
+- `.planning/coursework/research/bigdata/silver/gdelt-gkg-codebook-2026-06-25.md`
+- `.planning/coursework/plans/bigdata/gap-031-gdelt-gkg-parser.md`
+
+Findings:
+- The original GAP-031 draft was stale after GAP-039/GAP-050: `NewsFeature` already had GKG columns and cached passthrough already existed for GDELT article dicts carrying `gkg_*`.
+- Official GDELT docs show GKG 2.1 is a 27-column tab-delimited format and GKG 1.0 daily rows use a different tab-delimited layout; GAP-031 supports fixture-covered parser paths for both.
+- GKG themes are text tokens, not numeric CAMEO event codes, so event mapping is limited to explicit rail/transport theme tokens and falls back to `other`.
+- No live GKG backfill, separate GKG Silver table, or automatic DOC-to-GKG URL cross-linking is claimed.
+
+Evidence:
+- RED: `python -m pytest -q tests/test_silver_gkg_parser.py` failed on missing `GKGRecord` before implementation.
+- `python -m pytest -q tests/test_silver_gkg_parser.py` -> 25 passed.
+- `python -m pytest -q -m unit tests/test_silver_gkg_parser.py` -> 25 passed.
+- `python -m pytest -q tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py` -> 16 passed.
+- `python -m pytest -q -m integration` -> 24 passed, 202 deselected.
+- `python -m pytest -q` -> 220 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF warnings only.
+
+Next:
+- Feed real historical GKG Bronze files through the parser once the live history backfill is run; keep automatic URL cross-linking as a separate follow-up.

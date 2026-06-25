@@ -85,6 +85,23 @@ class NewsFeature:
         return asdict(self)
 
 
+@dataclass
+class GKGRecord:
+    gkg_id: str
+    gkg_date: Optional[str] = None
+    document_identifier: Optional[str] = None
+    source_common_name: Optional[str] = None
+    gkg_themes: Optional[str] = None
+    gkg_tone: Optional[float] = None
+    gkg_persons: Optional[str] = None
+    gkg_organizations: Optional[str] = None
+    gkg_locations: Optional[str] = None
+    gkg_emotions: Optional[str] = None
+
+    def to_row(self) -> dict:
+        return asdict(self)
+
+
 # ---------- validators (coerce + bound LLM output) ----------
 ISO_639_1_CODES = {
     "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az",
