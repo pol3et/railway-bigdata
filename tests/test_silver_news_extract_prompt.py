@@ -57,9 +57,8 @@ def test_prompt_builder_uses_narrow_schema_and_snippet_trust():
         "summary_en",
         "monetary_raw",
         "monetary_amount_eur",
-        "confidence",
     }.issubset(properties)
-    for llm_out_of_scope in ("sentiment", "language", "operators", "rail_lines"):
+    for llm_out_of_scope in ("sentiment", "language", "operators", "rail_lines", "confidence"):
         assert llm_out_of_scope not in properties
         assert f"- {llm_out_of_scope}" not in prompt
 

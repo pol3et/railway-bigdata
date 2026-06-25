@@ -30,11 +30,13 @@ from railway_lakehouse.bronze.sources import worldbank
 
 # Silver
 from railway_lakehouse.silver import persist
+from railway_lakehouse.silver.schema import GKGRecord
 from railway_lakehouse.silver.stats import load as stats_load
 from railway_lakehouse.silver.stats import merge as stats_merge
 from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver.news.cache import FileSystemCache
 from railway_lakehouse.silver.news.failures import extraction_run_manifest_path, resolve_ingest_date
+from railway_lakehouse.silver.news.gkg_parser import match_gkg_to_article, parse_gkg_csv_zip
 from railway_lakehouse.silver.news.rss import parse_rss_xml
 from railway_lakehouse.silver import config as silver_config
 from railway_lakehouse.silver.ollama_client import health_check
@@ -137,7 +139,7 @@ def run_pipeline(
 
     # Read the raw article records you landed or supplied as fixtures before
     # crosswalk/Gold work so a bad local Bronze root fails before output writes.
-    articles = _read_bronze_news(lander, limit=news)          # -> list[dict]
+    articles, gkg_records = _read_bronze_news_inputs(lander, limit=news)
     if local_bronze_root is not None:
         _validate_non_empty_local_inputs(local_bronze_root, frames, articles)
 
@@ -173,6 +175,7 @@ def run_pipeline(
             articles,
             cache=news_cache,
             manifest_path=news_manifest_path,
+            gkg_records=gkg_records,
             warm_up=True,
         )      # Ollama/GDELT -> NewsFeature
         news_rows = news_result.features
@@ -310,6 +313,21 @@ def _read_bronze_stats_frames(lander) -> list[pd.DataFrame]:
     return eurostat_frames + wb_frames
 
 
+def _read_bronze_news_inputs(lander, limit: int) -> tuple[list, list[GKGRecord]]:
+    """Return normalized article dicts plus transient parsed GKG records."""
+    if limit <= 0:
+        return [], []
+    articles = _read_bronze_news(lander, limit=limit)
+    gkg_records = _read_bronze_gkg_records(lander)
+    if gkg_records:
+        articles = _append_gkg_records_as_articles(
+            articles,
+            gkg_records,
+            limit=limit,
+        )
+    return articles, gkg_records
+
+
 def _read_bronze_news(lander, limit: int) -> list:
     """Return normalized article dicts from Bronze JSON and RSS XML artifacts."""
     if limit <= 0:
@@ -335,6 +353,89 @@ def _read_bronze_news(lander, limit: int) -> list:
             if len(articles) >= limit:
                 return articles
     return articles
+
+
+def _read_bronze_gkg_records(lander) -> list[GKGRecord]:
+    """Return transient parsed GKG records from raw Bronze GKG CSV.zip artifacts."""
+    records: list[GKGRecord] = []
+    for path in _list_bronze_files(
+        lander,
+        domain="news",
+        source="gdelt_history",
+        include=lambda name: name.endswith(".gkg.csv.zip"),
+    ):
+        parsed = parse_gkg_csv_zip(
+            _read_bytes(lander, path),
+            date_str=_gkg_zip_date_from_path(path),
+        )
+        records.extend(parsed)
+    if records:
+        log.info("SILVER news: parsed %d transient GDELT GKG records", len(records))
+    return records
+
+
+def _append_gkg_records_as_articles(
+    articles: list,
+    gkg_records: list[GKGRecord],
+    *,
+    limit: int,
+) -> list:
+    if len(articles) >= limit:
+        return articles
+    combined = list(articles)
+    for record in gkg_records:
+        if _gkg_record_has_article_match(record, combined):
+            continue
+        combined.append(_gkg_record_to_article(record))
+        if len(combined) >= limit:
+            break
+    return combined
+
+
+def _gkg_record_has_article_match(record: GKGRecord, articles: list) -> bool:
+    identifiers = {record.gkg_id, record.document_identifier}
+    for article in articles:
+        article_id = str(article.get("article_id") or "")
+        if article_id and article_id in identifiers:
+            return True
+        article_url = str(article.get("url") or "")
+        if article_url and match_gkg_to_article(record, article_url):
+            return True
+    return False
+
+
+def _gkg_record_to_article(record: GKGRecord) -> dict:
+    url = _first_gkg_document_identifier(record.document_identifier)
+    return {
+        "article_id": record.gkg_id,
+        "source": "gdelt",
+        "url": url,
+        "title": record.source_common_name or url or record.gkg_id,
+        "body": "",
+        "published_date": _normalize_article_date(record.gkg_date),
+        "gkg_id": record.gkg_id,
+        "document_identifier": record.document_identifier,
+        "source_common_name": record.source_common_name,
+        "gkg_themes": record.gkg_themes,
+        "gkg_tone": record.gkg_tone,
+        "gkg_persons": record.gkg_persons,
+        "gkg_organizations": record.gkg_organizations,
+        "gkg_locations": record.gkg_locations,
+        "gkg_emotions": record.gkg_emotions,
+    }
+
+
+def _first_gkg_document_identifier(value: str | None) -> str:
+    for item in str(value or "").replace("|", ";").split(";"):
+        text = item.strip()
+        if text:
+            return text
+    return ""
+
+
+def _gkg_zip_date_from_path(path) -> str:
+    name = Path(str(path)).name
+    return name.split(".gkg.csv.zip", 1)[0]
 
 
 def _is_xml_path(path) -> bool:

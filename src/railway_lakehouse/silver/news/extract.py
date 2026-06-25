@@ -2,9 +2,12 @@
 Silver news feature extraction.
 
 GAP-050 turns the old per-row prompt call into a small extraction runner:
-cache-skip first, sequential batch processing for the single local Ollama,
-bounded retries, typed failures, optional model lifecycle hooks, and a run
-manifest. `generate_json` remains the mocked seam; CI never needs Ollama.
+cache-skip first, deterministic language identification, sequential batch
+processing for the single local Ollama, bounded retries, typed failures,
+optional model lifecycle hooks, and a run manifest. `generate_json` remains
+the mocked seam; CI never needs Ollama.
+GAP-034 keeps sentiment out of the LLM path and fills it with a pinned,
+deterministic XLM-R encoder post-pass when that local model is available.
 """
 from __future__ import annotations
 
@@ -14,15 +17,17 @@ import os
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+import unicodedata
+from dataclasses import dataclass, replace
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
 from .. import config
+from ..language_id import LANGUAGE_ID_MODEL_DIGEST, identify_language
 from ..ollama_client import generate_json
-from ..schema import NewsFeature, validate_news_feature
+from ..schema import GKGRecord, ISO_639_1_CODES, NewsFeature, validate_news_feature
 from ..config import NEWS_EVENT_TYPES, KNOWN_OPERATORS
 from .cache import (
     CacheBackend,
@@ -33,23 +38,32 @@ from .cache import (
 )
 from .embeddings import cluster_near_duplicates, compute_embeddings
 from .failures import ExtractionFailure, utc_now
+from . import sentiment_encoder
+from .gkg_parser import match_gkg_to_article
 
 logger = logging.getLogger("silver.news.extract")
 
 PROMPT_VERSION = config.NEWS_EXTRACTION_PROMPT_VERSION
-GDELT_PASSTHROUGH_DIGEST = "gdelt_gkg_passthrough"
+GDELT_PASSTHROUGH_DIGEST = f"gdelt_gkg_passthrough_{LANGUAGE_ID_MODEL_DIGEST[:12]}"
+_SENTIMENT_SIGN = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
+_LLM_SENTIMENT_FIELDS = {
+    "sentiment",
+    "sentiment_label",
+    "sentiment_score",
+    "sentiment_confidence",
+    "confidence",
+}
 
 _SYSTEM = (
     "You are a precise railway-news information extraction engine for Hungary "
     "and Austria. Extract only facts that are stated in the provided title and "
     "text. Output only the JSON object requested by the schema. Do not infer "
-    "sentiment, language, operators, or rail lines; deterministic downstream "
+    "sentiment, operators, or rail lines; deterministic downstream "
     "passes own those fields."
 )
 
 _FEW_SHOT_EXAMPLES = [
     {
-        "language": "hu",
         "input": "MAV 12 milliard forintos palyafelujitast jelentett be.",
         "output": {
             "is_rail_related": True,
@@ -58,11 +72,9 @@ _FEW_SHOT_EXAMPLES = [
             "monetary_amount_eur": None,
             "monetary_raw": "12 milliard forint",
             "summary_en": "MAV announced a railway track renewal funded in Hungarian forints.",
-            "confidence": 0.84,
         },
     },
     {
-        "language": "de",
         "input": "Nach einem Oberleitungsschaden fallen OBB-Zuege aus.",
         "output": {
             "is_rail_related": True,
@@ -71,11 +83,9 @@ _FEW_SHOT_EXAMPLES = [
             "monetary_amount_eur": None,
             "monetary_raw": None,
             "summary_en": "OBB train services were cancelled after overhead line damage.",
-            "confidence": 0.86,
         },
     },
     {
-        "language": "en",
         "input": "A cafe opened near Bahnhofstrasse with no rail service change.",
         "output": {
             "is_rail_related": False,
@@ -84,7 +94,6 @@ _FEW_SHOT_EXAMPLES = [
             "monetary_amount_eur": None,
             "monetary_raw": None,
             "summary_en": "The story is about a cafe and not rail transport.",
-            "confidence": 0.9,
         },
     },
 ]
@@ -99,7 +108,6 @@ _JSON_SCHEMA = {
         "monetary_amount_eur": {"type": ["number", "null"]},
         "monetary_raw": {"type": ["string", "null"]},
         "summary_en": {"type": "string"},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "is_rail_related_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "event_type_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "monetary_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
@@ -111,7 +119,6 @@ _JSON_SCHEMA = {
         "monetary_amount_eur",
         "monetary_raw",
         "summary_en",
-        "confidence",
     ],
 }
 
@@ -225,7 +232,7 @@ def _build_prompt(
         "- monetary_raw is the original money phrase with currency when stated; otherwise null.\n"
         "- monetary_amount_eur is only for amounts explicitly stated in EUR or with an explicit EUR equivalent. Do not do FX conversion.\n"
         "- summary_en is one short English sentence.\n"
-        "- Do not output sentiment, language, operators, or rail_lines.\n\n"
+        "- Do not output sentiment, operators, or rail_lines.\n\n"
         "Few-shot examples (synthetic, held out from any golden test set):\n"
         f"{examples}\n\n"
         "Return only the JSON object."
@@ -278,6 +285,17 @@ def _failure(article: dict, reason: str, model_digest: str, raw=None) -> Extract
     )
 
 
+def _validated_language_code(value) -> Optional[str]:
+    text = str(value or "").strip().lower()
+    return text if text in ISO_639_1_CODES else None
+
+
+def _article_language(article: dict) -> Optional[str]:
+    title = str(article.get("title") or "")
+    body = str(article.get("body") or "")
+    return identify_language(f"{title} {body}")
+
+
 def _float_or_none(value):
     try:
         return float(value)
@@ -298,18 +316,109 @@ def _tone_to_sentiment(gkg_tone: Optional[float]) -> Optional[str]:
     return "positive" if gkg_tone > 1 else "negative" if gkg_tone < -1 else "neutral"
 
 
+def _strip_llm_sentiment(raw: dict) -> dict:
+    """Remove legacy fields the LLM no longer owns."""
+    return {key: value for key, value in raw.items() if key not in _LLM_SENTIMENT_FIELDS}
+
+
+def _signed_sentiment_score(label: str, confidence: float) -> float:
+    return _SENTIMENT_SIGN[label] * confidence
+
+
+def _add_sentiment_and_confidence(
+    feature: NewsFeature,
+    *,
+    title: str,
+    body: str,
+) -> NewsFeature:
+    encoded = sentiment_encoder.get_encoder().encode(f"{title}\n\n{body or ''}")
+    if encoded is None:
+        return feature
+    label = encoded["label"]
+    confidence = float(encoded["score"])
+    return replace(
+        feature,
+        sentiment=label,
+        confidence=confidence,
+        sentiment_label=label,
+        sentiment_score=_signed_sentiment_score(label, confidence),
+        sentiment_confidence=confidence,
+    )
+
+
 def _country_from_gkg(gkg: dict) -> Optional[str]:
     source_country = str(gkg.get("sourcecountry") or gkg.get("source_country") or "").upper()
     if source_country in {"HU", "HUN"}:
         return "HU"
-    if source_country in {"AT", "AUT"}:
+    if source_country in {"AT", "AUT", "AU"}:
         return "AT"
     locations = str(gkg.get("gkg_locations") or gkg.get("locations") or "")
-    if "Hungary" in locations:
-        return "HU"
-    if "Austria" in locations:
-        return "AT"
+    for segment in [item.strip() for item in locations.split(";") if item.strip()]:
+        parts = segment.split("#")
+        text = " ".join(parts).casefold()
+        country_code = parts[2].upper() if len(parts) > 2 else ""
+        if country_code in {"HU", "HUN"} or "hungary" in text or "hungarian" in text:
+            return "HU"
+        if country_code in {"AT", "AUT", "AU"} or "austria" in text or "austrian" in text:
+            return "AT"
     return None
+
+
+_GKG_EVENT_THEME_RULES = (
+    ("accident", ("RAIL_INCIDENT", "DERAIL", "ACCIDENT", "DISASTER")),
+    ("strike", ("LABOR_STRIKE", "STRIKE", "PROTEST")),
+    ("investment", ("ECON_INVESTMENT", "INVESTMENT", "INFRASTRUCTURE")),
+    ("delay", ("DELAY", "DISRUPTION", "CANCEL")),
+    ("service_change", ("PUBLIC_TRANSPORT", "RAIL_TRANSPORT", "TRANSPORT")),
+)
+
+_OPERATOR_ALIASES = {
+    "MÁV": ("MÁV", "MAV", "Hungarian Railways"),
+    "GYSEV": ("GYSEV", "Raaberbahn"),
+    "ÖBB": ("ÖBB", "OBB", "OEBB"),
+    "Westbahn": ("Westbahn",),
+    "RailCargo": ("RailCargo", "Rail Cargo"),
+}
+
+
+def _event_type_from_gkg_themes(themes: Optional[str]) -> str:
+    normalized = _normalize_search_text(themes or "")
+    if not normalized:
+        return "other"
+    for event_type, needles in _GKG_EVENT_THEME_RULES:
+        if event_type not in NEWS_EVENT_TYPES:
+            continue
+        if any(_normalize_search_text(needle) in normalized for needle in needles):
+            return event_type
+    return "other"
+
+
+def _operators_from_gkg(gkg: dict) -> list[str]:
+    haystack = _normalize_search_text(
+        " ".join(
+            str(gkg.get(key) or "")
+            for key in (
+                "gkg_organizations",
+                "organizations",
+                "gkg_persons",
+                "persons",
+            )
+        )
+    )
+    operators = []
+    for operator in KNOWN_OPERATORS:
+        if operator == "other":
+            continue
+        aliases = _OPERATOR_ALIASES.get(operator, (operator,))
+        if any(_normalize_search_text(alias) in haystack for alias in aliases):
+            operators.append(operator)
+    return operators
+
+
+def _normalize_search_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(value))
+    ascii_text = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return ascii_text.casefold()
 
 
 def _is_snippet_article(article: dict) -> bool:
@@ -318,7 +427,12 @@ def _is_snippet_article(article: dict) -> bool:
     return source == "gdelt" or len(body) < 700
 
 
-def _call_llm_once(article: dict, digest: str) -> tuple[Optional[NewsFeature], Optional[ExtractionFailure]]:
+def _call_llm_once(
+    article: dict,
+    digest: str,
+    *,
+    language: Optional[str],
+) -> tuple[Optional[NewsFeature], Optional[ExtractionFailure]]:
     try:
         raw = generate_json(
             _build_prompt(
@@ -337,6 +451,7 @@ def _call_llm_once(article: dict, digest: str) -> tuple[Optional[NewsFeature], O
     if raw is None or not isinstance(raw, dict):
         return None, _failure(article, "model returned no valid JSON object", digest, raw)
 
+    raw = _strip_llm_sentiment(raw)
     raw.setdefault("extraction_timestamp_utc", utc_now())
     raw["extraction_model_digest"] = digest
     raw.setdefault("summary_en_source", "ollama")
@@ -346,8 +461,14 @@ def _call_llm_once(article: dict, digest: str) -> tuple[Optional[NewsFeature], O
         source=str(article.get("source") or "rss"),
         url=str(article.get("url") or ""),
         published_date=article.get("published_date"),
+        language=language,
         event_types=NEWS_EVENT_TYPES,
         operators_allowed=KNOWN_OPERATORS,
+    )
+    feature = _add_sentiment_and_confidence(
+        feature,
+        title=str(article.get("title") or ""),
+        body=str(article.get("body") or ""),
     )
     return feature, None
 
@@ -356,13 +477,14 @@ def _extract_uncached_with_retries(
     article: dict,
     digest: str,
     *,
+    language: Optional[str],
     max_attempts: int,
     retry_backoff_seconds: float,
 ) -> tuple[Optional[NewsFeature], Optional[ExtractionFailure], int]:
     max_attempts = _resolve_max_attempts(max_attempts)
     last_failure = None
     for attempt in range(1, max_attempts + 1):
-        feature, failure = _call_llm_once(article, digest)
+        feature, failure = _call_llm_once(article, digest, language=language)
         if feature is not None:
             return feature, None, attempt
         last_failure = failure
@@ -390,6 +512,7 @@ def _extract_article_cached_outcome(
             latency_seconds=round(time.perf_counter() - started, 3),
         )
 
+    language = _article_language(article)
     cache_key = extract_cache_key(article)
     cached = cache.get(cache_key, digest)
     if cached is not None:
@@ -403,6 +526,7 @@ def _extract_article_cached_outcome(
     feature, failure, attempts = _extract_uncached_with_retries(
         article,
         digest,
+        language=language,
         max_attempts=max_attempts,
         retry_backoff_seconds=retry_backoff_seconds,
     )
@@ -456,20 +580,55 @@ def extract_article(*, article_id: str, source: str, url: str,
     return extract_article_cached(article, cache or NoOpCache())
 
 
+def _gkg_record_to_passthrough_dict(gkg_record: GKGRecord) -> dict:
+    return {
+        "gkg_id": gkg_record.gkg_id,
+        "date": gkg_record.gkg_date,
+        "document_identifier": gkg_record.document_identifier,
+        "url": gkg_record.document_identifier,
+        "source_common_name": gkg_record.source_common_name,
+        "gkg_tone": gkg_record.gkg_tone,
+        "gkg_themes": gkg_record.gkg_themes,
+        "gkg_persons": gkg_record.gkg_persons,
+        "gkg_organizations": gkg_record.gkg_organizations,
+        "gkg_locations": gkg_record.gkg_locations,
+        "gkg_emotions": gkg_record.gkg_emotions,
+    }
+
+
 def gdelt_passthrough(*, article_id: str, url: str, published_date: Optional[str],
-                      gkg_tone: Optional[float], gkg_themes: Optional[str],
-                      gkg_locations: Optional[str]) -> NewsFeature:
-    return gdelt_passthrough_cached(
+                      gkg_tone: Optional[float] = None,
+                      gkg_themes: Optional[str] = None,
+                      gkg_locations: Optional[str] = None,
+                      gkg_persons: Optional[str] = None,
+                      gkg_organizations: Optional[str] = None,
+                      gkg_emotions: Optional[str] = None,
+                      title: str = "",
+                      body: str = "",
+                      language: Optional[str] = None,
+                      gkg_record: Optional[GKGRecord] = None) -> NewsFeature:
+    gkg = _gkg_record_to_passthrough_dict(gkg_record) if gkg_record is not None else {}
+    gkg.update(
         {
             "article_id": article_id,
             "url": url,
             "published_date": published_date,
-            "gkg_tone": gkg_tone,
-            "gkg_themes": gkg_themes,
-            "gkg_locations": gkg_locations,
-        },
-        NoOpCache(),
+            "title": title,
+            "body": body,
+            "language": language,
+        }
     )
+    for key, value in {
+        "gkg_tone": gkg_tone,
+        "gkg_themes": gkg_themes,
+        "gkg_locations": gkg_locations,
+        "gkg_persons": gkg_persons,
+        "gkg_organizations": gkg_organizations,
+        "gkg_emotions": gkg_emotions,
+    }.items():
+        if value is not None:
+            gkg[key] = value
+    return gdelt_passthrough_cached(gkg, NoOpCache())
 
 
 def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeature:
@@ -488,21 +647,25 @@ def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeatu
         return cached
     tone = _float_or_none(_first_value_by_key_presence(gkg, "gkg_tone", "tone"))
     sentiment = _tone_to_sentiment(tone)
+    language = _article_language(article) or _validated_language_code(gkg.get("language"))
     feature = NewsFeature(
         article_id=str(article["article_id"]),
         source="gdelt",
         url=str(article["url"] or ""),
         published_date=article["published_date"],
-        language=gkg.get("language"),
+        language=language,
         is_rail_related=True,
         country=_country_from_gkg(gkg),
-        event_type="other",
-        operators=[],
+        event_type=_event_type_from_gkg_themes(
+            gkg.get("gkg_themes") or gkg.get("themes")
+        ),
+        operators=_operators_from_gkg(gkg),
         rail_lines=[],
         summary_en=None,
         sentiment=sentiment,
         confidence=None,
         sentiment_label=sentiment,
+        language_detected_code=language,
         gkg_themes=gkg.get("gkg_themes") or gkg.get("themes"),
         gkg_persons=gkg.get("gkg_persons") or gkg.get("persons"),
         gkg_organizations=gkg.get("gkg_organizations") or gkg.get("organizations"),
@@ -519,6 +682,56 @@ def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeatu
 
 def _has_gkg_fields(article: dict) -> bool:
     return any(str(key).startswith("gkg_") for key in article) or "tone" in article
+
+
+def _merge_gkg_record(article: dict, gkg_record: GKGRecord) -> dict:
+    merged = dict(article)
+    gkg = _gkg_record_to_passthrough_dict(gkg_record)
+    merged.update({key: value for key, value in gkg.items() if value is not None})
+    merged["article_id"] = article.get("article_id")
+    merged["source"] = article.get("source")
+    merged["title"] = article.get("title")
+    merged["body"] = article.get("body")
+    merged["url"] = article.get("url") or gkg_record.document_identifier or ""
+    merged["published_date"] = article.get("published_date") or gkg_record.gkg_date
+    return merged
+
+
+def _find_matching_gkg_record(article: dict, gkg_records: list[GKGRecord]) -> Optional[GKGRecord]:
+    article_id = str(article.get("article_id") or "")
+    article_url = str(article.get("url") or "")
+    for record in gkg_records:
+        if article_id and article_id in {record.gkg_id, record.document_identifier}:
+            return record
+        if article_url and match_gkg_to_article(record, article_url):
+            return record
+    return None
+
+
+def _enrich_articles_with_gkg_records(
+    articles: list[dict],
+    gkg_records: Optional[list[GKGRecord]],
+) -> list[dict]:
+    if not gkg_records:
+        return articles
+    enriched = []
+    for article in articles:
+        if str(article.get("source") or "").lower() == "gdelt":
+            match = _find_matching_gkg_record(article, gkg_records)
+            if match is not None:
+                logger.info(
+                    "GDELT article %s using GKG passthrough record %s",
+                    article.get("article_id"),
+                    match.gkg_id,
+                )
+                enriched.append(_merge_gkg_record(article, match))
+                continue
+        logger.info(
+            "article %s using LLM extraction path",
+            article.get("article_id"),
+        )
+        enriched.append(article)
+    return enriched
 
 
 def _effective_concurrency() -> int:
@@ -593,6 +806,7 @@ def run_extraction_pipeline(
     *,
     cache: CacheBackend = None,
     manifest_path=None,
+    gkg_records: Optional[list[GKGRecord]] = None,
     warm_up: bool = True,
     unload_after: bool = False,
     lifecycle: OllamaLifecycle | None = None,
@@ -601,6 +815,7 @@ def run_extraction_pipeline(
 ) -> ExtractionRunResult:
     """Run a cached, observable extraction pass over a batch of articles."""
     articles = [_article_to_dict(article) for article in articles]
+    articles = _enrich_articles_with_gkg_records(articles, gkg_records)
     cache = cache or NoOpCache()
     max_attempts = _resolve_max_attempts(max_attempts)
     retry_backoff_seconds = (
@@ -745,11 +960,16 @@ def extract_batch(articles: list, *, cache: CacheBackend = None) -> tuple[list, 
     return result.features, result.failures
 
 
-def article_records_to_news_features(records: list) -> list:
+def article_records_to_news_features(
+    records: list,
+    *,
+    gkg_records: Optional[list[GKGRecord]] = None,
+) -> list:
     articles = [
         r.to_row() if hasattr(r, "to_row") else dict(r)
         for r in records
     ]
+    articles = _enrich_articles_with_gkg_records(articles, gkg_records)
     successes, failures = extract_batch(articles)
     if failures:
         logger.warning("article_records_to_news_features dropped %d failed articles", len(failures))
