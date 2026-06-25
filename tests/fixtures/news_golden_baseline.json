@@ -1,0 +1,35 @@
+{
+  "baseline_note": "Synthetic placeholder baseline for deterministic harness tests only; not real model-quality evidence.",
+  "boot_seed": 12345,
+  "digest_bundle": {
+    "embedding_model_digest": null,
+    "extractor_version": "synthetic-harness-v1",
+    "lid_model_digest": null,
+    "llm_model_digest": "synthetic-baseline",
+    "prompt_version": "synthetic",
+    "sentiment_model_digest": null
+  },
+  "metrics": {
+    "country_macro_f1": {
+      "ci_hi": 1.0,
+      "ci_lo": 1.0,
+      "value": 1.0
+    },
+    "event_superclass_macro_f1": {
+      "ci_hi": 1.0,
+      "ci_lo": 1.0,
+      "value": 1.0
+    },
+    "is_rail_related_recall": {
+      "ci_hi": 1.0,
+      "ci_lo": 1.0,
+      "value": 1.0
+    },
+    "language_accuracy": {
+      "ci_hi": 1.0,
+      "ci_lo": 1.0,
+      "value": 1.0
+    }
+  },
+  "schema_version": "gap043-baseline-v1"
+}

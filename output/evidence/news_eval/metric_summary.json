@@ -1,0 +1,146 @@
+{
+  "country_macro_f1": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": 0.8,
+    "value": 1.0
+  },
+  "dedup_bcubed_f1": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": null,
+    "value": 1.0
+  },
+  "dedup_geoyear_count_error": {
+    "ci_hi": 0.0,
+    "ci_lo": 0.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": 0.1,
+    "value": 0.0
+  },
+  "event_superclass_macro_f1": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": 0.5,
+    "value": 1.0
+  },
+  "is_rail_related_f1": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": null,
+    "value": 1.0
+  },
+  "is_rail_related_precision": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": null,
+    "value": 1.0
+  },
+  "is_rail_related_recall": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 3,
+    "threshold": 0.9,
+    "value": 1.0
+  },
+  "language_accuracy": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": 0.95,
+    "value": 1.0
+  },
+  "llm_confidence_ece": {
+    "ci_hi": null,
+    "ci_lo": null,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": null,
+    "value": 0.09999999999999998
+  },
+  "monetary_match_rate": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 1,
+    "threshold": null,
+    "value": 1.0
+  },
+  "operators_micro_f1": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": null,
+    "value": 1.0
+  },
+  "rail_lines_recall": {
+    "ci_hi": 1.0,
+    "ci_lo": 0.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 4,
+    "threshold": null,
+    "value": 1.0
+  },
+  "sentiment_macro_f1_de": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 1,
+    "threshold": 0.6,
+    "value": 1.0
+  },
+  "sentiment_macro_f1_en": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 2,
+    "threshold": null,
+    "value": 1.0
+  },
+  "sentiment_macro_f1_hu": {
+    "ci_hi": 1.0,
+    "ci_lo": 1.0,
+    "gated": false,
+    "status": "report_only",
+    "support": 1,
+    "threshold": null,
+    "value": 1.0
+  },
+  "summary_rouge_l": {
+    "ci_hi": null,
+    "ci_lo": null,
+    "gated": false,
+    "status": "report_only",
+    "support": 0,
+    "threshold": null,
+    "value": null
+  }
+}

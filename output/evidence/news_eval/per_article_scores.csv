@@ -1,0 +1,5 @@
+article_id,partition,language_gold,is_rail_related_match,event_superclass_match,event_10way_match,sentiment_match,country_match,language_match,monetary_match,operators_f1,rail_lines_recall,dup_group_match,overall_score
+synthetic-test-001,TEST,en,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+synthetic-test-002,TEST,de,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+synthetic-test-003,TEST,hu,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+synthetic-test-004,TEST,en,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0

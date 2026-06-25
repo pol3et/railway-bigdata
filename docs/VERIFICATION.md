@@ -65,6 +65,49 @@ before running tests in this shell because the regex contains a backtick, which
 PowerShell treats as an escape character. The same three checks were run as the
 PowerShell-safe commands above.
 
+## GAP-043 news evaluation harness (2026-06-25)
+
+GAP-043 ships the Option C harness only: deterministic metrics, TUNE/TEST
+partition filtering, min-support demotion, bootstrap CIs, CI-overlap
+non-regression checks, model-digest manifesting, a synthetic placeholder golden
+set, and protocol docs for a future real labeled corpus. It does not run live
+Ollama/XLM-R/language-ID, fetch articles, or label real data.
+
+Data-availability blocker: the committed GAP-033 Silver sample does not include
+original title/body text, and the raw Bronze text sample is absent/gitignored.
+Real Sonnet-labeled quality numbers remain blocked on an owner-approved bounded
+re-extraction that retains labelable title/body evidence. The synthetic fixture
+under `tests/fixtures/news_golden_set.json` is seed data for harness plumbing
+only, not a model-quality claim.
+
+Commands:
+
+```powershell
+python -m pip install -e ".[test]" -c constraints.txt
+python -m pytest -q tests/test_news_eval_harness.py
+python -m railway_lakehouse.eval.harness --golden-set tests/fixtures/news_golden_set.json --extraction-results tests/fixtures/news_synthetic_predictions.json --model-digest synthetic-baseline --out output/evidence/news_eval --partition TEST --min-support 30 --boot-seed 12345
+python -m pytest -q
+python -m compileall -q src tests
+python -c "import railway_lakehouse.eval.harness; import railway_lakehouse.eval.news"
+git diff --check
+```
+
+Observed results:
+
+- Editable install updated the local package pointer to this worktree.
+- Focused harness test passed: 10 passed.
+- Synthetic harness smoke exited 0 and wrote
+  `output/evidence/news_eval/manifest.json`,
+  `output/evidence/news_eval/metric_summary.json`, and
+  `output/evidence/news_eval/per_article_scores.csv`; status is `passed`, with
+  all default gates demoted to report-only because the synthetic TEST support is
+  below 30.
+- Full suite passed: 299 passed, 7 skipped. Skips are pre-existing optional
+  embedding/Spark environment skips.
+- Compileall passed.
+- Exact eval-module import command passed.
+- `git diff --check` passed with CRLF normalization warnings only.
+
 Additional local stats Bronze -> Gold validation (GAP-012 corrected recipe,
 2026-06-24):
 
