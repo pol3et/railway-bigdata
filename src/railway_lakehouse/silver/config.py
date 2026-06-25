@@ -31,6 +31,13 @@ SILVER_BUCKET = os.environ.get("SILVER_BUCKET", "silver")
 # Where the cached column crosswalk lives (review-and-commit artifact).
 CROSSWALK_PATH = os.environ.get("CROSSWALK_PATH", "silver/crosswalk_cache.json")
 
+# Local file-per-article cache for expensive news extraction. This is a
+# per-machine optimization and is intentionally not committed.
+NEWS_EXTRACTION_CACHE_ROOT = os.environ.get(
+    "NEWS_EXTRACTION_CACHE_ROOT",
+    "silver/.news_extraction_cache",
+)
+
 # --- Canonical English feature vocabulary for the merged stats table ---
 # Small and bounded on purpose: every source column maps to one of these (or
 # stays unmapped). Units are the canonical unit each feature is normalized to in

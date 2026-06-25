@@ -96,8 +96,8 @@ class NoOpCache:
 class FileSystemCache:
     """File-per-article JSON cache grouped by model digest."""
 
-    def __init__(self, root="silver/.news_extraction_cache"):
-        self.root = Path(root)
+    def __init__(self, root=None):
+        self.root = Path(root or config.NEWS_EXTRACTION_CACHE_ROOT)
         self._hits = 0
         self._misses = 0
 

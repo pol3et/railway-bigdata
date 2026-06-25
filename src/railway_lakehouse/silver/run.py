@@ -19,6 +19,7 @@ import logging
 from .ollama_client import health_check
 from .stats import merge as stats_merge
 from .news import extract as news_extract
+from .news.cache import FileSystemCache
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -43,16 +44,25 @@ def run_stats(frames_with_system: list) -> "object":
     return unified
 
 
-def run_news(articles: list) -> list:
+def run_news(articles: list, *, cache_root=None) -> list:
     """articles: list of dicts {article_id, source, url, title, body, published_date}.
     Returns NewsFeature rows. Requires a reachable Ollama for RSS extraction."""
     if not health_check():
         logger.error("Ollama not reachable (%s); cannot extract news features.",
                      "set OLLAMA_HOST / start the server")
         return []
-    feats, failures = news_extract.extract_batch(articles)
+    cache = FileSystemCache(cache_root)
+    feats, failures = news_extract.extract_batch(articles, cache=cache)
     if failures:
         logger.warning("NEWS: %d extraction failures", len(failures))
+    cache_stats = cache.cache_stats()
+    logger.info(
+        "NEWS cache: %d hits, %d misses, %d cached rows at %s",
+        cache_stats.get("hits", 0),
+        cache_stats.get("misses", 0),
+        cache_stats.get("cached_count", 0),
+        cache_stats.get("root"),
+    )
     logger.info("NEWS: produced %d feature rows", len(feats))
     return feats
 

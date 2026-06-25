@@ -110,6 +110,13 @@ def _float_or_none(value):
         return None
 
 
+def _first_value_by_key_presence(mapping: dict, *keys: str):
+    for key in keys:
+        if key in mapping:
+            return mapping.get(key)
+    return None
+
+
 def _tone_to_sentiment(gkg_tone: Optional[float]) -> Optional[str]:
     if gkg_tone is None:
         return None
@@ -214,7 +221,7 @@ def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeatu
     cached = cache.get(cache_key, GDELT_PASSTHROUGH_DIGEST)
     if cached is not None:
         return cached
-    tone = _float_or_none(gkg.get("gkg_tone") or gkg.get("tone"))
+    tone = _float_or_none(_first_value_by_key_presence(gkg, "gkg_tone", "tone"))
     sentiment = _tone_to_sentiment(tone)
     feature = NewsFeature(
         article_id=str(article["article_id"]),

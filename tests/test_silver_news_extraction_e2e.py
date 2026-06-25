@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from railway_lakehouse.silver import run as silver_run
 from railway_lakehouse.silver import persist
 from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver.news.cache import FileSystemCache
@@ -124,3 +125,37 @@ def test_fixture_news_cached_extraction_persist_reload(monkeypatch, tmp_path):
     assert failures
     assert failure_path.name == "failures.json"
     assert failure_path.exists()
+
+
+def test_run_news_uses_filesystem_cache_between_production_runs(monkeypatch, tmp_path):
+    articles = [
+        {
+            "article_id": "prod-1",
+            "source": "rss",
+            "title": "Rail upgrade",
+            "url": "https://example.test/prod-1",
+            "body": "Railway expansion announced.",
+            "published_date": "2026-06-22",
+        }
+    ]
+    calls = {"count": 0}
+
+    def fake_generate_json(prompt, *, schema=None, system=None):
+        calls["count"] += 1
+        return _raw_feature()
+
+    monkeypatch.setattr(silver_run, "health_check", lambda: True)
+    monkeypatch.setattr(news_extract, "generate_json", fake_generate_json)
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:4b")
+
+    first = silver_run.run_news(
+        articles,
+        cache_root=tmp_path / ".news_extraction_cache",
+    )
+    second = silver_run.run_news(
+        articles,
+        cache_root=tmp_path / ".news_extraction_cache",
+    )
+
+    assert calls["count"] == 1
+    assert [row.to_row() for row in second] == [row.to_row() for row in first]

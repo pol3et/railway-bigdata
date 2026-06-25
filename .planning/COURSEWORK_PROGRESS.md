@@ -1592,3 +1592,23 @@ Evidence:
 
 Next:
 - PR `impl/gap-039` to `main`; downstream unblocked tasks are GAP-031-GAP-038 and GAP-040, with live LLM prompt/run work continuing in GAP-050/GAP-033.
+
+## 2026-06-25 - GAP-039 PR review fixes
+
+Status: done; pushed to PR #28.
+
+Research:
+- Local review only; the existing GAP-039 research record was updated with review-fix notes.
+
+Changed:
+- Wired `FileSystemCache` into `pipeline.run_pipeline()` and `silver.run.run_news()`.
+- Preserved GDELT/GKG metadata through `_normalize_article()`.
+- Fixed zero-tone passthrough and added focused regressions.
+
+Evidence:
+- Focused regressions: 4 passed.
+- Compileall passed.
+- Full suite: 187 passed, 3 skipped.
+
+Next:
+- Monitor PR #28 mergeability/checks and proceed to GAP-050/GAP-033 after merge.

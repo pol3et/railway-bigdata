@@ -327,6 +327,31 @@ def test_gdelt_passthrough_cached_populates_gkg_without_llm(monkeypatch, tmp_pat
     assert feature.extraction_model_digest == "gdelt_gkg_passthrough"
 
 
+def test_gdelt_passthrough_preserves_zero_tone(monkeypatch, tmp_path):
+    cache = FileSystemCache(tmp_path / ".news_extraction_cache")
+    monkeypatch.setattr(
+        news_extract,
+        "generate_json",
+        lambda *args, **kwargs: pytest.fail("GDELT passthrough must not call Ollama"),
+    )
+
+    feature = news_extract.gdelt_passthrough_cached(
+        {
+            "article_id": "g-zero",
+            "url": "https://example.test/g-zero",
+            "published_date": "2026-06-22",
+            "gkg_tone": 0,
+            "tone": 9.0,
+            "gkg_themes": "RAIL",
+        },
+        cache,
+    )
+
+    assert feature.gkg_tone == 0.0
+    assert feature.sentiment == "neutral"
+    assert feature.sentiment_label == "neutral"
+
+
 def test_extract_batch_returns_successes_and_failures(monkeypatch, tmp_path, caplog):
     cache = FileSystemCache(tmp_path / ".news_extraction_cache")
     monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _valid_raw())

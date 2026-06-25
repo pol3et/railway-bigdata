@@ -28,3 +28,10 @@ Workflow: `research-orchestrator` used as required by `AGENTS.md`. Local files w
 - The cache key follows the supplied pitfall for this implementation: SHA-256 over `article_id`, title, body, URL, and published date so changed content or URL misses the cache.
 - `model_digest_key()` reads `OLLAMA_MODEL` at call time and hashes the current config/prompt/schema identity. It is a cache invalidation key, not a binary-weight authenticity digest.
 - Existing `rss_records_to_news_features()` compatibility is preserved by unwrapping successes from the new tuple-returning `extract_batch()`.
+
+## PR Review Fix Notes
+
+- Local review of PR #28 found the production callers were not passing the file-system cache to `extract_batch()`. The fix wires a configurable `FileSystemCache` into both `pipeline.run_pipeline()` and `silver.run.run_news()`.
+- Local Bronze normalization now preserves known GDELT/GKG fields (`gkg_*`, `tone`, `sourcecountry`, `language`, `domain`, `socialimage`) so `extract_batch()` can select `gdelt_passthrough_cached()` for annotated rows.
+- The GDELT tone resolver now selects by key presence rather than truthiness, preserving `gkg_tone=0` as a valid neutral tone.
+- No new external research was needed for these review fixes; they were verified against local code paths and tests.

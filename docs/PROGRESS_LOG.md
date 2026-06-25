@@ -1776,3 +1776,30 @@ Evidence:
 
 Next:
 - Open PR for `impl/gap-039` against `main`; continue Wave 6 with GAP-050 then GAP-033 after merge.
+
+## 2026-06-25 - GAP-039 PR review fixes
+
+Status: done; PR #28 updated.
+
+Changed:
+- `src/railway_lakehouse/pipeline.py`
+- `src/railway_lakehouse/silver/run.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/config.py`
+- `tests/test_pipeline_gaps.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_silver_news_wide_contract.py`
+
+Findings:
+- Production news extraction now passes a configurable `FileSystemCache` instead of the no-op default.
+- Bronze GDELT normalization preserves GKG/tone/source metadata so passthrough rows avoid the LLM.
+- GDELT tone selection now preserves a valid `0` tone as neutral.
+
+Evidence:
+- Focused regressions: 4 passed.
+- `python -m compileall -q src tests` -> passed.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 187 passed, 3 skipped.
+
+Next:
+- Wait for PR #28 checks/review; continue with GAP-050/GAP-033 after merge.
