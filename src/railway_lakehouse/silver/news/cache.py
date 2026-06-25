@@ -83,8 +83,13 @@ def model_digest_key() -> str:
     time so changing model tags invalidates cached LLM extractions.
     """
     from . import extract, sentiment_encoder
+    from .. import language_id
 
     payload = {
+        "language_id_package": language_id.LANGUAGE_ID_PACKAGE,
+        "language_id_version": language_id.LANGUAGE_ID_VERSION,
+        "language_id_languages": language_id.LANGUAGE_ID_LANGUAGES,
+        "language_id_model_digest": language_id.LANGUAGE_ID_MODEL_DIGEST,
         "ollama_model": os.environ.get("OLLAMA_MODEL", config.OLLAMA_MODEL),
         "sentiment_model": sentiment_encoder.MODEL_NAME,
         "sentiment_model_revision": sentiment_encoder.MODEL_REVISION,

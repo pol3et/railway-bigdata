@@ -26,7 +26,6 @@ def _raw_feature():
         "monetary_raw": None,
         "summary_en": "Railway investment was announced.",
         "sentiment": "positive",
-        "language": "en",
         "confidence": 0.9,
     }
 

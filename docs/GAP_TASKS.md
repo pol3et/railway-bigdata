@@ -2540,20 +2540,20 @@ cat output/evidence/news_eval/manifest.json
 
 `MID` · level **bronze** · effort **S** · depends on: none (additive to an existing source list; everything else the analysis needs is already collected).
 
-**Build:** Add exactly the genuinely-new World Bank indicators the feature-availability audit identified — `IS.VEH.PCAR.P3` (passenger cars per 1,000 people) and `PA.NUS.PPP` (PPP conversion factor, GDP) — to `EU_STATS_INDICATORS`, map them to canonical features, and prove they land + reach Gold for AT/HU.
+**Build:** Add exactly the genuinely-new World Bank indicator IDs the feature-availability audit identified — `IS.VEH.PCAR.P3` (passenger cars per 1,000 people) and `PA.NUS.PPP` (PPP conversion factor, GDP) — to `EU_STATS_INDICATORS`, map them to canonical features, and prove the wiring through Gold. Live research correction: current World Bank API data gives AT/HU coverage for `PA.NUS.PPP`; `IS.VEH.PCAR.P3` lands and maps but currently has zero AT/HU non-null rows because World Bank exposes it through an older ADI/licensing-limited path.
 
-**Context.** The closing analysis needs a car-ownership and a PPP signal to test H17 (cars-per-capita vs rail passenger-km). The sibling feature audit confirmed that GDP growth (`NY.GDP.MKTP.KD.ZG`), population density (`EN.POP.DNST`), Gini (`SI.POV.GINI`), CO2 (`EN.GHG.CO2.PC.CE.AR5`, `EN.ATM.CO2E.PC`) and GDP levels are ALREADY in `EU_STATS_INDICATORS` (verified at `src/railway_lakehouse/bronze/sources/worldbank.py:54-71`). Only cars-per-1000 and PPP are missing, and the originally-requested `IS.VEH.NVEH.P3` is DEPRECATED/retired on the WB API — use `IS.VEH.PCAR.P3` instead.
+**Context.** The closing analysis needs a car-ownership and a PPP signal to test H17 (cars-per-capita vs rail passenger-km). The sibling feature audit confirmed that GDP growth (`NY.GDP.MKTP.KD.ZG`), population density (`EN.POP.DNST`), Gini (`SI.POV.GINI`), CO2 (`EN.GHG.CO2.PC.CE.AR5`, `EN.ATM.CO2E.PC`) and GDP levels are ALREADY in `EU_STATS_INDICATORS` (verified at `src/railway_lakehouse/bronze/sources/worldbank.py:54-71`). Only cars-per-1000 and PPP are missing. The originally-requested `IS.VEH.NVEH.P3` remains unusable for this API path and must not be added. Live research found `IS.VEH.PCAR.P3` metadata but no current AT/HU observations; H17 must report this coverage gap if it uses World Bank car data.
 
 **Problem.** `EU_STATS_INDICATORS` (worldbank.py:54-71) has no vehicle-ownership or PPP indicator, so H17 cannot be tested and any cars-per-capita claim would need a new source. `CANONICAL_FEATURES` (`src/railway_lakehouse/silver/config.py:27+`) has no `cars_per_1000` or `ppp_conversion_factor` key, and `_WB_INDICATOR_FEATURE` (`src/railway_lakehouse/silver/stats/merge.py:266-269`) maps only rail indicators, so even if landed the columns would not reach Gold.
 
 **Steps.**
-1. RESEARCH (mandatory): invoke `research-orchestrator`; route via Context7/Ref/Tavily to confirm on the live World Bank API that `IS.VEH.PCAR.P3` and `PA.NUS.PPP` are active (not retired) and have AT/HU coverage, and that `IS.VEH.NVEH.P3` is retired. Write `.planning/coursework/research/bigdata/macro-indicators-gap045.md` naming research-orchestrator + provider(s) + queries + source URLs.
+1. RESEARCH (mandatory): invoke `research-orchestrator`; route via Context7/Ref/Tavily to confirm on the live World Bank API that `PA.NUS.PPP` is active with AT/HU coverage, that `IS.VEH.PCAR.P3` metadata/data is usable only with a coverage caveat under the current API, and that `IS.VEH.NVEH.P3` is not added. Write `.planning/coursework/research/bigdata/macro-indicators-gap045.md` naming research-orchestrator + provider(s) + queries + source URLs.
 2. Add `IS.VEH.PCAR.P3` and `PA.NUS.PPP` to `EU_STATS_INDICATORS` in `worldbank.py:54-71` (deduped — `list(dict.fromkeys(...))` already protects against dupes at line 150).
 3. Add canonical keys `cars_per_1000` ("Passenger cars per 1,000 people") and `ppp_conversion_factor` ("PPP conversion factor, GDP (LCU per international $)") to `CANONICAL_FEATURES` in `silver/config.py`.
 4. Map both in `_WB_INDICATOR_FEATURE` (`silver/stats/merge.py:266`): `"IS.VEH.PCAR.P3": "cars_per_1000"`, `"PA.NUS.PPP": "ppp_conversion_factor"`.
 5. Add a deterministic unit test (marker `unit`, tmp_path) that feeds a tiny WB-JSON fixture for each new indicator through `load_worldbank_frame` + the crosswalk and asserts the canonical feature key appears in the long frame with numeric values for AT/HU. NO live network in the test.
 6. DOCS/DASHBOARD SYNC: note the two new indicators in `README.md` data-inventory and `docs/STATE_AND_ROADMAP.md` Data Inventory; set GAP-045 status in `docs/GAP_REGISTER.md` + Test Failure Mapping row; append `docs/PROGRESS_LOG.md` handoff.
-7. RUN + RECORD: run a bounded live World Bank Bronze→Silver→Gold (`--max-artifacts` small) and confirm `cars_per_1000` / `ppp_conversion_factor` appear as Gold columns for AT/HU; record counts under `output/evidence/macro-indicators-gap045/`.
+7. RUN + RECORD: run a bounded live World Bank Bronze→Silver→Gold (`--max-artifacts` small) and confirm `cars_per_1000` / `ppp_conversion_factor` appear as Gold columns; record AT/HU non-null counts under `output/evidence/macro-indicators-gap045/` and do not claim AT/HU car coverage unless the live API provides non-null rows.
 
 **Files to touch:** `src/railway_lakehouse/bronze/sources/worldbank.py` `src/railway_lakehouse/silver/config.py` `src/railway_lakehouse/silver/stats/merge.py` `tests/test_silver_stats_crosswalk.py (or new tests/test_macro_indicators.py)` `README.md` `docs/STATE_AND_ROADMAP.md` `docs/GAP_REGISTER.md` `docs/PROGRESS_LOG.md` `.planning/coursework/research/bigdata/macro-indicators-gap045.md (new)`
 
@@ -2561,13 +2561,13 @@ cat output/evidence/news_eval/manifest.json
 - [ ] `IS.VEH.PCAR.P3` and `PA.NUS.PPP` are in `EU_STATS_INDICATORS`; `IS.VEH.NVEH.P3` is NOT added (it is retired).
 - [ ] `cars_per_1000` and `ppp_conversion_factor` exist in `CANONICAL_FEATURES` and are mapped in `_WB_INDICATOR_FEATURE`.
 - [ ] A `unit`-markered tmp_path test proves both indicators crosswalk to their canonical keys with numeric AT/HU values; `python -m pytest -q` stays green.
-- [ ] A recorded bounded live run shows both as Gold columns for AT/HU (counts under `output/evidence/macro-indicators-gap045/`).
+- [ ] A recorded bounded live run shows both as Gold columns and records AT/HU coverage counts under `output/evidence/macro-indicators-gap045/`; current expected evidence is `ppp_conversion_factor` with AT/HU rows and `cars_per_1000` with 0 AT/HU rows due upstream coverage.
 - [ ] Dashboard/docs synced; GAP-045 row + Test Failure Mapping updated; research record written.
 - [ ] Raw Bronze untouched; numeric merge stays deterministic (no LLM on these numbers).
 
 **Verify:** `python -m pytest -q -m unit && python -c "from railway_lakehouse.bronze.sources.worldbank import EU_STATS_INDICATORS as I; assert 'IS.VEH.PCAR.P3' in I and 'PA.NUS.PPP' in I and 'IS.VEH.NVEH.P3' not in I; from railway_lakehouse.silver.config import CANONICAL_FEATURES as C; assert 'cars_per_1000' in C and 'ppp_conversion_factor' in C"`
 
-**Pitfalls.** Do NOT add the retired `IS.VEH.NVEH.P3`. cars-per-1000 is sparse post-2018 — H17 must report coverage, not assume density. Keep this purely additive; do not touch rail indicators or the Eurostat path. Numeric values are read verbatim (no LLM). Tests use tmp_path fixtures, never coursework/ or output/ data.
+**Pitfalls.** Do NOT add `IS.VEH.NVEH.P3`. The World Bank passenger-car indicator is not just sparse for AT/HU in the current API; it currently has zero AT/HU non-null rows, so H17 must report coverage, not assume density. Keep this purely additive; do not touch rail indicators or the Eurostat path. Numeric values are read verbatim (no LLM). Tests use tmp_path fixtures, never coursework/ or output/ data.
 
 ### GAP-046 — Spark EDA artifact harness (correlation incl deltas, lag cross-corr, panels, coverage, distributions)
 

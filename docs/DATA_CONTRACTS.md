@@ -44,6 +44,52 @@ Target row: `StatFact` from `src/railway_lakehouse/silver/schema.py`.
 
 Rule: numeric values must be parsed and merged deterministically. LLM use is limited to label mapping where needed.
 
+## Silver UIC Staging Contract
+
+Producer: `src/railway_lakehouse/silver/stats/load.py`.
+
+Consumer: audit/reparse workflows; Gold does not aggregate this table yet.
+
+Purpose: preserve every extracted UIC PDF table row plus text chunks from
+text-only UIC publications so parser mappings can expand without fetching or
+re-parsing Bronze bytes.
+
+Frozen local path contract:
+
+```text
+silver/uic_staging/ingest_date=YYYY-MM-DD/uic_staging.parquet
+```
+
+Schema:
+
+| Field | Meaning |
+|---|---|
+| `table_name` | Constant `uic_staging`. |
+| `dataset_id` | Bronze UIC dataset id, such as `uic_synopsis` or `uic_traffic_trends_2024`. |
+| `table_id` | Stable grouping key: `dataset_id + "_" + table_idx + "_" + row_type`. |
+| `table_idx` | Ordinal position from `pdfplumber` table extraction; `-1` for text chunks. |
+| `row_type` | `header`, `data_row`, or `text_chunk`. |
+| `row_idx` | Row ordinal inside the table, or text-chunk ordinal for `text_chunk`. |
+| `parse_status` | `success`, `geo_unmapped`, `year_missing`, `value_unparseable`, `table_mismatch`, or `text_only`. |
+| `geo` | Parsed ISO-like project geo where available; null for headers, text chunks, and unmapped rows. |
+| `year` | Parsed observation year where available. |
+| `source_dataset` | Same value as `dataset_id`, retained for source lineage parity. |
+| `source_system` | Constant `uic`. |
+| `raw_geo_cell` | Original unparsed country-code cell. |
+| `raw_year_cell` | Original unparsed railway-company/year cell. |
+| `raw_value_cells` | Original unparsed cells from mapped value columns, as `list<string>`. |
+| `text_chunk` | Extracted text line for `text_chunk` rows; empty for table rows. |
+| `created_at` | UTC ISO timestamp when the row was staged. |
+
+Rules:
+
+- Bronze PDF bytes remain immutable; staging is a Silver audit output.
+- Numeric values that feed `StatFact` remain deterministic parser output. UIC
+  staging rows are not LLM-rewritten and do not feed Gold until a later task
+  explicitly wires them.
+- The Traffic Trends PDF has extractable text but no country-level synopsis
+  table; it is represented as `text_chunk` rows with `parse_status="text_only"`.
+
 ## Silver News Contract
 
 Target row: `NewsFeature` from `src/railway_lakehouse/silver/schema.py`.
@@ -195,7 +241,12 @@ silver/news/news_feature/ingest_date=YYYY-MM-DD/news_feature.parquet
 
 ## Gold Contract
 
-Grain: one row per `(geo, year)`.
+Default grain: one row per `(geo, year)`.
+
+Sub-annual option: `aggregate_news(..., granularity="year-month")` and
+`build_gold(..., granularity="year-month")` emit news features at
+`(geo, year, month)`. When yearly stats are merged with year-month news,
+stats join on `(geo, year)` and repeat across months that have news.
 
 Inputs:
 
@@ -205,7 +256,33 @@ Inputs:
 Outputs:
 
 - Wide statistical feature columns.
-- News aggregate columns such as article counts, event counts, sentiment, investment totals, and operator mentions.
+- News aggregate columns:
+  - Existing deterministic features: `news_article_count`,
+    `news_sentiment_mean`, `news_share_negative`,
+    `news_total_investment_eur`, canonical `news_n_<event_type>` counts, and
+    canonical `news_op_<operator>` counts.
+  - Language features: canonical ISO 639-1 count columns
+    `news_language_hu`, `news_language_de`, `news_language_en`,
+    `news_language_fr`, `news_language_es`, `news_language_it`,
+    `news_language_pl`, `news_language_ro`, `news_language_sk`,
+    `news_language_cs`, plus `news_language_primary` and
+    `news_language_entropy`. Czech is `cs`; `cz` is not an ISO 639-1
+    language code.
+  - Confidence features: `news_confidence_mean`, `news_confidence_std`,
+    `news_confidence_min`, `news_confidence_max`, and
+    `news_confidence_bin_low`, `news_confidence_bin_medium`,
+    `news_confidence_bin_high` for `[0,0.33]`, `(0.33,0.67]`,
+    `(0.67,1.0]`.
+  - Rail-line features: `news_n_rail_lines_unique` and
+    `news_rail_lines_list`. Gold intentionally does not pivot arbitrary
+    free-text rail-line names until a canonical rail-line gazetteer exists.
+  - GKG-ready features from already-persisted Silver `gkg_*` fields:
+    `news_gkg_tone_mean/std/min/max`, `news_n_gkg_<field>_unique`, and
+    `news_gkg_<field>_list` for themes, persons, organizations, locations,
+    and emotions. Raw GKG csv.zip parsing and canonical theme/CAMEO pivots
+    remain deferred to the GKG parser task.
 - Parquet output written through `src/railway_lakehouse/gold/build.py`.
 
-Rule: absence of news can be zero for count-like news columns. Missing statistical observations remain null/NaN.
+Rule: absence of news can be zero for count-like news columns and empty for
+deterministic list columns. Missing statistical observations and statistical
+news summaries such as sentiment/confidence/tone means remain null/NaN.

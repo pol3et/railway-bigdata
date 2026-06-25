@@ -2,6 +2,40 @@
 
 This is the single persistent log for `bigdata/course_proj`. Future agents should append here before stopping.
 
+## 2026-06-25 - GAP-042 Statistik Austria ODS Reader
+
+Status: done; ready for PR.
+
+Changed:
+- `pyproject.toml`
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `tests/test_silver_stats_stataustria.py`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `docs/STATE_AND_ROADMAP.md`
+- `.planning/coursework/research/bigdata/silver-stataustria-ods-reader.md`
+- `.planning/coursework/plans/bigdata/gap-042-stataustria-ods-reader.md`
+
+Findings:
+- The original GAP-042 spec was right on `odfpy`/pandas ODS IO, but thin on real file layout: the freight ODS stores years as `Berichtsjahr YYYY` rows with totals under `Insgesamt`, while rolling-stock files use repeated year-column header blocks.
+- `load_stataustria_frame` now reads ODS bytes deterministically, emits `geo=AT` `StatFact` rows, preserves German source labels, and registers `statistik_austria` in `_SOURCES`.
+- Narrow German crosswalk rules map the emitted total freight and rolling-stock labels without LLM use; numeric values still come only from pandas coercion.
+
+Evidence:
+- TDD RED: `python -m pytest -q tests/test_silver_stats_stataustria.py` failed before implementation with missing `load_stataustria_frame` and missing `.ods` routing.
+- `python -m pip install -e ".[test]"` passed and installed/confirmed `odfpy==1.4.1`.
+- `python -m pytest -q tests/test_silver_stats_stataustria.py` -> 5 passed.
+- `python -m pytest -q -m unit` -> 175 passed, 31 deselected.
+- `python -m pytest -q` -> 200 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with CRLF normalization warnings only.
+- Bounded runtime smoke over direct Statistik Austria ODS downloads under `output/runtime/gap-042-layout/` parsed all five current ODS files; raw downloads remain uncommitted runtime output.
+
+Next:
+- Commit, push `impl/gap-042`, open the PR against `main`, and confirm mergeability.
+
 ## 2026-06-24 - GAP-019 Deployable Bronze Scheduler
 
 Status: closed — implemented by the Codex agent (its exec sandbox could not spawn `python`/`git`/`gh`, recorded honestly below); verified + shipped by the orchestrator: `python -m pytest -q -m unit tests/test_bronze_scheduler.py` → 4 passed; full `python -m pytest -q` (JAVA_HOME=jdk-21) → 127 passed, 1 skipped; `python -m compileall -q src tests` clean. Rebased on GAP-013 and merged via PR.
@@ -1910,6 +1944,41 @@ Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
 
 ## 2026-06-25 - GAP-034 deterministic XLM-R sentiment encoder
+## 2026-06-25 - GAP-041 UIC Widen And Staging
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/silver/stats/load.py`
+- `src/railway_lakehouse/silver/persist.py`
+- `tests/test_silver_stats_uic_pdf.py`
+- `docs/DATA_CONTRACTS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/silver-uic-pdf-widen-and-stage.md`
+- `.planning/coursework/plans/GAP-041-uic-widen-and-stage.md`
+- `output/evidence/uic-proof-of-widen-2026-06-25/`
+
+Findings:
+- UIC Silver parsing no longer has an AT/HU-only geo gate; the live Synopsis PDF now parses to 738 golden rows across 80 geos while Traffic Trends remains 0 golden rows because it has no country-level synopsis table.
+- UIC staging preserves table/header/unmapped rows plus text chunks. Live staging evidence wrote 747 rows, including 476 text chunks across the two public UIC PDFs.
+- Ref MCP was unavailable due credits; Context7 plus Firecrawl/Tavily routed the pdfplumber, pycountry, and ISO-3166 research fallback sources.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py` -> 10 passed.
+- `python -m pytest -q tests/test_silver_stats_uic_pdf.py::test_uic_staging_roundtrip_persists_and_reloads -v` -> 1 passed.
+- `python -m pytest -q` -> 199 passed, 6 skipped.
+- `python -m compileall -q src tests` -> clean.
+- `python -m html.parser docs/index.html` -> clean.
+- `python -m railway_lakehouse.bronze.live_check --sources uic --out output/evidence/uic-proof-of-widen-2026-06-25 --max-artifacts 2 --timeout-seconds 30` -> artifact_count=2, byte_count=2109240, UIC passed.
+- `output/evidence/uic-proof-of-widen-2026-06-25/uic_staging_summary.json` records the staging/golden counts.
+
+Next:
+- Open the PR for `impl/gap-041` and wait for review/merge.
+## 2026-06-25 - GAP-040 widened Gold news aggregation
+## 2026-06-25 - GAP-045 World Bank macro indicators
+## 2026-06-25 - GAP-035 deterministic Silver language ID
 
 Status: done; shipping via PR.
 
@@ -1973,3 +2042,83 @@ Evidence:
 
 Next:
 - Push the review-fix commit to `origin/impl/gap-034`.
+- `src/railway_lakehouse/gold/build.py`
+- `tests/test_gold_characterization.py`
+- `tests/test_gold_load_from_silver.py`
+- `docs/DATA_CONTRACTS.md`
+- `docs/TASKS.md`
+- `docs/GAP_REGISTER.md`
+- `docs/index.html`
+- `.planning/coursework/research/bigdata/gold-widen-news.md`
+
+Findings:
+- The drafted GAP-040 spec was stale: `NewsFeature` is now a 43-field Silver contract and includes persisted `gkg_*` fields.
+- Gold now aggregates deterministic language counts/modal/entropy, confidence stats/bins, rail-line unique/list rollups, bounded GKG tone/token rollups, canonical event/operator counts, and optional year-month grain.
+- GAP-016, GAP-022, and GAP-026 are closed inside this change for Gold aggregation: canonical column reindexing, mixed ISO/RFC-822/GDELT date parsing, and optional dict-field defaults are covered.
+
+Evidence:
+- Red phase: focused unit suite failed 4 tests and focused integration failed 1 test before implementation.
+- `python -m pytest -q -m unit tests/test_gold_characterization.py` -> 9 passed.
+- `python -m pytest -q -m integration tests/test_gold_load_from_silver.py` -> 2 passed.
+- `python -m pytest -q -m unit` -> 175 passed, 31 deselected.
+- `python -m pytest -q -m integration` -> 24 passed, 182 deselected.
+- `python -m pytest -q` -> 200 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed with line-ending warnings only.
+
+Next:
+- Use GAP-043 to evaluate the qwen3:4b NewsFeature quality before report-grade use; use GAP-031/GKG backfill work for deeper GKG parsing or canonical theme pivots.
+- `src/railway_lakehouse/bronze/sources/worldbank.py`
+- `src/railway_lakehouse/silver/config.py`
+- `src/railway_lakehouse/silver/stats/merge.py`
+- `tests/test_macro_indicators.py`
+- `.planning/coursework/research/bigdata/macro-indicators-gap045.md`
+- `.planning/coursework/plans/bigdata/macro-indicators-gap045-plan.md`
+- `output/evidence/macro-indicators-gap045/`
+- `README.md`, `docs/STATE_AND_ROADMAP.md`, `docs/GAP_REGISTER.md`, `docs/GAP_TASKS.md`, `docs/TASKS.md`, `docs/index.html`
+
+Findings:
+- `PA.NUS.PPP` is active in the live World Bank V2 API and reaches Gold for AT/HU with 36 non-null rows per country (1990-2025).
+- `IS.VEH.PCAR.P3` is now collected and mapped to `cars_per_1000`, but current World Bank API data has 0 AT/HU non-null rows; evidence records this as an upstream coverage caveat, not a data claim.
+- `IS.VEH.NVEH.P3` was not added.
+
+Evidence:
+- RED before implementation: `python -m pytest -q tests/test_macro_indicators.py` -> 2 failed for missing mappings.
+- GREEN after implementation: `python -m pytest -q tests/test_macro_indicators.py` -> 2 passed.
+- `python -m railway_lakehouse.bronze.live_check --sources worldbank --out output/evidence/macro-indicators-gap045 --max-artifacts 12 --timeout-seconds 90` -> 13 artifacts, 49,874,290 bytes.
+- `python -m railway_lakehouse.pipeline --bronze-root output/evidence/macro-indicators-gap045/bronze --skip-news-extraction --news 0 --out output/evidence/macro-indicators-gap045/railway_ml.parquet --crosswalk-path output/evidence/macro-indicators-gap045/crosswalk_cache.json --counts-out output/evidence/macro-indicators-gap045/counts.json` -> 14,903 rows x 12 columns.
+- `output/evidence/macro-indicators-gap045/gap045_feature_coverage.json` -> `ppp_conversion_factor` AT/HU 36 rows each; `cars_per_1000` AT/HU 0 rows.
+- `python -m pytest -q -m unit` plus the GAP-045 indicator assertion command -> 172 passed, 31 deselected.
+- `python -m pytest -q -m integration` -> 24 passed, 179 deselected.
+- `python -m pytest -q` -> 197 passed, 6 skipped.
+- `src/railway_lakehouse/silver/language_id.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/schema.py`
+- `tests/test_silver_language_id.py`
+- `tests/test_silver_news_parsers.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_silver_news_wide_contract.py`
+- `tests/test_pipeline_gaps.py`
+- `pyproject.toml`, `constraints.txt`
+- `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, `docs/STATE_AND_ROADMAP.md`, `docs/SPEC_NEWS_PREPROCESSING.md`, `README.md`
+- `.planning/coursework/research/bigdata/silver-language-id.md`
+
+Findings:
+- GAP-050 had already removed `language` from the LLM JSON schema, but the few-shot prompt examples still carried `language` metadata and validation still accepted raw model language.
+- GAP-035 now uses pinned `lingua-language-detector==2.2.0` restricted to EN/DE/HU. `extract_article()` and GDELT passthrough populate `language` and `language_detected_code` deterministically before validation; the LLM prompt/schema no longer include language.
+- The extraction cache digest now includes the language-id identity so cached `NewsFeature` rows invalidate if the deterministic classifier changes.
+
+Evidence:
+- RED first: `python -m pytest -q tests/test_silver_language_id.py` failed on missing `railway_lakehouse.silver.language_id`.
+- `python -c "from railway_lakehouse.silver.language_id import identify_language; print(identify_language('Vasúti bővítés'))"` -> `hu`.
+- `python -m pytest -q tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q tests/test_silver_news_parsers.py` -> 7 passed.
+- `python -m pytest -q -m unit tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q` -> 202 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- Use the GAP-045 evidence caveat in EDA/reporting: PPP is available for AT/HU; World Bank car ownership must be treated as not covered for AT/HU unless a later source supplies it.
+- GAP-034 can consume `language` for sentiment routing; GAP-038 can use it for conditional NER routing.
