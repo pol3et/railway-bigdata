@@ -1947,3 +1947,29 @@ Evidence:
 
 Next:
 - GAP-037 should consume persisted embeddings in Spark for distributed clustering; GAP-040 should enforce canonical/duplicate filtering before report-grade Gold news counts.
+
+## 2026-06-25 - GAP-036 PR review fixes
+
+Status: done; PR #39 updated.
+
+Changed:
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/embeddings.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_silver_news_extract_prompt.py`
+- `docs/DATA_CONTRACTS.md`, `docs/TASKS.md`, `docs/index.html`, `docs/GAP_REGISTER.md`, `README.md`
+
+Findings:
+- PR review P1 was valid: production `run_extraction_pipeline(...)` computed embeddings but did not call `cluster_near_duplicates(...)`.
+- Production Silver news extraction now gates embedding model use on `sentence_transformers` availability, clusters after embeddings are present, and refreshes cache entries with the resulting dedup markers.
+- The regression test uses the production `silver.run.run_news(...)` entrypoint with mocked embeddings, so CI needs no GPU or network.
+
+Evidence:
+- RED check before the fix: `python -m pytest -q tests/test_silver_news_extraction_e2e.py::test_run_news_production_entrypoint_clusters_cross_lingual_duplicates -v` failed with `cross_lingual_dedup_id is None`.
+- `python -m pytest -q tests/test_silver_news_embeddings.py tests/test_silver_news_extract_prompt.py tests/test_silver_news_extraction_e2e.py -v` -> 22 passed.
+- `python -m pytest -q -m integration tests/test_silver_persist_integration.py tests/test_gold_load_from_silver.py tests/test_silver_news_embeddings_integration.py tests/test_silver_news_extraction_e2e.py -v` -> 7 passed, 1 skipped (`sentence_transformers` not installed).
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 210 passed, 4 skipped.
+- `python -m compileall -q src tests` -> passed.
+
+Next:
+- PR #39 can proceed through review/CI; GAP-037/GAP-040 remain the Spark/Gold enforcement follow-ups.

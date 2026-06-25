@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -30,7 +31,7 @@ from .cache import (
     gdelt_passthrough_cache_key,
     model_digest_key,
 )
-from .embeddings import compute_embeddings
+from .embeddings import cluster_near_duplicates, compute_embeddings
 from .failures import ExtractionFailure, utc_now
 
 logger = logging.getLogger("silver.news.extract")
@@ -575,6 +576,18 @@ def _write_manifest(path, manifest: dict) -> None:
     )
 
 
+def _embedding_model_available() -> bool:
+    try:
+        return find_spec("sentence_transformers") is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _has_text_embedding(row: NewsFeature) -> bool:
+    embedding = getattr(row, "text_embedding", None)
+    return isinstance(embedding, (list, tuple)) and len(embedding) > 0
+
+
 def run_extraction_pipeline(
     articles: list,
     *,
@@ -674,7 +687,9 @@ def run_extraction_pipeline(
         manifest["lifecycle"]["stop_model"] = lifecycle.stop_model()
         manifest["lifecycle"]["vram_status_after_stop"] = lifecycle.vram_status()
 
-    compute_embeddings(successes, use_model=True)
+    successes = compute_embeddings(successes, use_model=_embedding_model_available())
+    if any(_has_text_embedding(feature) for feature in successes):
+        cluster_near_duplicates(successes)
     _refresh_embedded_cache(articles, successes, cache, model_digest)
 
     manifest["run_finished_utc"] = utc_now()

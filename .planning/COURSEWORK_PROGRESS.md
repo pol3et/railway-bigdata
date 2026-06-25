@@ -1697,3 +1697,23 @@ Evidence:
 
 Next:
 - Open PR from `impl/gap-036`; next implementation gap is GAP-037 Spark clustering/count enforcement or GAP-040 Gold news widening/filtering.
+
+## 2026-06-25 - GAP-036 PR review fixes
+
+Status: done; PR #39 updated.
+
+Changed:
+- Wired `cluster_near_duplicates(...)` into production Silver news extraction after embeddings are present.
+- Added a production-entrypoint regression test through `silver.run.run_news(...)` with mocked embeddings; no GPU/network required.
+- Added an embedding-availability gate regression test.
+- Synced docs/dashboard wording so GAP-036 closure now explicitly says production local dedup markers run in Silver extraction.
+
+Evidence:
+- RED check before the fix: production-entrypoint dedup regression failed because `cross_lingual_dedup_id` stayed null.
+- Targeted news tests: 22 passed.
+- Integration subset: 7 passed, 1 skipped (`sentence_transformers` not installed).
+- Full suite with `JAVA_HOME` set: 210 passed, 4 skipped.
+- Compileall: passed.
+
+Next:
+- PR #39 review/CI can proceed; Spark-scale count enforcement remains GAP-037/GAP-040.

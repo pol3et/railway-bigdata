@@ -67,7 +67,7 @@ Do not claim live end-to-end MinIO/Ollama/Spark behavior until the exact command
 
 ## News Feature Extraction
 
-Silver news rows use a wide article-grain `NewsFeature` contract. The first 15 fields remain the legacy production surface consumed by current Gold (`article_id`, source/date fields, LLM gate/classification, operators/lines, money, summary, sentiment, confidence). GAP-039 adds reserved columns for deterministic language detection, XLM-R sentiment, GDELT GKG passthrough, per-field confidences, embeddings, dedup/cluster IDs, and extraction audit metadata. GAP-036 wires optional `intfloat/multilingual-e5-base` sentence embeddings into `text_embedding` and deterministic local near-duplicate markers into `cross_lingual_dedup_id` / `is_duplicate`.
+Silver news rows use a wide article-grain `NewsFeature` contract. The first 15 fields remain the legacy production surface consumed by current Gold (`article_id`, source/date fields, LLM gate/classification, operators/lines, money, summary, sentiment, confidence). GAP-039 adds reserved columns for deterministic language detection, XLM-R sentiment, GDELT GKG passthrough, per-field confidences, embeddings, dedup/cluster IDs, and extraction audit metadata. GAP-036 wires optional `intfloat/multilingual-e5-base` sentence embeddings into `text_embedding`; production Silver news extraction then assigns deterministic local near-duplicate markers in `cross_lingual_dedup_id` / `is_duplicate` whenever embeddings are present.
 
 Expensive extraction is cached locally. `extract_cache_key()` hashes article identity plus title/body/url/date, and `model_digest_key()` hashes the current Ollama model name, prompt/schema, and config values. `FileSystemCache` stores JSON entries under `silver/.news_extraction_cache/<model_digest>/`; delete that directory to force a local re-extraction. The cache is git-ignored and is not a lakehouse table.
 
@@ -76,7 +76,7 @@ Known limitations:
 - Language detection is reserved but not wired yet (GAP-035).
 - XLM-R sentiment is reserved but not wired yet (GAP-034).
 - Operators/rail-line NER is reserved but not wired yet (GAP-038).
-- Embedding storage and local dedup markers are wired (GAP-036), but Spark-scale count enforcement remains GAP-037/GAP-040.
+- Embedding storage and production local dedup markers are wired (GAP-036), but Spark-scale count enforcement remains GAP-037/GAP-040.
 - Deterministic monetary parsing is reserved but not wired yet (GAP-036/GAP-050 follow-up).
 - Translation/summarization quality work is not wired yet (GAP-050/GAP-033).
 - `extraction_model_digest` is a prompt/config/model-name digest, not a hash of Qwen weights.

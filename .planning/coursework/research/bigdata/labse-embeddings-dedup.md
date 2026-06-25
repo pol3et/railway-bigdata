@@ -38,3 +38,21 @@ Refined GAP-036 decision:
 - Dedup group field: use existing `cross_lingual_dedup_id`.
 - New field to add: `is_duplicate: Optional[bool] = None`, because the current wide contract has a group id but no canonical/non-canonical marker.
 - Dedup algorithm in this GAP is local deterministic connected-components over normalized embeddings for small fixture/offline batches. Spark-scale clustering/enforcement remains GAP-037.
+
+## PR #39 Review-Fix Research Addendum
+
+Date: 2026-06-25
+
+Skill / routing:
+- Used `research-orchestrator` as required by `AGENTS.md`.
+- Local files first: `src/railway_lakehouse/silver/news/extract.py`, `src/railway_lakehouse/silver/news/embeddings.py`, `src/railway_lakehouse/silver/run.py`, `src/railway_lakehouse/pipeline.py`, `tests/test_silver_news_extraction_e2e.py`, `docs/DATA_CONTRACTS.md`, `docs/GAP_REGISTER.md`.
+- No external MCP/web research was needed for this review fix; the issue was a production callsite omission in local code, and the existing embedding/dedup API facts above remain unchanged.
+
+Confirmed local-code facts:
+- Both production entrypoints (`silver.run.run_news(...)` and the higher-level pipeline path) flow through `run_extraction_pipeline(...)`.
+- Before the PR review fix, `run_extraction_pipeline(...)` called `compute_embeddings(...)` but did not call `cluster_near_duplicates(...)`.
+- The regression belongs at the production entrypoint with mocked embeddings so CI does not import or download sentence-transformer weights.
+
+Decision:
+- Call `cluster_near_duplicates(...)` inside `run_extraction_pipeline(...)` after embedding population, only when at least one row already has `text_embedding`.
+- Gate `compute_embeddings(..., use_model=...)` on import availability for `sentence_transformers`; cached or mocked embeddings can still be clustered without loading a model.

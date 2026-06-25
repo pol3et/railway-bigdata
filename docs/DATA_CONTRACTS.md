@@ -119,8 +119,10 @@ Rules:
 - LLM output is untrusted until validated by `validate_news_feature(...)`.
 - The current GAP-039 implementation reserves the wide model fields. GAP-036 now
   populates `text_embedding`/`text_embedding_model` when the optional
-  `sentence-transformers` news extra is installed, and provides deterministic
-  local near-duplicate assignment via `cross_lingual_dedup_id` + `is_duplicate`.
+  `sentence-transformers` news extra is installed. The production
+  `run_extraction_pipeline(...)` path then invokes deterministic local
+  near-duplicate assignment via `cross_lingual_dedup_id` + `is_duplicate` when
+  embeddings are present.
   Language detection, XLM-R sentiment, NER, Spark clustering, and deterministic
   monetary parsing remain owned by GAP-031...038.
 - `monetary_raw` is explicitly part of the Silver news contract.
@@ -141,10 +143,12 @@ Research record:
   uses the `passage: ` prefix for article/summary text.
 - `cross_lingual_dedup_id` is a deterministic group id assigned to rows whose
   embedding cosine similarity is at or above the configured threshold
-  (default `0.95`) in the local helper. Group ids are derived from sorted member
-  article ids, so shuffled input produces the same id.
+  (default `0.95`) in the production Silver news extraction pipeline and local
+  helper. Group ids are derived from sorted member article ids, so shuffled input
+  produces the same id.
 - `is_duplicate` is `true` for non-canonical siblings inside a dedup group,
-  `false` for canonical grouped rows, and null when no grouping pass has run.
+  `false` for canonical grouped rows or singleton embedded rows, and null when
+  no embedding-backed grouping pass has run.
 - GAP-036 deliberately does not change Gold counts. Spark-scale clustering and
   count enforcement remain GAP-037/GAP-040 work.
 

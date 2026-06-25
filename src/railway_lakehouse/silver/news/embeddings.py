@@ -112,7 +112,10 @@ def cluster_near_duplicates(
             _set(row, "is_duplicate", None)
 
     if len(usable) < 2:
-        logger.warning("news dedup skipped: no usable embeddings")
+        for _, row, _ in usable:
+            _set(row, "cross_lingual_dedup_id", None)
+            _set(row, "is_duplicate", False)
+        logger.warning("news dedup skipped: no usable embeddings or fewer than two usable embeddings")
         return rows
 
     dims = {len(vector) for _, _, vector in usable}
