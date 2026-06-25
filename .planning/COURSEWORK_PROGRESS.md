@@ -1699,3 +1699,32 @@ Evidence:
 
 Next:
 - GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.
+
+## 2026-06-25 - GAP-045 World Bank macro indicators
+
+Status: done; shipping via PR.
+
+Research:
+- `research-orchestrator` record written at `.planning/coursework/research/bigdata/macro-indicators-gap045.md`.
+- Local implementation plan written and self-approved at `.planning/coursework/plans/bigdata/macro-indicators-gap045-plan.md`.
+- Tavily/DataBank/API checks refined the subagent spec: `PA.NUS.PPP` has live AT/HU coverage; `IS.VEH.PCAR.P3` has metadata and lands through the current API but no AT/HU non-null rows; `IS.VEH.NVEH.P3` remains excluded.
+
+Changed:
+- Added `IS.VEH.PCAR.P3` and `PA.NUS.PPP` to the World Bank curated selector.
+- Added canonical `cars_per_1000` and `ppp_conversion_factor` keys and deterministic World Bank source-id mapping.
+- Added unit and integration tmp_path tests for World Bank macro indicators.
+- Wrote bounded live evidence under `output/evidence/macro-indicators-gap045/`.
+- Synced `README.md`, `docs/STATE_AND_ROADMAP.md`, `docs/GAP_REGISTER.md`, `docs/GAP_TASKS.md`, `docs/TASKS.md`, and `docs/index.html`.
+
+Evidence:
+- New test file red before implementation, then green: 2 passed.
+- Bounded live World Bank: 13 artifacts, 49,874,290 bytes.
+- Bronze -> Gold from that live Bronze: 14,903 rows x 12 columns.
+- Coverage summary: PPP AT/HU 36 rows each; cars_per_1000 AT/HU 0 rows.
+- Unit verify: 172 passed, 31 deselected.
+- Integration: 24 passed, 179 deselected.
+- Full suite: 197 passed, 6 skipped.
+- Compileall and diff check passed.
+
+Next:
+- Downstream EDA must use PPP for AT/HU and explicitly mark World Bank car ownership as uncovered for AT/HU in the current live API.

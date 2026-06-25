@@ -203,7 +203,7 @@
         <thead><tr><th>Source</th><th>Collected</th><th>Bronze</th><th>Silver → rows</th></tr></thead>
         <tbody>
           <tr><td><span class="src">eurostat</span></td><td>curated rail/economy/population/living + transport SDMX (TSV)</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓ (8 feats)</span></td></tr>
-          <tr><td><span class="src">worldbank</span></td><td>EU-stats indicators + discovered rail IDs (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓</span></td></tr>
+          <tr><td><span class="src">worldbank</span></td><td>EU-stats indicators + discovered rail IDs + GAP-045 macro ids (JSON) · global</td><td><span class="sig green"><span class="dot green"></span>live-proven (bounded)</span></td><td><span class="sig green"><span class="dot green"></span>StatFact → Gold ✓ (PPP AT/HU; cars coverage caveat)</span></td></tr>
           <tr><td><span class="src">rss_media</span></td><td>17 HU/AT feeds (XML)</td><td><span class="sig green"><span class="dot green"></span>live-proven</span></td><td><span class="sig green"><span class="dot green"></span>ArticleRecord → NewsFeature sample</span></td></tr>
           <tr><td><span class="src">gdelt</span></td><td>rail news lists (JSON) · HU/AT</td><td><span class="sig amber"><span class="dot amber"></span>live partial (429 on AT)</span></td><td><span class="sig amber"><span class="dot amber"></span>NewsFeature sample · quality caveat</span></td></tr>
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
@@ -224,11 +224,11 @@
       <div class="pcard">
         <div class="pcard-top"><span class="src">worldbank</span>
           <div class="plevels"><span class="lvl green" title="Bronze: works">B</span><span class="lvl green" title="Silver: works">S</span><span class="lvl green" title="Gold: works">G</span></div></div>
-        <div class="lvlnote">Full spine. Live JSON → StatFact (35,112 rows) → 2 real Gold features. PR #25 keeps the production World Bank selector aligned with bounded live checks and filters dead/error indicator payloads.</div>
+        <div class="lvlnote">Full spine. Live JSON → StatFact → Gold. GAP-045 maps World Bank PPP and passenger-car ids; PPP reaches AT/HU, while current WB car data has zero AT/HU non-null rows.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw JSON · {"countryiso3code":"AUT","date":"2021","value":4962,"indicator":{"id":"IS.RRS.TOTL.KM"}}</div>
           <div class="sl"><span class="k">S</span> StatFact · AT 1995 rail_network_length_km 5672 worldbank_native IS.RRS.TOTL.KM</div>
-          <div class="sl"><span class="k">G</span> matrix · AT 1995 → freight 13715 · network 5672</div>
+          <div class="sl"><span class="k">G</span> matrix · AT 2021 → PPP 0.72035 · cars NaN (upstream no AT/HU)</div>
         </div>
       </div>
 
@@ -327,6 +327,8 @@
           <tr><td class="mono">year</td><td>Int64</td><td>key · observation year</td><td>all</td></tr>
           <tr><td class="mono">rail_freight_tonne_km</td><td>float64</td><td>feature · million t-km</td><td><span class="src">worldbank</span> <span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_network_length_km</td><td>float64</td><td>feature · km</td><td><span class="src">worldbank</span> <span class="src">eurostat</span></td></tr>
+          <tr><td class="mono">ppp_conversion_factor</td><td>float64</td><td>feature · LCU per international $</td><td><span class="src">worldbank</span></td></tr>
+          <tr><td class="mono">cars_per_1000</td><td>float64</td><td>feature · passenger cars / 1,000 people</td><td><span class="src">worldbank</span> · no current AT/HU rows</td></tr>
           <tr><td class="mono">rail_passenger_km</td><td>float64</td><td>feature · million p-km</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_passengers</td><td>float64</td><td>feature · thousand</td><td><span class="src">eurostat</span></td></tr>
           <tr><td class="mono">rail_electrified_km</td><td>float64</td><td>feature · km</td><td><span class="src">eurostat</span></td></tr>
@@ -354,7 +356,7 @@
         </tbody>
       </table>
     </div>
-    <p class="small muted" style="margin-top:10px;">Committed live Gold evidence is World Bank-only (<b>2,968×4</b>, 151 geos, 1995–2021), and Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path. PR #25's bounded review smoke landed Eurostat + World Bank together and built a stats-only local <b>3,550×11</b> Gold matrix under <span class="mono">output/evidence/pr25-bigdata-live-gold/</span>; GAP-033 adds a bounded news-only Gold traceability file under <span class="mono">output/evidence/news-extraction-sample/</span>. Neither is the full MinIO/Ollama/news/Spark E2E. <b>Grain</b>: <span class="mono">(geo, year)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; only <span class="mono">news_*</span> counts fill to 0.</p>
+    <p class="small muted" style="margin-top:10px;">Committed live Gold evidence includes the original World Bank-only run (<b>2,968×4</b>, 151 geos, 1995–2021) and GAP-045's macro run (<b>14,903×12</b>, 315 geos, 1960–2025) under <span class="mono">output/evidence/macro-indicators-gap045/</span>. GAP-045 adds <span class="mono">ppp_conversion_factor</span> for AT/HU (36 rows each) and wires <span class="mono">cars_per_1000</span>, but the current WB API has 0 AT/HU car rows. Eurostat is the proven 2nd spine (<b>1,554×10</b>, 42 geos, 1962–2025) integrated through the same StatFact→pivot path. Neither is the full MinIO/Ollama/news/Spark E2E. <b>Grain</b>: <span class="mono">(geo, year)</span>. <b>Missing-value rule</b>: statistical features stay <span class="mono">NaN</span> when unmeasured; only <span class="mono">news_*</span> counts fill to 0.</p>
   </section>
 
   <section>
@@ -493,6 +495,7 @@
       <div class="wave full">
         <div class="wave-head"><span class="wave-no">WAVE 7</span><span class="wave-title">Spark EDA → hypotheses → analysis → report</span><span class="wave-par">GAP-045…049 · EDA-first · the finale</span></div>
         <div class="wbatch">
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-045 WB macro indicators: PPP AT/HU + cars coverage caveat</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">P1</span> GAP-046 iterative Spark EDA → artifacts only (all-pairs corr + YoY deltas + lag + panels + coverage)</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
@@ -500,7 +503,7 @@
           <span class="wtask"><span class="u mid">P1</span> GAP-048 form hypotheses FROM EDA → Spark analyses</span><span class="wtask"><span class="pl">→</span></span>
           <span class="wtask"><span class="u mid">P1</span> GAP-049 final report (evidence-checked)</span>
         </div>
-        <div style="margin-top:9px;" class="small muted">Hypotheses are formed FROM the EDA artifacts (GAP-048), never pre-listed. Investment X = Eurostat rail_investment (dense); news money secondary. GAP-045 adds 2 macro indicators. GAP-049 (final report) runs a full <b>dashboard-actuality audit</b> — every number &amp; sample re-verified against current Gold/evidence (release gate). Plan: <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> · run: <span class="mono">docs/OVERNIGHT_READINESS.md</span>.</div>
+        <div style="margin-top:9px;" class="small muted">Hypotheses are formed FROM the EDA artifacts (GAP-048), never pre-listed. Investment X = Eurostat rail_investment (dense); news money secondary. GAP-045 adds 2 macro mappings, with World Bank car ownership currently coverage-limited for AT/HU. GAP-049 (final report) runs a full <b>dashboard-actuality audit</b> — every number &amp; sample re-verified against current Gold/evidence (release gate). Plan: <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> · run: <span class="mono">docs/OVERNIGHT_READINESS.md</span>.</div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract F</div><div class="cbody">Every report claim cites a committed <span class="mono">output/evidence/eda|analysis/</span> artifact; teammate analyses re-verified vs current Gold; hypotheses trace to EDA artifacts; limitations honest.</div></div>
 
