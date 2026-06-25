@@ -1748,3 +1748,31 @@ Evidence:
 
 Next:
 - Orchestrate Wave 6a (GAP-039 → GAP-050 → GAP-033) via `scripts/orch/codex_impl.sh` once the owner gives go.
+
+## 2026-06-25 - GAP-039 wide NewsFeature contract + cache
+
+Status: done; ready for PR.
+
+Changed:
+- `src/railway_lakehouse/silver/schema.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/failures.py`
+- `src/railway_lakehouse/silver/persist.py`
+- `tests/test_silver_news_wide_contract.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `docs/DATA_CONTRACTS.md`, `README.md`, dashboard docs
+- `.planning/coursework/research/bigdata/newsfeature-wide-contract.md`
+
+Findings:
+- GAP-039 closes the wide article-grain Silver news contract with 43 dataclass fields, content-hash/model-digest cache wiring, in-memory extraction failures plus JSON sidecar helper, and legacy 15-field load compatibility.
+- Live LLM quality remains intentionally deferred to GAP-033/GAP-050 and downstream model-population gaps.
+
+Evidence:
+- `python -m pytest -q -m unit tests/test_silver_news_wide_contract.py` -> 10 passed.
+- `python -m pytest -q -m integration tests/test_silver_news_extraction_e2e.py` -> 1 passed.
+- `python -m compileall -q src tests` -> passed.
+- Full suite result already verified before ship step: 183 passed, 3 skipped.
+
+Next:
+- Open PR for `impl/gap-039` against `main`; continue Wave 6 with GAP-050 then GAP-033 after merge.

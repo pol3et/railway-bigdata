@@ -137,7 +137,9 @@ def run_pipeline(
         log.info("Skipping news extraction by request.")
         news_rows = []
     elif ollama_reachable:
-        news_rows = news_extract.extract_batch(articles)      # Ollama -> NewsFeature
+        news_rows, news_failures = news_extract.extract_batch(articles)      # Ollama -> NewsFeature
+        if news_failures:
+            log.warning("SILVER news: %d extraction failures", len(news_failures))
     else:
         log.warning("Ollama unreachable; skipping news extraction.")
         news_rows = []

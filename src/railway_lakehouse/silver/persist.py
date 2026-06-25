@@ -26,6 +26,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from .news.failures import persist_news_failures as _persist_news_failures_json
 from .schema import NewsFeature, StatFact
 
 logger = logging.getLogger("silver.persist")
@@ -63,6 +64,34 @@ NEWS_FEATURE_ARROW_SCHEMA = pa.schema([
     ("summary_en", pa.string()),
     ("sentiment", pa.string()),
     ("confidence", pa.float64()),
+    ("language_detected_code", pa.string()),
+    ("language_confidence", pa.float64()),
+    ("sentiment_label", pa.string()),
+    ("sentiment_score", pa.float64()),
+    ("sentiment_confidence", pa.float64()),
+    ("is_rail_related_confidence", pa.float64()),
+    ("event_type_confidence", pa.float64()),
+    ("summary_en_source", pa.string()),
+    ("operators_ner_model", pa.string()),
+    ("operators_confidence", pa.float64()),
+    ("rail_lines_ner_model", pa.string()),
+    ("rail_lines_confidence", pa.float64()),
+    ("monetary_raw_parsed_eur", pa.float64()),
+    ("monetary_confidence", pa.float64()),
+    ("gkg_themes", pa.string()),
+    ("gkg_persons", pa.string()),
+    ("gkg_organizations", pa.string()),
+    ("gkg_locations", pa.string()),
+    ("gkg_tone", pa.float64()),
+    ("gkg_emotions", pa.string()),
+    ("gkg_tone_source", pa.string()),
+    ("text_embedding_model", pa.string()),
+    ("text_embedding", pa.list_(pa.float64())),
+    ("cluster_id", pa.string()),
+    ("cross_lingual_dedup_id", pa.string()),
+    ("extraction_timestamp_utc", pa.string()),
+    ("extraction_model_digest", pa.string()),
+    ("confidence_schema_version", pa.string()),
 ])
 
 
@@ -97,6 +126,22 @@ def _as_string_list(value):
     return [str(value)]
 
 
+def _as_float_list(value):
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple, set)):
+        out = []
+        for item in value:
+            try:
+                out.append(float(item))
+            except (TypeError, ValueError):
+                return None
+        return out
+    if pd.isna(value):
+        return None
+    return None
+
+
 def _stats_frame(stats_long: pd.DataFrame) -> pd.DataFrame:
     df = (stats_long if stats_long is not None else pd.DataFrame()).reindex(
         columns=STAT_FACT_COLUMNS)
@@ -115,12 +160,25 @@ def _news_frame(news_rows) -> pd.DataFrame:
     for column in (
         "article_id", "source", "url", "published_date", "language",
         "country", "event_type", "monetary_raw", "summary_en", "sentiment",
+        "language_detected_code", "sentiment_label", "summary_en_source",
+        "operators_ner_model", "rail_lines_ner_model", "gkg_themes",
+        "gkg_persons", "gkg_organizations", "gkg_locations", "gkg_emotions",
+        "gkg_tone_source", "text_embedding_model", "cluster_id",
+        "cross_lingual_dedup_id", "extraction_timestamp_utc",
+        "extraction_model_digest", "confidence_schema_version",
     ):
         df[column] = df[column].astype("string")
+    df["confidence_schema_version"] = df["confidence_schema_version"].fillna("1.0")
     df["is_rail_related"] = df["is_rail_related"].astype("boolean")
     for column in ("operators", "rail_lines"):
         df[column] = df[column].map(_as_string_list).astype("object")
-    for column in ("monetary_amount_eur", "confidence"):
+    df["text_embedding"] = df["text_embedding"].map(_as_float_list).astype("object")
+    for column in (
+        "monetary_amount_eur", "confidence", "language_confidence",
+        "sentiment_score", "sentiment_confidence", "is_rail_related_confidence",
+        "event_type_confidence", "operators_confidence", "rail_lines_confidence",
+        "monetary_raw_parsed_eur", "monetary_confidence", "gkg_tone",
+    ):
         df[column] = pd.to_numeric(df[column], errors="coerce").astype("Float64")
     return df
 
@@ -155,6 +213,14 @@ def persist_news(news_rows, root, *, ingest_date: str = None) -> Path:
     return path
 
 
+def persist_news_failures(failures, root, *, ingest_date: str = None) -> Path:
+    """Write extraction failures as a JSON sidecar, not a Parquet table."""
+    ingest_date = ingest_date or _today()
+    path = _persist_news_failures_json(failures, root, ingest_date)
+    logger.warning("persisted Silver news extraction failures: %s (%d rows)", path, len(failures or []))
+    return path
+
+
 def persist_silver(stats_long, news_rows, root, *, ingest_date: str = None) -> dict:
     """Persist both Silver tables in one call; returns {'stats': path, 'news': path}."""
     ingest_date = ingest_date or _today()
@@ -182,4 +248,7 @@ def load_news(root, *, ingest_date: str = None) -> pd.DataFrame:
             if ingest_date else _latest_path(root, NEWS_DOMAIN, NEWS_TABLE))
     if not path or not Path(path).exists():
         return pd.DataFrame(columns=NEWS_FEATURE_COLUMNS)
-    return pd.read_parquet(path)
+    df = pd.read_parquet(path).reindex(columns=NEWS_FEATURE_COLUMNS)
+    if "confidence_schema_version" in df:
+        df["confidence_schema_version"] = df["confidence_schema_version"].fillna("1.0")
+    return df

@@ -50,7 +50,9 @@ def run_news(articles: list) -> list:
         logger.error("Ollama not reachable (%s); cannot extract news features.",
                      "set OLLAMA_HOST / start the server")
         return []
-    feats = news_extract.extract_batch(articles)
+    feats, failures = news_extract.extract_batch(articles)
+    if failures:
+        logger.warning("NEWS: %d extraction failures", len(failures))
     logger.info("NEWS: produced %d feature rows", len(feats))
     return feats
 
