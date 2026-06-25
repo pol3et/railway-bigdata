@@ -1761,6 +1761,53 @@ Evidence:
 Next:
 - GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.
 
+## 2026-06-25 - GAP-036 Silver news embeddings and dedup markers
+
+Status: done; PR preparation.
+
+Changed:
+- Added `silver/news/embeddings.py` with cached sentence-transformers model loading, normalized `text_embedding` population, and deterministic local near-duplicate grouping.
+- Reused the GAP-039 wide contract fields `text_embedding_model`, `text_embedding`, and `cross_lingual_dedup_id`; added `is_duplicate`.
+- Changed persisted `text_embedding` Arrow type to `list<float32>` and proved old Parquet backfill still reindexes.
+- Synced docs/dashboard: `docs/DATA_CONTRACTS.md`, `docs/SILVER_DESIGN.md`, `docs/STATE_AND_ROADMAP.md`, `docs/TASKS.md`, `docs/index.html`, `docs/GAP_REGISTER.md`, `README.md`.
+
+Findings:
+- Research-orchestrator record: `.planning/coursework/research/bigdata/labse-embeddings-dedup.md`.
+- Approved plan: `.planning/coursework/plans/bigdata/gap-036-news-embeddings-dedup.md`.
+- Refined model choice: `intfloat/multilingual-e5-base` default, BGE-M3 swappable, LaBSE not default.
+- Dedup threshold: cosine similarity `0.95`; group ids are deterministic across shuffled input.
+
+Evidence:
+- `python -m pytest -q tests/test_silver_news_embeddings.py -v` -> 10 passed.
+- `python -m pytest -q -m integration tests/test_silver_persist_integration.py tests/test_gold_load_from_silver.py tests/test_silver_news_embeddings_integration.py -v` -> 2 passed, 1 skipped (`sentence_transformers` not installed).
+- `python -m pytest -q -m unit` -> 181 passed, 31 deselected.
+- `python -m pytest -q -m integration` -> 23 passed, 1 skipped, 188 deselected.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q` -> 208 passed, 4 skipped.
+- `python -m compileall -q src tests` -> passed.
+- Docs grep and schema smoke passed.
+
+Next:
+- Open PR from `impl/gap-036`; next implementation gap is GAP-037 Spark clustering/count enforcement or GAP-040 Gold news widening/filtering.
+
+## 2026-06-25 - GAP-036 PR review fixes
+
+Status: done; PR #39 updated.
+
+Changed:
+- Wired `cluster_near_duplicates(...)` into production Silver news extraction after embeddings are present.
+- Added a production-entrypoint regression test through `silver.run.run_news(...)` with mocked embeddings; no GPU/network required.
+- Added an embedding-availability gate regression test.
+- Synced docs/dashboard wording so GAP-036 closure now explicitly says production local dedup markers run in Silver extraction.
+
+Evidence:
+- RED check before the fix: production-entrypoint dedup regression failed because `cross_lingual_dedup_id` stayed null.
+- Targeted news tests: 22 passed.
+- Integration subset: 7 passed, 1 skipped (`sentence_transformers` not installed).
+- Full suite with `JAVA_HOME` set: 210 passed, 4 skipped.
+- Compileall: passed.
+
+Next:
+- PR #39 review/CI can proceed; Spark-scale count enforcement remains GAP-037/GAP-040.
 ## 2026-06-25 - GAP-034 deterministic XLM-R sentiment encoder
 ## 2026-06-25 - GAP-041 UIC Widen And Staging
 

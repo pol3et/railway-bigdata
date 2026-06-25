@@ -131,6 +131,36 @@ def test_run_extraction_pipeline_records_raw_failure(monkeypatch, tmp_path):
     assert failure.raw == '["not", "an", "object"]'
 
 
+def test_run_extraction_pipeline_gates_embeddings_on_model_availability(monkeypatch, tmp_path):
+    embedding_calls = []
+
+    def fake_compute_embeddings(rows, *, use_model=True, model_name=None):
+        embedding_calls.append(use_model)
+        return rows
+
+    monkeypatch.setattr(news_extract, "find_spec", lambda name: None)
+    monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _valid_raw())
+    monkeypatch.setattr(news_extract, "compute_embeddings", fake_compute_embeddings)
+    monkeypatch.setattr(
+        news_extract,
+        "cluster_near_duplicates",
+        lambda rows: pytest.fail("dedup clustering requires embeddings"),
+    )
+
+    result = news_extract.run_extraction_pipeline(
+        [_article(article_id="no-embedder")],
+        cache=FileSystemCache(tmp_path / ".news_extraction_cache"),
+        warm_up=False,
+        max_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    assert len(result.features) == 1
+    assert embedding_calls == [False]
+    assert result.features[0].text_embedding is None
+    assert result.features[0].cross_lingual_dedup_id is None
+
+
 def test_run_extraction_pipeline_rejects_zero_max_attempts(monkeypatch, tmp_path):
     monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _valid_raw())
 

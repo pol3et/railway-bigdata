@@ -213,21 +213,51 @@ Caching/audit fields:
 41. `extraction_timestamp_utc`
 42. `extraction_model_digest`
 43. `confidence_schema_version`
+44. `is_duplicate`
 
 Rules:
 
 - LLM output is untrusted until validated by `validate_news_feature(...)`.
+- GAP-035 populates deterministic language fields through the local language-id
+  pass.
 - GAP-034 populates deterministic XLM-R sentiment fields after LLM validation:
   `sentiment`, `confidence`, `sentiment_label`, `sentiment_score`, and
   `sentiment_confidence`. The LLM prompt/schema does not own sentiment or
   confidence.
-- The remaining wide model fields still reserved for later passes are language
-  detection, NER, embeddings, clustering, and deterministic monetary parsing;
-  those are owned by GAP-031...038.
+- The current GAP-039 implementation reserves the wide model fields. GAP-036 now
+  populates `text_embedding`/`text_embedding_model` when the optional
+  `sentence-transformers` news extra is installed. The production
+  `run_extraction_pipeline(...)` path then invokes deterministic local
+  near-duplicate assignment via `cross_lingual_dedup_id` + `is_duplicate` when
+  embeddings are present.
+- Remaining reserved model fields for later passes are NER, Spark clustering,
+  and deterministic monetary parsing; those are owned by GAP-031...038.
 - `monetary_raw` is explicitly part of the Silver news contract.
 - `sentiment` and `confidence` remain the legacy fields consumed by current
   consumers. New Gold sentiment aggregation prefers `sentiment_score` and only
   uses label mapping when a row lacks the deterministic signed score.
+
+### Embeddings and Dedup
+
+Research record:
+`.planning/coursework/research/bigdata/labse-embeddings-dedup.md`.
+
+- `text_embedding_model` records the sentence-transformers model id used for the
+  row. GAP-036 defaults to `intfloat/multilingual-e5-base`, with BGE-M3 kept as
+  a config-level swap. LaBSE is not the project default.
+- `text_embedding` stores a normalized multilingual sentence embedding as
+  `list<float32>` in Parquet. The default e5-base vector has 768 dimensions and
+  uses the `passage: ` prefix for article/summary text.
+- `cross_lingual_dedup_id` is a deterministic group id assigned to rows whose
+  embedding cosine similarity is at or above the configured threshold
+  (default `0.95`) in the production Silver news extraction pipeline and local
+  helper. Group ids are derived from sorted member article ids, so shuffled input
+  produces the same id.
+- `is_duplicate` is `true` for non-canonical siblings inside a dedup group,
+  `false` for canonical grouped rows or singleton embedded rows, and null when
+  no embedding-backed grouping pass has run.
+- GAP-036 deliberately does not change Gold counts. Spark-scale clustering and
+  count enforcement remain GAP-037/GAP-040 work.
 
 ### Content-hash cache contract
 

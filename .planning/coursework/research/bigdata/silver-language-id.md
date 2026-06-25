@@ -87,4 +87,3 @@ Self-review result: approved. The plan closes only GAP-035 and does not widen in
    - `python -m pytest -q`
    - `python -m compileall -q src tests`
    - `git diff --check`
-

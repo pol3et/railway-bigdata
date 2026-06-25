@@ -80,6 +80,7 @@ class NewsFeature:
     extraction_timestamp_utc: Optional[str] = None
     extraction_model_digest: Optional[str] = None
     confidence_schema_version: str = "1.0"
+    is_duplicate: Optional[bool] = None
 
     def to_row(self) -> dict:
         return asdict(self)
@@ -193,6 +194,20 @@ def _float_list(x):
     return out
 
 
+def _bool_or_none(x):
+    if x is None:
+        return None
+    if isinstance(x, bool):
+        return x
+    if isinstance(x, str):
+        text = x.strip().lower()
+        if text in {"1", "true", "yes", "y"}:
+            return True
+        if text in {"0", "false", "no", "n"}:
+            return False
+    return None
+
+
 def news_feature_from_row(row: dict) -> NewsFeature:
     """Build a NewsFeature from a row dict, filling new fields for legacy rows."""
     values = {}
@@ -274,6 +289,7 @@ def validate_news_feature(raw: dict, *, article_id: str, source: str, url: str,
     wide["confidence_schema_version"] = (
         _str_or_none(raw.get("confidence_schema_version")) or "1.0"
     )
+    wide["is_duplicate"] = _bool_or_none(raw.get("is_duplicate"))
     return NewsFeature(
         article_id=article_id, source=source, url=url, published_date=published_date,
         language=detected_language or raw_language,

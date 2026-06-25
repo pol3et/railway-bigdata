@@ -52,6 +52,10 @@ NEWS_EXTRACTION_CACHE_ROOT = os.environ.get(
     "NEWS_EXTRACTION_CACHE_ROOT",
     "silver/.news_extraction_cache",
 )
+NEWS_EMBEDDING_MODEL = os.environ.get(
+    "NEWS_EMBEDDING_MODEL",
+    "intfloat/multilingual-e5-base",
+)
 
 # --- Canonical English feature vocabulary for the merged stats table ---
 # Small and bounded on purpose: every source column maps to one of these (or

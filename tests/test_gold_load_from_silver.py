@@ -22,6 +22,8 @@ def test_gold_cli_loads_persisted_silver_and_writes_counts(tmp_path, monkeypatch
 
     stats_long = stats_load.build_silver_stats(FIXTURES, use_llm=False)
     persist.persist_silver(stats_long, [], silver_root, ingest_date="2026-06-23")
+    news = persist.load_news(silver_root, ingest_date="2026-06-23")
+    assert {"text_embedding_model", "text_embedding", "cross_lingual_dedup_id", "is_duplicate"}.issubset(news.columns)
 
     returned = gold_run.main(
         [

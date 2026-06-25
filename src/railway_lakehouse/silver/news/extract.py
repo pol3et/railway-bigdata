@@ -19,6 +19,7 @@ import subprocess
 import time
 import unicodedata
 from dataclasses import dataclass, replace
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -35,6 +36,7 @@ from .cache import (
     gdelt_passthrough_cache_key,
     model_digest_key,
 )
+from .embeddings import cluster_near_duplicates, compute_embeddings
 from .failures import ExtractionFailure, utc_now
 from . import sentiment_encoder
 from .gkg_parser import match_gkg_to_article
@@ -787,6 +789,18 @@ def _write_manifest(path, manifest: dict) -> None:
     )
 
 
+def _embedding_model_available() -> bool:
+    try:
+        return find_spec("sentence_transformers") is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _has_text_embedding(row: NewsFeature) -> bool:
+    embedding = getattr(row, "text_embedding", None)
+    return isinstance(embedding, (list, tuple)) and len(embedding) > 0
+
+
 def run_extraction_pipeline(
     articles: list,
     *,
@@ -888,6 +902,11 @@ def run_extraction_pipeline(
         manifest["lifecycle"]["stop_model"] = lifecycle.stop_model()
         manifest["lifecycle"]["vram_status_after_stop"] = lifecycle.vram_status()
 
+    successes = compute_embeddings(successes, use_model=_embedding_model_available())
+    if any(_has_text_embedding(feature) for feature in successes):
+        cluster_near_duplicates(successes)
+    _refresh_embedded_cache(articles, successes, cache, model_digest)
+
     manifest["run_finished_utc"] = utc_now()
     manifest["duration_seconds"] = round(time.perf_counter() - started, 3)
     manifest["latency_seconds"]["total_llm"] = round(manifest["latency_seconds"]["total_llm"], 3)
@@ -909,6 +928,25 @@ def run_extraction_pipeline(
         manifest["counts"]["cache_hits"],
     )
     return ExtractionRunResult(successes, failures, manifest)
+
+
+def _refresh_embedded_cache(
+    articles: list[dict],
+    features: list[NewsFeature],
+    cache: CacheBackend,
+    model_digest: str,
+) -> None:
+    """Rewrite cache entries after optional embedding enrichment."""
+    by_id = {feature.article_id: feature for feature in features}
+    for article in articles:
+        article_id = str(article.get("article_id") or article.get("document_identifier") or "")
+        feature = by_id.get(article_id)
+        if feature is None:
+            continue
+        if str(article.get("source") or "").lower() == "gdelt" and _has_gkg_fields(article):
+            cache.put(gdelt_passthrough_cache_key(article), GDELT_PASSTHROUGH_DIGEST, feature)
+        else:
+            cache.put(extract_cache_key(article), model_digest, feature)
 
 
 def extract_batch(articles: list, *, cache: CacheBackend = None) -> tuple[list, list]:

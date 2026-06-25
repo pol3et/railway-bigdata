@@ -11,6 +11,8 @@ Run with:  python -m pytest -q -m integration
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 from railway_lakehouse.silver.stats import load as stats_load
@@ -38,6 +40,10 @@ def test_persisted_silver_feeds_gold(tmp_path, monkeypatch):
     assert len(reloaded) == len(stats_long) and len(reloaded) >= 3
     news = persist.load_news(silver_root)            # valid 0-row table
     assert list(news.columns) == persist.NEWS_FEATURE_COLUMNS
+    assert {"text_embedding_model", "text_embedding", "cross_lingual_dedup_id", "is_duplicate"}.issubset(news.columns)
+    news_schema = pq.read_schema(paths["news"])
+    assert news_schema.field("text_embedding").type == pa.list_(pa.float32())
+    assert news_schema.field("is_duplicate").type == pa.bool_()
 
     # persisted Silver -> Gold parquet
     gold_out = tmp_path / "gold" / "railway_ml.parquet"

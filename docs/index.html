@@ -503,6 +503,10 @@
           <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness ‖ GAP-044 parser audit</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
+          <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ <span class="sig green"><span class="dot green"></span>closed</span> GAP-036 e5-base embeddings + production dedup markers (τ=0.95) ‖ GAP-041 UIC widen+stage ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
+        </div>
+        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-036 adds optional <span class="mono">intfloat/multilingual-e5-base</span> embeddings and invokes deterministic local dedup markers in production Silver extraction at τ=0.95 when embeddings are present; Spark count enforcement remains GAP-037/GAP-040. GAP-033 proves the live extraction path; the committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
