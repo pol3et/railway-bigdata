@@ -20,6 +20,18 @@ Workflow:
   - `article_records_to_news_features()` cannot receive an explicit GKG lookup for deterministic passthrough routing.
   - Existing GDELT passthrough does not map themes to event types or organizations to known operators.
 
+Review update for PR #33:
+- The first implementation still left the raw GKG ZIP parser reachable only from tests and direct helper calls.
+- Production wiring now reads `*.gkg.csv.zip` under the existing Bronze
+  `news/gdelt_history/gkg_v1_daily/ingest_date=.../` path, parses transient
+  `GKGRecord` objects, forwards them through `run_extraction_pipeline(...,
+  gkg_records=...)`, and creates bounded GKG-sourced GDELT article rows for
+  unmatched records so GKG-only Bronze fixtures produce deterministic
+  `NewsFeature` rows.
+- No new external source claims were needed for this review fix; it is a local
+  wiring correction against the already documented Bronze contract and GKG
+  parser semantics.
+
 ## Official GDELT Findings
 
 ### GKG 2.1 Format

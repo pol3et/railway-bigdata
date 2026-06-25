@@ -74,17 +74,22 @@ into the deterministic offline path rather than only tested as isolated function
 GAP-031 adds a deterministic GKG parser for raw GDELT `.gkg.csv.zip` files.
 The parser supports fixture-covered GKG 1.0 daily rows and GKG 2.x tab-delimited
 rows, extracts a transient `GKGRecord`, and does not write a separate Silver GKG
-table. When a caller explicitly supplies matching GKG records for GDELT articles,
-`article_records_to_news_features(..., gkg_records=...)` merges those fields and
-routes the row through `gdelt_passthrough_cached()` instead of the Ollama path.
+table. The production Bronze reader discovers
+`bronze/news/gdelt_history/gkg_v1_daily/.../*.gkg.csv.zip`, parses those records,
+forwards them through `run_extraction_pipeline(..., gkg_records=...)`, and creates
+bounded GDELT article-shaped rows from unmatched GKG records so GKG-only Bronze
+fixtures still produce `NewsFeature` rows. Callers that already have article rows
+can also pass explicit GKG records to
+`article_records_to_news_features(..., gkg_records=...)`; matching GDELT rows are
+routed through `gdelt_passthrough_cached()` instead of the Ollama path.
 
 GKG passthrough populates only fields that GDELT already provides or that can be
 derived deterministically: `sentiment` from tone thresholds, `country` from GKG
 source/location fields, `event_type` from explicit GKG rail/transport theme
 tokens, and `operators` from the bounded `KNOWN_OPERATORS` gazetteer. It keeps
 `summary_en=None` and `confidence=None` because GKG does not provide summaries
-or model confidence. Fully automatic DOC-to-GKG URL cross-linking and live GKG
-backfill evidence remain separate follow-up work.
+or model confidence. Live high-volume GKG backfill evidence remains separate
+follow-up work.
 
 ## Known limitations / what you must wire
 - **Ollama cannot run in the build sandbox** (local server + model download, network-locked), so

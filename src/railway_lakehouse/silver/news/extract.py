@@ -637,6 +637,32 @@ def _find_matching_gkg_record(article: dict, gkg_records: list[GKGRecord]) -> Op
     return None
 
 
+def _enrich_articles_with_gkg_records(
+    articles: list[dict],
+    gkg_records: Optional[list[GKGRecord]],
+) -> list[dict]:
+    if not gkg_records:
+        return articles
+    enriched = []
+    for article in articles:
+        if str(article.get("source") or "").lower() == "gdelt":
+            match = _find_matching_gkg_record(article, gkg_records)
+            if match is not None:
+                logger.info(
+                    "GDELT article %s using GKG passthrough record %s",
+                    article.get("article_id"),
+                    match.gkg_id,
+                )
+                enriched.append(_merge_gkg_record(article, match))
+                continue
+        logger.info(
+            "article %s using LLM extraction path",
+            article.get("article_id"),
+        )
+        enriched.append(article)
+    return enriched
+
+
 def _effective_concurrency() -> int:
     requested = max(1, int(config.NEWS_EXTRACTION_CONCURRENCY))
     server_parallel = int(os.environ.get("OLLAMA_NUM_PARALLEL", "1") or "1")
@@ -697,6 +723,7 @@ def run_extraction_pipeline(
     *,
     cache: CacheBackend = None,
     manifest_path=None,
+    gkg_records: Optional[list[GKGRecord]] = None,
     warm_up: bool = True,
     unload_after: bool = False,
     lifecycle: OllamaLifecycle | None = None,
@@ -705,6 +732,7 @@ def run_extraction_pipeline(
 ) -> ExtractionRunResult:
     """Run a cached, observable extraction pass over a batch of articles."""
     articles = [_article_to_dict(article) for article in articles]
+    articles = _enrich_articles_with_gkg_records(articles, gkg_records)
     cache = cache or NoOpCache()
     max_attempts = _resolve_max_attempts(max_attempts)
     retry_backoff_seconds = (
@@ -834,25 +862,7 @@ def article_records_to_news_features(
         r.to_row() if hasattr(r, "to_row") else dict(r)
         for r in records
     ]
-    if gkg_records:
-        enriched = []
-        for article in articles:
-            if str(article.get("source") or "").lower() == "gdelt":
-                match = _find_matching_gkg_record(article, gkg_records)
-                if match is not None:
-                    logger.info(
-                        "GDELT article %s using GKG passthrough record %s",
-                        article.get("article_id"),
-                        match.gkg_id,
-                    )
-                    enriched.append(_merge_gkg_record(article, match))
-                    continue
-            logger.info(
-                "article %s using LLM extraction path",
-                article.get("article_id"),
-            )
-            enriched.append(article)
-        articles = enriched
+    articles = _enrich_articles_with_gkg_records(articles, gkg_records)
     successes, failures = extract_batch(articles)
     if failures:
         logger.warning("article_records_to_news_features dropped %d failed articles", len(failures))

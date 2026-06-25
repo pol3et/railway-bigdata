@@ -188,7 +188,7 @@
   <section>
     <div class="sec-head"><span class="sec-no">01</span><h2>At a glance</h2></div>
     <div class="grid">
-      <div class="card green"><div class="big">220</div><div class="cap">tests passing · 6 spark skips</div></div>
+      <div class="card green"><div class="big">223</div><div class="cap">tests passing · 6 spark skips</div></div>
       <div class="card amber"><div class="big">2968×4</div><div class="cap">real stats Gold (live)</div></div>
       <div class="card green"><div class="big">MinIO</div><div class="cap">live · s3fs round-trip ok</div></div>
       <div class="card green"><div class="big">3</div><div class="cap">Spark jobs · guarded</div></div>
@@ -209,7 +209,7 @@
           <tr><td><span class="src">ksh</span></td><td>6 STADAT tables (XLSX) · HU</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
           <tr><td><span class="src">statistik_austria</span></td><td>5 rail files (ODS) · AT</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig red"><span class="dot red"></span>no ODS reader</span></td></tr>
           <tr><td><span class="src">uic</span></td><td>2 RAILISA pubs (PDF) · global</td><td><span class="sig amber"><span class="dot amber"></span>live · unscheduled</span></td><td><span class="sig green"><span class="dot green"></span>StatFact reader</span></td></tr>
-          <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG parser tested</span></td></tr>
+          <tr><td><span class="src">past_recordings</span></td><td>GDELT history (JSON · GKG zip) — volume play</td><td><span class="sig amber"><span class="dot amber"></span>CLI · unscheduled</span></td><td><span class="sig amber"><span class="dot amber"></span>DOC ok · GKG zip wired</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -302,11 +302,11 @@
 
       <div class="pcard">
         <div class="pcard-top"><span class="src">past_recordings</span>
-          <div class="plevels"><span class="lvl amber" title="Bronze: CLI one-off">B</span><span class="lvl amber" title="Silver: DOC ok, GKG parser fixture-tested">S</span><span class="lvl red" title="Gold: live volume missing">G</span></div></div>
-        <div class="lvlnote">GDELT history (the volume play). DOC pages → ArticleRecord works; GKG csv.zip now parses to transient NewsFeature passthrough, fixture-tested only.</div>
+          <div class="plevels"><span class="lvl amber" title="Bronze: CLI one-off">B</span><span class="lvl amber" title="Silver: DOC ok, GKG zip production-wired">S</span><span class="lvl red" title="Gold: live volume missing">G</span></div></div>
+        <div class="lvlnote">GDELT history (the volume play). DOC pages → ArticleRecord works; GKG csv.zip now parses to transient NewsFeature passthrough through the production reader; live volume evidence remains deferred.</div>
         <div class="sample">
           <div class="sl"><span class="k">B</span> raw JSON · GDELT DOC history pages (CLI; not scheduled)</div>
-          <div class="sl"><span class="k">S</span> DOC→ArticleRecord ok · GKG csv.zip parser fixture-tested</div>
+          <div class="sl"><span class="k">S</span> DOC→ArticleRecord ok · GKG csv.zip parser production-wired</div>
           <div class="sl"><span class="x">G</span> — volume track (deferred)</div>
         </div>
       </div>
@@ -458,7 +458,7 @@
         <div class="wave-head"><span class="wave-no">WAVE 5</span><span class="wave-title">Coverage · volume · polish</span><span class="wave-par">parallel · deferrable</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="u mid">MID</span> AT/UIC readers + GAP-005 scheduler; KSH reader done</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u mid">MID</span> GDELT history backfill (GKG parser done)</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> GDELT history backfill (GKG parser production-wired)</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
         </div>
@@ -485,7 +485,7 @@
         </div>
         <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-033 proves the live extraction path; the committed manifest records mixed qwen3:4b quality on sparse GDELT snippets, so evaluator/widening follow-ups remain. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
       </div>
-      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract D</div><div class="cbody">✅ Real <span class="mono">NewsFeature</span> rows reach Gold from a live Ollama run (GAP-033). Still open: the eval harness reports per-feature metrics on a held-out golden TEST set; dedup deflates inflated <span class="mono">(geo,year)</span> counts.</div></div>
+      <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract D</div><div class="cbody">✅ Real <span class="mono">NewsFeature</span> rows reach Gold from a live Ollama run (GAP-033); GKG zip passthrough is production-wired with fixture coverage (GAP-031). Still open: the eval harness reports per-feature metrics on a held-out golden TEST set; dedup deflates inflated <span class="mono">(geo,year)</span> counts.</div></div>
 
       <div class="flow">↓</div>
 
@@ -521,7 +521,7 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, the GAP-033 live qwen3:4b NewsFeature evidence, the GAP-031 fixture-tested GKG parser, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's production LLM runner, GAP-033's live evidence, and GAP-031's deterministic GKG passthrough are implemented, while quality/eval/wider aggregation remain follow-up. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, the GAP-033 live qwen3:4b NewsFeature evidence, the GAP-031 production-wired GKG parser, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's production LLM runner, GAP-033's live evidence, and GAP-031's deterministic GKG passthrough are implemented, while quality/eval/wider aggregation remain follow-up. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
 
 </main>
 </body>

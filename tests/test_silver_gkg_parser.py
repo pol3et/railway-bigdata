@@ -1,8 +1,11 @@
 import io
 import zipfile
 
+import pandas as pd
 import pytest
 
+from railway_lakehouse import pipeline
+from railway_lakehouse.silver import run as silver_run
 from railway_lakehouse.silver.schema import ArticleRecord, GKGRecord
 from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver.news.gkg_parser import (
@@ -11,6 +14,17 @@ from railway_lakehouse.silver.news.gkg_parser import (
     parse_gkg_csv,
     parse_gkg_csv_zip,
 )
+
+
+class _NoopLifecycle:
+    def warm_up(self):
+        return {"status": "ok"}
+
+    def stop_model(self):
+        return {"status": "ok"}
+
+    def vram_status(self):
+        return {"status": "ok"}
 
 
 def _gkg21_row(
@@ -345,4 +359,163 @@ def test_article_records_to_news_features_uses_gkg_passthrough(monkeypatch):
     assert feature.country == "HU"
     assert feature.event_type == "accident"
     assert feature.operators == ["MÁV"]
+    assert feature.gkg_tone_source == "gdelt_gkg"
+
+
+@pytest.mark.unit
+def test_run_extraction_pipeline_accepts_gkg_records_for_passthrough(monkeypatch):
+    monkeypatch.setattr(
+        news_extract,
+        "generate_json",
+        lambda *args, **kwargs: pytest.fail("GKG-matched article must not call Ollama"),
+    )
+    article = {
+        "article_id": "prod-gkg",
+        "source": "gdelt",
+        "title": "Rail service disruption",
+        "url": "https://example.test/prod-gkg",
+        "published_date": "2026-06-25",
+        "body": "Snippet",
+    }
+    gkg = GKGRecord(
+        gkg_id="gkg-prod",
+        gkg_date="20260625010101",
+        document_identifier="https://example.test/prod-gkg",
+        gkg_themes="PUBLIC_TRANSPORT;RAIL_INCIDENT",
+        gkg_tone=-2.5,
+        gkg_locations="1#Vienna, Austria#AU#AU##48.2#16.3#2761369#77;",
+        gkg_organizations="ÖBB",
+    )
+
+    result = news_extract.run_extraction_pipeline(
+        [article],
+        gkg_records=[gkg],
+        warm_up=False,
+        max_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    assert result.failures == []
+    assert result.manifest["counts"]["gdelt_passthrough"] == 1
+    [feature] = result.features
+    assert feature.article_id == "prod-gkg"
+    assert feature.sentiment == "negative"
+    assert feature.country == "AT"
+    assert feature.gkg_tone_source == "gdelt_gkg"
+
+
+@pytest.mark.unit
+def test_silver_run_news_forwards_gkg_records(monkeypatch, tmp_path):
+    monkeypatch.setattr(silver_run, "health_check", lambda: True)
+    monkeypatch.setattr(
+        news_extract,
+        "generate_json",
+        lambda *args, **kwargs: pytest.fail("GKG-matched silver.run article must not call Ollama"),
+    )
+    article = {
+        "article_id": "silver-run-gkg",
+        "source": "gdelt",
+        "title": "Rail investment",
+        "url": "https://example.test/silver-run",
+        "published_date": "2026-06-25",
+        "body": "Snippet",
+    }
+    gkg = GKGRecord(
+        gkg_id="gkg-silver-run",
+        gkg_date="20260625010101",
+        document_identifier="https://example.test/silver-run",
+        gkg_themes="PUBLIC_TRANSPORT;ECON_INVESTMENT",
+        gkg_tone=3.0,
+        gkg_locations="1#Budapest, Hungary#HU#HU##47.5#19.0#3054643#42;",
+        gkg_organizations="MÁV-Hungarian Railways",
+    )
+
+    [feature] = silver_run.run_news(
+        [article],
+        gkg_records=[gkg],
+        cache_root=tmp_path / "cache",
+        artifact_root=tmp_path / "artifacts",
+        ingest_date="2026-06-25",
+        lifecycle=_NoopLifecycle(),
+    )
+
+    assert feature.article_id == "silver-run-gkg"
+    assert feature.sentiment == "positive"
+    assert feature.country == "HU"
+    assert feature.operators == ["MÁV"]
+
+
+@pytest.mark.integration
+def test_run_pipeline_reads_gkg_zip_and_produces_passthrough_news(monkeypatch, tmp_path):
+    bronze_root = tmp_path / "bronze"
+    gkg_dir = (
+        bronze_root
+        / "news"
+        / "gdelt_history"
+        / "gkg_v1_daily"
+        / "ingest_date=2026-06-25"
+    )
+    gkg_dir.mkdir(parents=True)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr(
+            "20260625.gkg.csv",
+            _gkg21_row(
+                record_id="pipeline-gkg",
+                url="https://example.test/pipeline-gkg",
+                themes="PUBLIC_TRANSPORT;RAIL_INCIDENT;",
+                v2themes="PUBLIC_TRANSPORT,33;RAIL_INCIDENT,44;",
+                locations="1#Austria#AU#AU##48.2#16.3#-1;",
+                v2locations="1#Vienna, Austria#AU#AU##48.2#16.3#2761369#77;",
+                organizations="ÖBB;",
+                v2organizations="ÖBB,12;",
+                tone="-4.5,1,4,0,0,80",
+            ),
+        )
+    (gkg_dir / "20260625.gkg.csv.zip").write_bytes(buffer.getvalue())
+
+    captured = {}
+    monkeypatch.setattr(pipeline, "health_check", lambda: True)
+    monkeypatch.setattr(
+        news_extract.OllamaLifecycle,
+        "warm_up",
+        lambda self: {"status": "ok"},
+    )
+    monkeypatch.setattr(
+        news_extract,
+        "generate_json",
+        lambda *args, **kwargs: pytest.fail("GKG-only pipeline run must not call Ollama"),
+    )
+    monkeypatch.setattr(
+        pipeline.stats_merge,
+        "build_crosswalk",
+        lambda labels, sources=None, use_llm=False: {},
+    )
+    monkeypatch.setattr(
+        pipeline.stats_merge,
+        "merge_sources",
+        lambda frames, crosswalk: pd.DataFrame(),
+    )
+
+    def capture_gold(stats_long, news_rows, out):
+        captured["news_rows"] = news_rows
+        return str(out)
+
+    monkeypatch.setattr(pipeline, "build_from_silver", capture_gold)
+
+    pipeline.run_pipeline(
+        news=10,
+        out=str(tmp_path / "gold.parquet"),
+        bronze_root=str(bronze_root),
+        news_cache_root=tmp_path / "cache",
+        news_artifact_root=tmp_path / "artifacts",
+        news_ingest_date="2026-06-25",
+    )
+
+    [feature] = captured["news_rows"]
+    assert feature.article_id == "pipeline-gkg"
+    assert feature.sentiment == "negative"
+    assert feature.country == "AT"
+    assert feature.event_type == "accident"
+    assert feature.operators == ["ÖBB"]
     assert feature.gkg_tone_source == "gdelt_gkg"

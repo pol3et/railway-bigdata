@@ -47,8 +47,12 @@ Content:
 - GKG 1.0 rows group articles into namesets; GKG 2.x rows are document-grain.
 
 Silver parsing is transient: `silver/news/gkg_parser.py` unzips and parses
-records only to feed deterministic `NewsFeature` passthrough fields. The project
-does not persist a separate `GKGRecord` Silver table in GAP-031.
+records only to feed deterministic `NewsFeature` passthrough fields. The
+production pipeline reader parses these ZIPs from Bronze, forwards the resulting
+`GKGRecord` objects into the news extraction runner, and emits bounded
+GKG-sourced `NewsFeature` rows through passthrough when no matching article row
+already exists. The project does not persist a separate `GKGRecord` Silver table
+in GAP-031.
 
 ## Silver Stats Contract
 
