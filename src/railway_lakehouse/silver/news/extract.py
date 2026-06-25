@@ -23,7 +23,13 @@ from .. import config
 from ..ollama_client import generate_json
 from ..schema import NewsFeature, validate_news_feature
 from ..config import NEWS_EVENT_TYPES, KNOWN_OPERATORS
-from .cache import CacheBackend, NoOpCache, extract_cache_key, model_digest_key
+from .cache import (
+    CacheBackend,
+    NoOpCache,
+    extract_cache_key,
+    gdelt_passthrough_cache_key,
+    model_digest_key,
+)
 from .failures import ExtractionFailure, utc_now
 
 logger = logging.getLogger("silver.news.extract")
@@ -249,6 +255,13 @@ def _raw_to_text(raw) -> Optional[str]:
         return str(raw)
 
 
+def _resolve_max_attempts(max_attempts: int | None) -> int:
+    attempts = config.NEWS_EXTRACTION_MAX_ATTEMPTS if max_attempts is None else int(max_attempts)
+    if attempts < 1:
+        raise ValueError("max_attempts must be >= 1")
+    return attempts
+
+
 def _failure(article: dict, reason: str, model_digest: str, raw=None) -> ExtractionFailure:
     return ExtractionFailure(
         article_id=str(article.get("article_id") or ""),
@@ -344,6 +357,7 @@ def _extract_uncached_with_retries(
     max_attempts: int,
     retry_backoff_seconds: float,
 ) -> tuple[Optional[NewsFeature], Optional[ExtractionFailure], int]:
+    max_attempts = _resolve_max_attempts(max_attempts)
     last_failure = None
     for attempt in range(1, max_attempts + 1):
         feature, failure = _call_llm_once(article, digest)
@@ -364,6 +378,7 @@ def _extract_article_cached_outcome(
 ) -> _ArticleOutcome:
     started = time.perf_counter()
     digest = model_digest_key()
+    max_attempts = _resolve_max_attempts(max_attempts)
     try:
         _require_valid_article(article)
     except ValueError as exc:
@@ -465,7 +480,7 @@ def gdelt_passthrough_cached(gkg: dict, cache: CacheBackend = None) -> NewsFeatu
         "url": gkg.get("url") or "",
         "published_date": gkg.get("published_date") or gkg.get("date"),
     }
-    cache_key = extract_cache_key(article)
+    cache_key = gdelt_passthrough_cache_key(gkg)
     cached = cache.get(cache_key, GDELT_PASSTHROUGH_DIGEST)
     if cached is not None:
         return cached
@@ -573,7 +588,7 @@ def run_extraction_pipeline(
     """Run a cached, observable extraction pass over a batch of articles."""
     articles = [_article_to_dict(article) for article in articles]
     cache = cache or NoOpCache()
-    max_attempts = max_attempts or config.NEWS_EXTRACTION_MAX_ATTEMPTS
+    max_attempts = _resolve_max_attempts(max_attempts)
     retry_backoff_seconds = (
         config.NEWS_EXTRACTION_RETRY_BACKOFF_SECONDS
         if retry_backoff_seconds is None

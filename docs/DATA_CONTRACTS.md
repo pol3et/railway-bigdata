@@ -147,7 +147,9 @@ Silver news extraction has a local idempotency cache implemented by
   written to a JSON sidecar under
   `silver/news/news_extraction_failures/ingest_date=YYYY-MM-DD/failures.json`.
   A Parquet failure table remains a follow-up persistence decision.
-- GAP-050 run manifests can be written under
+- GAP-050 production run manifests are written by `pipeline.run_pipeline()` and
+  `silver.run.run_news()` under the configured artifact root (default
+  `output/silver`):
   `silver/news/news_extraction_runs/ingest_date=YYYY-MM-DD/manifest.json` and
   record processed/cached/failed counts, failure rate, latency, model digest,
   and prompt version.

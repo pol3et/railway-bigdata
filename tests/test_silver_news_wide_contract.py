@@ -352,6 +352,42 @@ def test_gdelt_passthrough_preserves_zero_tone(monkeypatch, tmp_path):
     assert feature.sentiment_label == "neutral"
 
 
+def test_gdelt_passthrough_cache_key_includes_gkg_annotations(tmp_path):
+    cache = FileSystemCache(tmp_path / ".news_extraction_cache")
+    base = {
+        "article_id": "gdelt-cache-key",
+        "source": "gdelt",
+        "url": "https://example.test/gdelt-cache-key",
+        "title": "Rail update",
+        "body": "Rail service update.",
+        "published_date": "2026-06-25",
+        "language": "eng",
+        "sourcecountry": "HU",
+        "gkg_tone": 2.5,
+        "gkg_themes": "TRANSPORT;RAIL",
+        "gkg_persons": "Person A",
+        "gkg_organizations": "MAV",
+        "gkg_locations": "Hungary",
+        "gkg_emotions": "JOY",
+    }
+
+    first = news_extract.gdelt_passthrough_cached(base, cache)
+    second = news_extract.gdelt_passthrough_cached(
+        {
+            **base,
+            "gkg_tone": -4.0,
+            "gkg_themes": "TRANSPORT;RAIL;LABOR_STRIKE",
+        },
+        cache,
+    )
+
+    assert first.gkg_tone == 2.5
+    assert first.gkg_themes == "TRANSPORT;RAIL"
+    assert second.gkg_tone == -4.0
+    assert second.sentiment == "negative"
+    assert second.gkg_themes == "TRANSPORT;RAIL;LABOR_STRIKE"
+
+
 def test_extract_batch_returns_successes_and_failures(monkeypatch, tmp_path, caplog):
     cache = FileSystemCache(tmp_path / ".news_extraction_cache")
     monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _valid_raw())

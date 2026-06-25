@@ -1843,3 +1843,35 @@ Evidence:
 
 Next:
 - Wait for PR #28 checks/review; continue with GAP-050/GAP-033 after merge.
+
+## 2026-06-25 - GAP-050 PR #29 review fixes
+
+Status: done; PR #29 updated.
+
+Changed:
+- `src/railway_lakehouse/pipeline.py`
+- `src/railway_lakehouse/silver/run.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/news/failures.py`
+- `src/railway_lakehouse/silver/config.py`
+- `tests/test_pipeline_gaps.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_silver_news_extract_prompt.py`
+- `tests/test_silver_news_wide_contract.py`
+- `docs/LLM_EXTRACTION_DESIGN.md`, `docs/DATA_CONTRACTS.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`
+- `.planning/coursework/research/bigdata/llm-pipeline-engineering-gap050.md`
+
+Findings:
+- Review P1 was valid: `pipeline.run_pipeline()` and `silver.run.run_news()` still used the compatibility `extract_batch()` path, so live production runs would not write the GAP-050 run manifest or persist the typed failure sidecar.
+- Review P2 was valid: deterministic GDELT passthrough cache keys ignored GKG/source annotations that affect the produced `NewsFeature`.
+- Review P3 was valid: `max_attempts=0` needed explicit validation to avoid zero-attempt accounting gaps.
+
+Evidence:
+- RED regressions before fixes: 4 failed for missing production artifact parameters, stale GDELT replay, and missing `max_attempts` validation.
+- Focused affected files after fixes: `python -m pytest -q tests/test_silver_news_extract_prompt.py tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py tests/test_pipeline_gaps.py` -> 35 passed.
+- Verify command: `python -m pytest -q -m unit tests/test_silver_news_extract_prompt.py` -> 6 passed; `python -m pytest -q` -> 194 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+
+Next:
+- GAP-033 can run the now-wired production path with live Ollama and commit bounded evidence artifacts under `output/evidence/`.

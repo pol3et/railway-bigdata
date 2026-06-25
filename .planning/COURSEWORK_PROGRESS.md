@@ -4,6 +4,11 @@
 
 Status: done
 
+Review update:
+- PR #29 request-changes fixes are included: production/live news paths now call `run_extraction_pipeline(..., warm_up=True, manifest_path=...)`, persist the typed failure sidecar, and surface artifact paths.
+- GDELT passthrough cache keys now include all GKG/source annotations used in the deterministic feature.
+- `max_attempts < 1` now raises `ValueError` instead of allowing zero-attempt accounting gaps.
+
 Research:
 - Required note written at `.planning/coursework/research/bigdata/llm-pipeline-engineering-gap050.md`.
 - Used `research-orchestrator` with local files first and Context7 for Ollama, LangChain, and Qwen docs.
@@ -17,9 +22,10 @@ Changed:
 - Hardened Spark tests so the literal full-suite command skips Spark on native Windows when `JAVA_HOME` is absent instead of hanging.
 
 Evidence:
-- `python -m pytest -q -m unit tests/test_silver_news_extract_prompt.py` -> 5 passed.
-- `python -m pytest -q -m integration tests/test_silver_news_extraction_e2e.py` -> 3 passed.
-- `python -m pytest -q` -> 190 passed, 6 skipped.
+- `python -m pytest -q tests/test_silver_news_extract_prompt.py tests/test_silver_news_wide_contract.py tests/test_silver_news_extraction_e2e.py tests/test_pipeline_gaps.py` -> 35 passed.
+- `python -m pytest -q -m unit tests/test_silver_news_extract_prompt.py` -> 6 passed.
+- `python -m pytest -q -m integration tests/test_silver_news_extraction_e2e.py` -> 4 passed.
+- `python -m pytest -q` -> 194 passed, 6 skipped.
 - `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q -m spark` -> 3 passed, 3 skipped.
 - `python -m compileall -q src tests` -> passed.
 

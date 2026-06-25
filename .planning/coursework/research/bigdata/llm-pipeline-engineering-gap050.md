@@ -68,3 +68,30 @@ Findings used:
 - Do not add `monetary_currency` to the persisted schema in GAP-050. The prompt asks the model to keep currency visible in `monetary_raw`; `monetary_amount_eur` is only for explicit EUR/equivalent values.
 - Default batch policy is sequential with a batch interface and metrics. Any future parallelism must be opt-in and capped by `OLLAMA_NUM_PARALLEL`.
 - Warm-up and unload are lifecycle hooks in the runner. Unit/CI tests keep them disabled or mocked; GAP-033 can enable them for the live pass.
+
+## PR #29 Request-Changes Follow-up (2026-06-25)
+
+Local files re-read:
+
+- `src/railway_lakehouse/pipeline.py`
+- `src/railway_lakehouse/silver/run.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/news/failures.py`
+- `tests/test_pipeline_gaps.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_silver_news_extract_prompt.py`
+- `tests/test_silver_news_wide_contract.py`
+
+Review verification:
+
+- P1 was valid: the production/live entrypoints still called the compatibility `extract_batch()` wrapper, so warm-up, run manifest persistence, and typed failure sidecar persistence were not wired into the path GAP-033 will run.
+- P2 was valid: `gdelt_passthrough_cached()` reused the generic article content key even though passthrough output depends on GKG tone/themes/person/org/location/emotion/source fields.
+- P3 was valid: zero retry attempts could bypass the normal success/failure accounting path if configuration resolved to `0`.
+
+Refinement:
+
+- Keep `extract_batch()` as a compatibility wrapper, but route `pipeline.run_pipeline()` and `silver.run.run_news()` through `run_extraction_pipeline(..., warm_up=True, manifest_path=...)`.
+- Persist failure sidecars from both production entrypoints under the same artifact root as the run manifest. Default root is `output/silver`; tests pass `tmp_path`.
+- Add a dedicated GDELT passthrough cache key that includes every source/GKG field used to build the deterministic `NewsFeature`.
+- Validate `max_attempts >= 1` at runner/retry entry and raise `ValueError` for invalid configuration.

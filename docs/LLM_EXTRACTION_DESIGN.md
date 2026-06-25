@@ -31,7 +31,7 @@ Sources: Ollama chat/structured output API (`https://github.com/ollama/ollama/bl
 
 ## Batch And Cache Policy
 
-`run_extraction_pipeline()` is the GAP-050 batch interface. It preserves the existing `extract_batch()` contract for callers that only need `(successes, failures)`.
+`run_extraction_pipeline()` is the GAP-050 batch interface. The production/live entrypoints (`railway_lakehouse.pipeline.run_pipeline()` and `silver.run.run_news()`) call it directly with `warm_up=True`, a manifest path under the configured artifact root, and typed failure-sidecar persistence. `extract_batch()` remains only a compatibility wrapper for older tests/helpers that still need `(successes, failures)`.
 
 Default execution is sequential. On this GTX 1060 6 GB box, LangChain-style `batch()` would parallelize client calls, but Ollama still has to serve them through the same VRAM-bound runner. Keep `OLLAMA_NUM_PARALLEL=1`; any future concurrency must be opt-in and capped by the lower of `NEWS_EXTRACTION_CONCURRENCY` and `OLLAMA_NUM_PARALLEL`.
 
@@ -42,7 +42,7 @@ Cache lookup happens before any LLM call:
 miss -> call Ollama -> validate -> cache write
 ```
 
-GDELT rows carrying GKG fields continue to use deterministic passthrough and do not call the LLM.
+GDELT rows carrying GKG fields continue to use deterministic passthrough and do not call the LLM. Their cache key includes the article identity plus every GKG/source field used to build the passthrough feature (`language`, source country, tone, themes, persons, organizations, locations, and emotions), so corrected GKG annotations miss cache instead of replaying stale rows.
 
 Sources: LangChain batch/concurrency docs (`https://docs.langchain.com/oss/python/langchain/models`), Ollama environment config source for `OLLAMA_NUM_PARALLEL` (`https://github.com/ollama/ollama/blob/main/ollama/envconfig/config.go`).
 
@@ -53,8 +53,10 @@ Malformed JSON, transport/CUDA/timeout exceptions surfaced through `generate_jso
 No row is silently dropped:
 
 - `run_extraction_pipeline()` returns both successful features and failures.
-- `persist_news_failures()` writes the JSON sidecar under `silver/news/news_extraction_failures/ingest_date=.../failures.json`.
+- Production entrypoints persist `persist_news_failures()` JSON sidecars under `<artifact_root>/news/news_extraction_failures/ingest_date=.../failures.json`; the default artifact root is `output/silver`.
 - Re-runs are cheap because successful rows replay from the content-hash cache.
+
+`max_attempts` is validated at runner entry and inside the retry helper. A value below 1 raises `ValueError`; zero-attempt extraction cannot count an article as processed without either a success or a typed failure.
 
 ## Lifecycle
 
@@ -84,5 +86,7 @@ The run manifest records the values needed to compute this after the first live 
 - failure rate
 - latency totals and max article latency
 - lifecycle results and cache stats
+
+Production manifests are written to `<artifact_root>/news/news_extraction_runs/ingest_date=.../manifest.json`; the default artifact root is `output/silver`, while tests use `tmp_path`.
 
 The owner GPU test already established the operational defaults used here: warm up once, `num_ctx=4096`, classify model/transport/JSON failures as retryable during the pass, and persist stubborn failures for investigate -> fix -> re-run.

@@ -132,6 +132,19 @@ def test_run_extraction_pipeline_records_raw_failure(monkeypatch, tmp_path):
     assert failure.raw == '["not", "an", "object"]'
 
 
+def test_run_extraction_pipeline_rejects_zero_max_attempts(monkeypatch, tmp_path):
+    monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _valid_raw())
+
+    with pytest.raises(ValueError, match="max_attempts must be >= 1"):
+        news_extract.run_extraction_pipeline(
+            [_article(article_id="zero-attempts")],
+            cache=FileSystemCache(tmp_path / ".news_extraction_cache"),
+            warm_up=False,
+            max_attempts=0,
+            retry_backoff_seconds=0,
+        )
+
+
 def test_validate_news_feature_still_coerces_adversarial_narrow_output():
     feature = validate_news_feature(
         {

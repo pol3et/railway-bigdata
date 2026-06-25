@@ -34,6 +34,7 @@ NEWS_EXTRACTION_RETRY_BACKOFF_SECONDS = float(
     os.environ.get("NEWS_EXTRACTION_RETRY_BACKOFF_SECONDS", "0.5")
 )
 NEWS_EXTRACTION_CONCURRENCY = int(os.environ.get("NEWS_EXTRACTION_CONCURRENCY", "1"))
+SILVER_NEWS_ARTIFACT_ROOT = os.environ.get("SILVER_NEWS_ARTIFACT_ROOT", "output/silver")
 
 # --- Lakehouse (MinIO), mirrors Bronze ---
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "http://localhost:9000")

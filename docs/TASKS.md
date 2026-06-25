@@ -181,7 +181,7 @@ Mirrors the dashboard "Execution plan" section. Urgency: `[!]` urgent · `H` hig
 Multi-model news feature pipeline (extract-wide in Silver → filter/dedup/cluster in Spark). Detailed specs: `GAP_TASKS.md`; design contract + the **8 must-fix review blockers** + single-box plan (Ryzen 5 1600 / GTX 1060 6 GB → **sequential model passes**, torch CPU-only on Py3.14): `SPEC_NEWS_PREPROCESSING.md`. Build **MVP-first**; model-heavy tasks are fast-follow gated on the MVP being green. Urgency: `P0` blocker · `P1` high · `P2` mid · `P3` deferred.
 
 - `[x]` GAP-039 `silver/wide-newsfeature-contract` — wide schema + idempotent content-hash cache (43-field `NewsFeature`, digest-pinned cache, JSON failure sidecar; full live LLM run remains GAP-033/GAP-050)
-- `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest; live model execution remains GAP-033
+- `[x]` GAP-050 `silver/llm-pipeline-engineering` — prompt + sequential cached runner + retries/failure accounting + lifecycle hooks + run manifest wired into the production news entrypoints; live model execution remains GAP-033
 - `[P0]` GAP-033 `silver/news-llm-extraction-live` — run the LLM pass for REAL once + persist evidence (has never run live; needs `infra/ollama-model` = Qwen3-4B q4 on the 1060; uses the GAP-050 prompt)
 - `[P1]` GAP-035 `silver/language-id` (fastText, CPU) ‖ GAP-034 `silver/sentiment-encoder` (XLM-R, CPU-first) ‖ GAP-031 `silver/gdelt-gkg-parser` (v1: DOC-field recovery + wire passthrough)
 - `[P1]` GAP-040 `gold/widen-news-aggregation` (+GAP-016/022/026) ‖ GAP-043 `eval/news-model-quality-harness` ‖ GAP-044 `tests/parser-correctness-audit`
