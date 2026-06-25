@@ -3,12 +3,24 @@ import os
 
 # --- Ollama ---
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:9b-q8_0")
+# Single-box default: Qwen3-4B (q4_K_M, ~2.6-3 GB) fits the GTX 1060 6 GB per the
+# roadmap/SPEC owner decision (2026-06-25). The 9B-q8 tag (~11 GB) spills to CPU on
+# this box and crawls — never use it as the default; override via OLLAMA_MODEL only on
+# a larger box.
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b")
 OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 OLLAMA_NUM_RETRIES = int(os.environ.get("OLLAMA_NUM_RETRIES", "3"))
 OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "1024"))
 OLLAMA_THINK = os.environ.get("OLLAMA_THINK", "false").strip().lower() in {"1", "true", "yes", "on"}
+# Number of model layers to offload to the GPU. Empty = let Ollama decide (its default).
+# Set OLLAMA_NUM_GPU=0 to force CPU — REQUIRED on Pascal cards (GTX 1060, sm_61): with
+# format=json (grammar-constrained sampling) the GPU path crashes with
+# "CUDA error: an illegal memory access was encountered" (verified 2026-06-25). The minimal
+# generate path works on GPU, but the JSON extraction the pipeline relies on does not. CPU is
+# ~16 s/article on this box — fine for the small (hundreds-of-articles) cached one-time pass.
+_OLLAMA_NUM_GPU = os.environ.get("OLLAMA_NUM_GPU", "").strip()
+OLLAMA_NUM_GPU = int(_OLLAMA_NUM_GPU) if _OLLAMA_NUM_GPU != "" else None
 
 # --- Lakehouse (MinIO), mirrors Bronze ---
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "http://localhost:9000")

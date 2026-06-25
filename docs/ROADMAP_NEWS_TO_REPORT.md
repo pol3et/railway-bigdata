@@ -79,6 +79,14 @@ GAP-048  HYPOTHESIS FORMATION (read the EDA artifacts) → curate interesting/ro
 GAP-049  Final REPORT grounded in EDA + analysis evidence (deterministic link/number checker)
 ```
 
+> **Already landed (PR #27, 2026-06-25):** `spark_jobs/correlations.py` (all-pairs Pearson/Spearman,
+> pooled + by-country, levels + panel) and `spark_jobs/regional.py` (descriptives + inequality), with
+> committed snapshots under `output/evidence/analysis-artifacts/`. So **GAP-046 EXTENDS this** (YoY
+> deltas, lag cross-corr, coverage/missingness, top-correlation ranking) rather than starting cold, and
+> GAP-047's verifier recomputes teammate claims against the current Gold. This is the Spark finale
+> deferred to a **separate supervised session** (needs winutils for Spark writes + human hypothesis
+> selection) — see `docs/OVERNIGHT_READINESS.md`.
+
 - **⛔ Contract F:** the report's every quantitative claim cites a committed `output/evidence/eda/` or `output/evidence/analysis/` artifact; teammate analyses in `analysis_artifacts/` are re-verified against current Gold (confirmed/drifted/broken); hypotheses trace to EDA artifacts, not to anyone's prior guesses; limitations (short ≤27-yr AT/HU series, sparse Gini/life-satisfaction, deferred terrain/speed) stated honestly.
 
 ### `analysis_artifacts/` integration (GAP-047)

@@ -29,6 +29,7 @@ from .config import (
     OLLAMA_NUM_CTX,
     OLLAMA_NUM_PREDICT,
     OLLAMA_THINK,
+    OLLAMA_NUM_GPU,
 )
 
 logger = logging.getLogger("silver.ollama")
@@ -59,6 +60,8 @@ def generate_json(prompt: str, *, model: str | None = None,
             "temperature": temperature,
             "num_ctx": OLLAMA_NUM_CTX,
             "num_predict": OLLAMA_NUM_PREDICT,
+            # Only sent when OLLAMA_NUM_GPU is set (e.g. 0 => CPU); otherwise Ollama decides.
+            **({"num_gpu": OLLAMA_NUM_GPU} if OLLAMA_NUM_GPU is not None else {}),
         },
     }
 

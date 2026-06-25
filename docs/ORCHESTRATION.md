@@ -94,6 +94,23 @@ For each wave in `docs/TASKS.md` (Wave 1 → 2 → 3 = fast track):
 - `scripts/orch/codex_review.sh <GAP-ID>` — read-only structured Codex review of the branch.
 - `scripts/orch/prompts/impl.tmpl.md` — implementer prompt (embeds the gap spec; `$ship-it`).
 - `scripts/orch/schemas/*.json` — implementer verdict + review-findings output schemas.
+- `scripts/orch/run_night.sh [--dry-run]` — **UNATTENDED driver**: runs the waves in order, auto-merges
+  clean PRs, stops on a contract fail; resumable via the run-state ledger. See `docs/OVERNIGHT_READINESS.md`.
+- `scripts/orch/run_wave.sh <WAVE> <seq|par>` — one wave: fan out implementers (LIVE serialized), review,
+  auto-merge-on-approve, contract audit.
+- `scripts/orch/night.config.sh` — gap classification (AUTO/LIVE/MANUAL) + wave lists + contract commands.
+- `scripts/orch/lib_run.sh` — verdict/review merge gates, run-state ledger, main-checkout sync.
+
+## Unattended overnight run (single-box rules)
+- The manual per-wave **CHECKPOINT** is **superseded** by `run_night.sh` for AUTO/LIVE gaps: it
+  auto-merges a PR ONLY when `mergeable` + suite green + an independent review `approve`s with **no P1/P2**;
+  otherwise the PR is left OPEN and the gap is **parked** for morning. **MANUAL** gaps (golden-set labelling,
+  hypothesis formation, final report, Session C Spark finale) are skipped + logged, never auto-produced.
+- **Single-box live lane:** models run SEQUENTIALLY (6 GB GPU). The runner serializes LIVE gaps
+  (Ollama / encoder sidecar / live-MinIO write) — never two at once — while AUTO (mock/fixture) gaps fan out.
+- **Survivable state:** every step writes `output/evidence/orch/run_state.json`; re-running resumes
+  (merged gaps skipped) so orchestrator context-compaction or a crash never loses progress.
+- Preconditions + Ollama/encoder-sidecar recipes + go/no-go: `docs/OVERNIGHT_READINESS.md`.
 
 ## Guardrails
 - Implementers are bounded to one gap (the prompt forbids scope-widening).
