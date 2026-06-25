@@ -31,10 +31,11 @@ human judgement / hand-labelled data and/or winutils — they are **parked**, no
 - **LIVE** (serialized, need the GPU/Ollama): GAP-033 (first real LLM run), GAP-036 (embeddings).
 - **MANUAL** (skipped + logged — need you): GAP-037 (clustering), GAP-038 (NER),
   GAP-046 / GAP-048 / GAP-049 (Session C judgement).
-- **GAP-043 eval — now AUTO (owner decision 2026-06-25):** the golden set is **created + labelled by an
-  agent** (Codex/Sonnet — a *stronger* model than the evaluated `qwen3:4b`, never the pipeline model, to
-  avoid self-evaluation circularity). Labels are agent silver-standard, not human gold → gate on
-  **non-regression**, report absolute numbers as indicative. See the GAP-043 spec note in `docs/GAP_TASKS.md`.
+- **GAP-043 eval — class `CLAUDE` (owner decision 2026-06-25):** the golden set is **designed by an Opus
+  subagent and labelled by Sonnet subagents** — orchestrator-dispatched Claude subagents, **NOT the bash
+  Codex loop**, and stronger than the evaluated `qwen3:4b` (never the pipeline model). The bash wrapper SKIPS
+  it (logs `claude_subagent`); the **orchestrator session runs it after GAP-033 merges** (real articles to
+  sample). Labels are agent silver-standard, not human gold → gate on **non-regression**, numbers indicative.
 
 Classification lives in `scripts/orch/night.config.sh` — edit it to move a gap in/out of scope.
 
@@ -87,7 +88,10 @@ $body = @{ model="qwen3:4b"; stream=$false; format="json"; options=@{temperature
   - leave `OLLAMA_NUM_GPU` **unset** (GPU placement); the repo knob = CPU fallback only — do NOT set it to 0.
   - driver ≥570 (have 581.42); **pin Ollama 0.30.9** — Pascal is routed to `cuda_v12` (PR#12300); later
     `cuda_v13`-only builds may drop the 1060, so disable auto-update.
-  - `num_ctx=8192` fits; drop to 4096 for extra headroom under sustained batches (snippets don't need 8192).
+  - **Load-tested: `num_ctx=4096` + a warm-up call = 0/24 crashes** (~1.4 GB headroom, ~6 s/article); `num_ctx=8192`
+    left ~0.8 GB and crashed 1/30 on the *cold first request* (`CUDA misaligned address`) but the runner
+    self-recovered. `lib_run.sh` sets `OLLAMA_NUM_CTX=4096`; the GAP-050 pipeline warms up once + retries
+    transient CUDA/transport faults (runner recovers) + logs persistent failures (re-run free via the cache).
   - CPU still works (~16 s/article) as a fallback. **vLLM ruled out** (needs CC ≥7.0; the 1060 is 6.1).
   - Sourcing: `.planning/coursework/research/bigdata/gpu-hosting-ollama-pascal-flashattn-2026-06-25.md`
     (+ `llm-serving-vllm-vs-ollama-pascal-2026-06-25.md`).

@@ -6,9 +6,11 @@
 #            unattended and auto-merge on a clean verdict + approving review.
 #   LIVE   = needs an EXCLUSIVE single-box resource (Ollama GPU pass, or a live
 #            MinIO write). MUST run serialized — never two LIVE gaps at once.
-#   MANUAL = needs human judgement or hand-labelled data (golden set, hypothesis
-#            selection, report narrative). The runner SKIPS these and logs them;
-#            it never auto-produces this work (quality gate).
+#   MANUAL = needs human judgement (hypothesis selection, report narrative). The runner SKIPS
+#            these and logs them; it never auto-produces this work (quality gate).
+#   CLAUDE = handled by the orchestrator CLAUDE session via subagents (e.g. Opus design + Sonnet
+#            labelling), NOT by a Codex implementer. The bash wrapper SKIPS it and logs a pointer;
+#            the orchestrator session runs it separately (after its dependency merges).
 declare -gA GAP_CLASS=(
   # --- Session A · WAVE 6a (sequential: dependency chain) ---
   [GAP-039]=AUTO     # wide NewsFeature contract + content-hash cache (the unblocker)
@@ -20,7 +22,7 @@ declare -gA GAP_CLASS=(
   [GAP-031]=AUTO     # GDELT DOC-field recovery + wire passthrough (no model)
   [GAP-040]=AUTO     # widen Gold news aggregation (+GAP-016/022/026)
   [GAP-044]=AUTO     # per-source parser-correctness audit (fixtures)
-  [GAP-043]=AUTO     # eval harness + golden set LABELLED BY AGENT (Codex/Sonnet, NOT qwen3:4b); needs GAP-033 real rows
+  [GAP-043]=CLAUDE   # eval harness; golden set DESIGNED by an Opus subagent + LABELLED by Sonnet subagents (orchestrator dispatches these — NOT the bash Codex loop, NOT qwen3:4b); needs GAP-033 real rows
   # --- Session B (parallel; stats-side + encoders) ---
   [GAP-045]=AUTO     # +2 World Bank macro indicators (IS.VEH.PCAR.P3, PA.NUS.PPP)
   [GAP-041]=AUTO     # UIC PDF widen-to-all-countries + stage unmapped rows

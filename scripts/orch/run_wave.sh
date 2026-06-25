@@ -79,8 +79,12 @@ skip_or_run() {  # returns 1 if the gap should be skipped (already merged / manu
   local gap="$1" st cls; st="$(runstate_get "$gap")"; cls="$(gap_class "$gap")"
   if [ "$st" = "merged" ]; then orch_log "$gap: already merged (resume) — skip"; return 1; fi
   if [ "$cls" = "MANUAL" ]; then
-    orch_log "$gap: MANUAL — skipped (needs human: golden set / judgement). Logged."
+    orch_log "$gap: MANUAL — skipped (needs human judgement). Logged."
     runstate_set "$gap" "manual_skip" "" "needs human"; return 1
+  fi
+  if [ "$cls" = "CLAUDE" ]; then
+    orch_log "$gap: CLAUDE-subagent task (orchestrator dispatches Opus design + Sonnet labelling) — bash wrapper SKIPS. Logged."
+    runstate_set "$gap" "claude_subagent" "" "orchestrator Opus design + Sonnet labelling"; return 1
   fi
   return 0
 }
@@ -104,7 +108,7 @@ else
   done
   for p in "${pids[@]:-}"; do [ -n "$p" ] && wait "$p" 2>/dev/null || true; done
   for gap in $GAPS; do
-    [ "$(runstate_get "$gap")" = "manual_skip" ] && continue
+    case "$(gap_class "$gap")" in MANUAL|CLAUDE) continue;; esac
     [ "$(runstate_get "$gap")" = "merged" ] && continue
     review_merge_one "$gap" || true
   done

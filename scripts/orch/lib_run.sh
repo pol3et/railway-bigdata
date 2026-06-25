@@ -10,6 +10,11 @@ export JAVA_HOME="${JAVA_HOME:-C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.11.
 # ollama#11471). Codex implementers inherit this. Pin Ollama 0.30.9 (Pascal routed to cuda_v12 per
 # PR#12300; later cuda_v13 builds may drop the 1060). Do NOT force OLLAMA_NUM_GPU=0 (slow CPU fallback).
 export OLLAMA_FLASH_ATTENTION="${OLLAMA_FLASH_ATTENTION:-0}"
+# Load-tested stable context for the news pass: num_ctx=4096 leaves ~1.4 GB VRAM headroom and ran
+# 24/24 format=json with zero crashes (8192 left ~0.8 GB and crashed 1/30 on the cold request).
+# News texts are short snippets, so 4096 is ample. The pipeline (GAP-050) should also warm-up once
+# + retry transient CUDA/transport errors (the Ollama runner self-recovers).
+export OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-4096}"
 
 # --- implementer verdict / review JSON decisions -----------------------------
 # Exit 0 only if the implementer verdict is clean enough to consider merging.
