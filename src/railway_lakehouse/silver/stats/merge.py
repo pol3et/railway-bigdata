@@ -19,6 +19,7 @@ alignment problem entirely.
 import json
 import logging
 import os
+import unicodedata
 from typing import Optional
 
 import pandas as pd
@@ -274,10 +275,12 @@ _WB_INDICATOR_FEATURE = {
     "IS.RRS.TOTL.KM": "rail_network_length_km",
     "IS.RRS.GOOD.MT.K6": "rail_freight_tonne_km",
     "IS.RRS.PASG.KM": "rail_passenger_km",
+    "IS.VEH.PCAR.P3": "cars_per_1000",
     "NY.GDP.MKTP.CD": "gdp_current_usd",
     "NY.GDP.PCAP.CD": "gdp_per_capita_usd",
     "NY.GNP.PCAP.CD": "gni_per_capita_usd",
     "NY.GDP.MKTP.KD.ZG": "gdp_growth_pct",
+    "PA.NUS.PPP": "ppp_conversion_factor",
     "FP.CPI.TOTL.ZG": "inflation_pct",
     "SL.UEM.TOTL.ZS": "unemployment_rate_pct",
     "GC.DOD.TOTL.GD.ZS": "gov_debt_pct_gdp",
@@ -436,10 +439,24 @@ def _map_label_by_rule(label: str) -> Optional[str]:
     if label in CANON_KEYS:          # reader may emit a canonical key directly
         return label
     low = label.lower()
+    folded = unicodedata.normalize("NFKD", low).encode("ascii", "ignore").decode("ascii")
+    low = f"{low} {folded}"
     candidates = [low.rsplit(" - ", 1)[-1], low] if " - " in low else [low]
     for candidate in candidates:
         if "road network" in candidate and "rail" not in candidate:
             return None
+        if "transportleistung" in candidate or " tkm" in candidate:
+            return "rail_freight_tonne_km"
+        if "transportaufkommen" in candidate:
+            return "rail_freight_tonnes"
+        if "insgesamt" in candidate:
+            if "lokomotivbestand" in candidate:
+                return "rail_locomotives"
+            if "schienenguterwagenbestand" in candidate:
+                return "rail_wagons"
+            if ("schienentriebfahrzeugbestand" in candidate
+                    or "schienenpersonenwagenbestand" in candidate):
+                return "rail_rolling_stock"
         for needle, key in _ENGLISH_LABEL_RULES:
             if needle in candidate:
                 return key

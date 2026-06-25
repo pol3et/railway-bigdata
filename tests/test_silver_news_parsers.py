@@ -108,7 +108,6 @@ def test_rss_records_to_news_features_uses_existing_extraction(monkeypatch):
             "monetary_raw": None,
             "summary_en": "Railway expansion was announced.",
             "sentiment": "positive",
-            "language": "en",
             "confidence": 0.9,
         }
 
@@ -122,6 +121,8 @@ def test_rss_records_to_news_features_uses_existing_extraction(monkeypatch):
     assert feature.url == "https://example.com/article"
     assert feature.country == "HU"
     assert feature.event_type == "investment"
+    assert feature.language == "en"
+    assert feature.language_detected_code == "en"
     assert feature.summary_en == "Railway expansion was announced."
 
 
@@ -153,7 +154,6 @@ def test_article_records_to_news_features_supports_gdelt_records(monkeypatch):
             "monetary_raw": None,
             "summary_en": "Rail services were disrupted.",
             "sentiment": "negative",
-            "language": "en",
             "confidence": 0.8,
         }
 
@@ -166,6 +166,7 @@ def test_article_records_to_news_features_supports_gdelt_records(monkeypatch):
     assert feature.source == "gdelt"
     assert feature.country == "AT"
     assert feature.event_type == "delay"
+    assert feature.language == "en"
 
 
 def test_parse_gdelt_artlist_json_returns_article_records():

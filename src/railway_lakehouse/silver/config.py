@@ -85,6 +85,7 @@ CANONICAL_FEATURES = {
     "gdp_per_capita_pps":          "GDP per capita (PPS)",
     "gdp_per_capita_usd":          "GDP per capita (current USD)",
     "gni_per_capita_usd":          "GNI per capita (current USD)",
+    "ppp_conversion_factor":        "PPP conversion factor, GDP (LCU per international $)",
     "gva_total_meur":              "Gross value added, total (million EUR)",
     "compensation_employees_meur": "Compensation of employees (million EUR)",
     "gov_debt_pct_gdp":            "General government gross debt (% of GDP)",
@@ -124,6 +125,7 @@ CANONICAL_FEATURES = {
     "co2_per_capita":              "CO2 emissions per capita",
     # transport modal split
     "freight_modal_split_rail_pct": "Rail share of inland freight transport (%)",
+    "cars_per_1000":               "Passenger cars per 1,000 people",
     "cars_per_1000_inhabitants":   "Passenger cars per 1000 inhabitants",
     "price_level_index":           "Comparative price level index (EU27=100)",
     "ppp_factor":                  "Purchasing power parity conversion factor (GDP)",
