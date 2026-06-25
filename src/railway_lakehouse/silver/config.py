@@ -10,9 +10,12 @@ OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b")
 OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 OLLAMA_NUM_RETRIES = int(os.environ.get("OLLAMA_NUM_RETRIES", "3"))
-OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "1024"))
 OLLAMA_THINK = os.environ.get("OLLAMA_THINK", "false").strip().lower() in {"1", "true", "yes", "on"}
+OLLAMA_KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "10m")
+_OLLAMA_NUM_BATCH = os.environ.get("OLLAMA_NUM_BATCH", "").strip()
+OLLAMA_NUM_BATCH = int(_OLLAMA_NUM_BATCH) if _OLLAMA_NUM_BATCH != "" else None
 # Number of model layers to offload to the GPU. Empty = let Ollama decide (GPU placement — the
 # normal case). Set OLLAMA_NUM_GPU=0 only to force CPU as a fallback. NOTE on Pascal (GTX 1060,
 # sm_61): the format=json GPU path crashes WITH flash attention but works with it OFF — the fix is
@@ -20,6 +23,17 @@ OLLAMA_THINK = os.environ.get("OLLAMA_THINK", "false").strip().lower() in {"1", 
 # .planning/coursework/research/bigdata/gpu-hosting-ollama-pascal-flashattn-2026-06-25.md.
 _OLLAMA_NUM_GPU = os.environ.get("OLLAMA_NUM_GPU", "").strip()
 OLLAMA_NUM_GPU = int(_OLLAMA_NUM_GPU) if _OLLAMA_NUM_GPU != "" else None
+
+# --- Silver news LLM extraction pipeline ---
+NEWS_EXTRACTION_PROMPT_VERSION = os.environ.get(
+    "NEWS_EXTRACTION_PROMPT_VERSION",
+    "gap050-news-v1",
+)
+NEWS_EXTRACTION_MAX_ATTEMPTS = int(os.environ.get("NEWS_EXTRACTION_MAX_ATTEMPTS", "2"))
+NEWS_EXTRACTION_RETRY_BACKOFF_SECONDS = float(
+    os.environ.get("NEWS_EXTRACTION_RETRY_BACKOFF_SECONDS", "0.5")
+)
+NEWS_EXTRACTION_CONCURRENCY = int(os.environ.get("NEWS_EXTRACTION_CONCURRENCY", "1"))
 
 # --- Lakehouse (MinIO), mirrors Bronze ---
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "http://localhost:9000")

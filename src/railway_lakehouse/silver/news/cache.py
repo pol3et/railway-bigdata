@@ -54,11 +54,15 @@ def model_digest_key() -> str:
         "ollama_model": os.environ.get("OLLAMA_MODEL", config.OLLAMA_MODEL),
         "ollama_timeout": config.OLLAMA_TIMEOUT,
         "ollama_num_ctx": config.OLLAMA_NUM_CTX,
+        "ollama_num_batch": config.OLLAMA_NUM_BATCH,
         "ollama_num_predict": config.OLLAMA_NUM_PREDICT,
+        "ollama_keep_alive": config.OLLAMA_KEEP_ALIVE,
         "ollama_think": config.OLLAMA_THINK,
+        "prompt_version": config.NEWS_EXTRACTION_PROMPT_VERSION,
         "temperature": 0,
         "system": extract._SYSTEM,
         "json_schema": extract._JSON_SCHEMA,
+        "few_shot_examples": extract._FEW_SHOT_EXAMPLES,
     }
     data = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(data.encode("utf-8")).hexdigest()

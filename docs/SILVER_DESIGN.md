@@ -51,6 +51,11 @@ it — unknown event types → `other`, unknown operators → `other`, bad numbe
 confidence clamped to [0,1]. A failed/unreachable model returns `None` and the article is
 skipped and logged, so a few bad calls never abort the run or fabricate data.
 
+GAP-050 refines the news LLM path into a cached extraction runner with a narrower prompt
+(`is_rail_related`, `country`, `event_type`, `summary_en`, `monetary_raw`, explicit-EUR
+amounts only), retry/failure accounting, lifecycle hooks, and per-run manifests. See
+`docs/LLM_EXTRACTION_DESIGN.md`; the first live run remains GAP-033.
+
 ## What was verified (offline, no Ollama)
 Static tests pass for: the Eurostat melt-to-long reader (flag stripping, geo extraction), the
 rule+LLM crosswalk (LLM stubbed), the merge into one unified table, schema validation hardening
@@ -78,17 +83,10 @@ into the deterministic offline path rather than only tested as isolated function
   tables exactly as the Bronze `RawLander` does.
 
 ## Model choice
-`OLLAMA_MODEL` defaults to `qwen3.5:9b-q8_0`. This replaces the older
-`llama3.1:8b` placeholder and the interim `qwen3:8b` choice because the Silver
-LLM tasks are multilingual HU/DE/EN label and article extraction, not generic
-chat. Official Ollama metadata lists `qwen3.5:9b-q8_0` as an 11 GB, 256K
-context, Q8_0 tag; this is the quality-first quantized 9B choice.
-
-Use `OLLAMA_MODEL=qwen3.5:9b-q4_K_M` when the 11 GB Q8_0 model is too large.
-Ollama lists that tag as 6.6 GB with the same 256K context window. Qwen docs
-list Q8_0, Q5_K_M, and Q4_K_M as common GGUF/llama.cpp presets and warn that
-lower-bit quantization can reduce accuracy, so Q4_K_M is the practical memory
-fallback rather than the no-loss recommendation.
+`OLLAMA_MODEL` now defaults to `qwen3:4b`, matching the 2026-06-25 owner GPU
+load test and the single GTX 1060 6 GB plan. `OLLAMA_NUM_CTX` defaults to 4096
+for extra VRAM headroom. Larger Qwen tags remain manual overrides for larger
+machines only.
 
 The client uses `/api/chat`, not `/api/generate`, for JSON extraction. It sends
 the JSON schema in `format`, keeps `temperature=0`, bounds `num_ctx` and

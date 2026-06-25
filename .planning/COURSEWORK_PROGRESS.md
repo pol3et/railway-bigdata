@@ -1,5 +1,31 @@
 # Coursework Progress
 
+## 2026-06-25 - GAP-050 LLM Pipeline Engineering
+
+Status: done
+
+Research:
+- Required note written at `.planning/coursework/research/bigdata/llm-pipeline-engineering-gap050.md`.
+- Used `research-orchestrator` with local files first and Context7 for Ollama, LangChain, and Qwen docs.
+- Used `prompt-master`, `senior-prompt-engineer`, and ship-it workflow discipline with a repo-local approved plan at `.planning/coursework/plans/bigdata/gap-050-llm-pipeline-engineering.md`.
+
+Changed:
+- Rebuilt the Silver news prompt around the narrowed LLM-owned fields.
+- Added `NEWS_EXTRACTION_PROMPT_VERSION`, `num_ctx=4096`, keep-alive/num-batch config, digest invalidation, sequential runner, retries/backoff, raw failure capture, optional Ollama lifecycle hooks, and run-manifest metrics.
+- Added unit/integration coverage and `docs/LLM_EXTRACTION_DESIGN.md`.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, `docs/DATA_CONTRACTS.md`, `docs/SILVER_DESIGN.md`, and `docs/INDEX.md`.
+- Hardened Spark tests so the literal full-suite command skips Spark on native Windows when `JAVA_HOME` is absent instead of hanging.
+
+Evidence:
+- `python -m pytest -q -m unit tests/test_silver_news_extract_prompt.py` -> 5 passed.
+- `python -m pytest -q -m integration tests/test_silver_news_extraction_e2e.py` -> 3 passed.
+- `python -m pytest -q` -> 190 passed, 6 skipped.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q -m spark` -> 3 passed, 3 skipped.
+- `python -m compileall -q src tests` -> passed.
+
+Next:
+- Run GAP-033 live extraction with the GAP-050 runner; commit only bounded evidence artifacts, not raw Bronze bytes.
+
 ## 2026-06-24 - GAP-019 Deployable Bronze Scheduler
 
 Status: closed — implemented by the Codex agent (exec sandbox could not spawn processes; recorded honestly below); orchestrator verified (`pytest -q -m unit tests/test_bronze_scheduler.py` → 4 passed; full `pytest -q` → 127 passed, 1 skipped; `compileall` clean), rebased on GAP-013, and shipped via PR.

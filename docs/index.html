@@ -472,7 +472,7 @@
         <div class="wave-head"><span class="wave-no">WAVE 6</span><span class="wave-title">News &amp; model preprocessing</span><span class="wave-par">GAP-031…044 · MVP-first · single-box sequential</span></div>
         <div class="wbatch">
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-039 43-field NewsFeature contract + digest cache</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u high">P0</span> GAP-050 LLM pipeline engineering (prompt+batching+cache+retries+lifecycle) → GAP-033 run LLM pass LIVE → first real news Gold</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-050 LLM pipeline engineered (prompt+cache+retries+lifecycle+manifest) → GAP-033 run LLM pass LIVE → first real news Gold</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u mid">P1</span> GAP-035 lang-id ‖ GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
@@ -482,7 +482,7 @@
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">P3</span> GAP-037 Spark clustering ‖ GAP-038 NER ‖ GKG history</span>
         </div>
-        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one model resident at a time. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span>.</div>
+        <div style="margin-top:9px;" class="small muted">Single box (Ryzen 5 1600 / GTX 1060 6 GB): Ollama on GPU (Qwen3-4B q4), torch encoders CPU-first (Py 3.14 = no CUDA wheels), one GPU model resident at a time. GAP-050 has built the pre-live LLM runner; live extraction evidence remains GAP-033. Design + 8 review blockers: <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> and <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span>.</div>
       </div>
       <div class="contract"><div class="ctitle">⛔ Stop &amp; sync — Contract D</div><div class="cbody">Real <span class="mono">NewsFeature</span> rows reach Gold from a live Ollama run; the eval harness reports per-feature metrics on a held-out golden TEST set; dedup deflates inflated <span class="mono">(geo,year)</span> counts.</div></div>
 
@@ -520,7 +520,7 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design — see <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/GAP_TASKS.md</span>; not yet built. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's pre-live LLM pipeline scaffold is implemented, while GAP-033 still owns live Ollama evidence. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
 
 </main>
 </body>

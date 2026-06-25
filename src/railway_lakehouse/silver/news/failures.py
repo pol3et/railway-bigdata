@@ -22,6 +22,7 @@ class ExtractionFailure:
     reason: str
     timestamp_utc: str
     model_digest: str
+    raw: Optional[str] = None
 
     def to_row(self) -> dict:
         return asdict(self)
@@ -54,6 +55,23 @@ def persist_news_failures(failures: list, root, ingest_date: str):
             indent=2,
         )
         + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def persist_extraction_run_manifest(manifest: dict, root, ingest_date: str):
+    """Write per-run extraction metrics alongside Silver news outputs."""
+    path = (
+        Path(root)
+        / "news"
+        / "news_extraction_runs"
+        / f"ingest_date={ingest_date}"
+        / "manifest.json"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
     return path

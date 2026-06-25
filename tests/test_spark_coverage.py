@@ -58,6 +58,9 @@ def _skip_if_missing_windows_hadoop_native() -> None:
     if sys.platform != "win32":
         return
 
+    if not os.environ.get("JAVA_HOME"):
+        pytest.skip("Spark on Windows requires JAVA_HOME to point at JDK 17 or 21")
+
     hadoop_home = os.environ.get("HADOOP_HOME")
     if not hadoop_home:
         pytest.skip(
@@ -137,6 +140,8 @@ def test_main_reads_gold_and_writes_manifest_and_spark_parquet(tmp_path: Path):
 
 
 def test_run_coverage_fails_loudly_for_missing_and_empty_input(tmp_path: Path):
+    if sys.platform == "win32" and not os.environ.get("JAVA_HOME"):
+        pytest.skip("Spark on Windows requires JAVA_HOME to point at JDK 17 or 21")
     spark = coverage.build_session("local[1]")
     try:
         missing_path = tmp_path / "missing.parquet"

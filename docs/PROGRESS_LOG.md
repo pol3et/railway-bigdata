@@ -1730,6 +1730,46 @@ Evidence:
 Next:
 - Owner resolves the spec's open decisions; build MVP-first: GAP-039 → GAP-033 → P1 encoders/Gold/eval.
 
+## 2026-06-25 - GAP-050 LLM Pipeline Engineering
+
+Status: done
+
+Changed:
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/news/failures.py`
+- `src/railway_lakehouse/silver/config.py`
+- `src/railway_lakehouse/silver/ollama_client.py`
+- `tests/test_silver_news_extract_prompt.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_spark_analysis_jobs.py`
+- `tests/test_spark_coverage.py`
+- `docs/LLM_EXTRACTION_DESIGN.md`
+- `docs/DATA_CONTRACTS.md`
+- `docs/SILVER_DESIGN.md`
+- `docs/INDEX.md`
+- `docs/GAP_REGISTER.md`
+- `docs/TASKS.md`
+- `docs/index.html`
+- `.planning/coursework/plans/bigdata/gap-050-llm-pipeline-engineering.md`
+- `.planning/coursework/research/bigdata/llm-pipeline-engineering-gap050.md`
+
+Findings:
+- The Claude GAP-050 draft was stale after GAP-039: cache and basic failure sidecar already existed, but the prompt remained too broad and the cache digest lacked an explicit prompt version.
+- The current `NewsFeature` schema has no `monetary_currency`; GAP-050 stores original currency text in `monetary_raw` and does not perform FX conversion.
+- LangChain-style batch parallelism is not useful on this single 6 GB GPU; the implemented default is a sequential cached runner with observable retry and lifecycle hooks.
+
+Evidence:
+- `python -m pytest -q -m unit tests/test_silver_news_extract_prompt.py` -> 5 passed.
+- `python -m pytest -q -m integration tests/test_silver_news_extraction_e2e.py` -> 3 passed.
+- `python -m pytest -q tests/test_pipeline_gaps.py tests/test_silver_news_parsers.py` -> 19 passed.
+- `python -m pytest -q` -> 190 passed, 6 skipped.
+- `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot'; python -m pytest -q -m spark` -> 3 passed, 3 skipped.
+- `python -m compileall -q src tests` -> passed.
+
+Next:
+- GAP-033 should call `run_extraction_pipeline(..., warm_up=True, unload_after=True)` for the bounded live Ollama run and persist the returned failures plus run manifest as evidence.
+
 ## 2026-06-25 - Full roadmap + compute/embedder/feature research + GAP-045…050
 
 Status: done for planning (docs only; git left to the owner).

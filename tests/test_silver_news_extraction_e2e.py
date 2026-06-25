@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -159,3 +160,53 @@ def test_run_news_uses_filesystem_cache_between_production_runs(monkeypatch, tmp
 
     assert calls["count"] == 1
     assert [row.to_row() for row in second] == [row.to_row() for row in first]
+
+
+def test_gap050_pipeline_manifest_and_failure_sidecar(monkeypatch, tmp_path):
+    cache = FileSystemCache(tmp_path / ".news_extraction_cache")
+    silver_root = tmp_path / "silver"
+    manifest_path = tmp_path / "run_manifest.json"
+    monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _raw_feature())
+
+    result = news_extract.run_extraction_pipeline(
+        [
+            {
+                "article_id": "ok",
+                "source": "rss",
+                "title": "Rail upgrade",
+                "url": "https://example.test/ok",
+                "body": "A railway upgrade was announced.",
+                "published_date": "2026-06-25",
+            },
+            {
+                "article_id": "missing-title",
+                "source": "rss",
+                "title": "",
+                "url": "https://example.test/missing",
+                "body": "Body",
+                "published_date": "2026-06-25",
+            },
+        ],
+        cache=cache,
+        manifest_path=manifest_path,
+        warm_up=False,
+        retry_backoff_seconds=0,
+    )
+    failure_path = persist.persist_news_failures(
+        result.failures,
+        silver_root,
+        ingest_date="2026-06-25",
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    sidecar = json.loads(failure_path.read_text(encoding="utf-8"))
+
+    assert len(result.features) == 1
+    assert len(result.failures) == 1
+    assert manifest["counts"]["processed"] == 2
+    assert manifest["counts"]["succeeded"] == 1
+    assert manifest["counts"]["failed"] == 1
+    assert manifest["counts"]["cache_hits"] == 0
+    assert manifest["counts"]["cache_writes"] == 1
+    assert sidecar["failure_count"] == 1
+    assert sidecar["failures"][0]["article_id"] == "missing-title"

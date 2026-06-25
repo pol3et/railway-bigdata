@@ -133,7 +133,8 @@ Silver news extraction has a local idempotency cache implemented by
   `url`, and `published_date`. A changed URL or changed article text is treated
   as new extraction work.
 - `model_digest_key()` is a SHA-256 over the current `OLLAMA_MODEL` value,
-  Ollama config values, the JSON schema, prompt system text, and temperature.
+  Ollama config values, the JSON schema, prompt system text, few-shot examples,
+  temperature, and `NEWS_EXTRACTION_PROMPT_VERSION`.
   It invalidates cached LLM extractions after prompt/model/config changes; it is
   not a hash of model weights.
 - `FileSystemCache` stores one JSON file per article under
@@ -146,6 +147,10 @@ Silver news extraction has a local idempotency cache implemented by
   written to a JSON sidecar under
   `silver/news/news_extraction_failures/ingest_date=YYYY-MM-DD/failures.json`.
   A Parquet failure table remains a follow-up persistence decision.
+- GAP-050 run manifests can be written under
+  `silver/news/news_extraction_runs/ingest_date=YYYY-MM-DD/manifest.json` and
+  record processed/cached/failed counts, failure rate, latency, model digest,
+  and prompt version.
 
 ## Silver Persisted Outputs (Parquet)
 
