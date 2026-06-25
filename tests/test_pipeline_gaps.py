@@ -266,7 +266,7 @@ def test_pipeline_preserves_gdelt_gkg_fields_for_passthrough(
 
     assert not failures
     assert articles[0]["gkg_tone"] == 0
-    assert loaded.iloc[0]["extraction_model_digest"] == "gdelt_gkg_passthrough"
+    assert loaded.iloc[0]["extraction_model_digest"] == news_extract.GDELT_PASSTHROUGH_DIGEST
     assert loaded.iloc[0]["gkg_tone"] == 0.0
     assert loaded.iloc[0]["sentiment"] == "neutral"
     assert loaded.iloc[0]["gkg_themes"] == "TRANSPORT;RAIL"

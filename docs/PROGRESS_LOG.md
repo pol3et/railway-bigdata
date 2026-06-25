@@ -1908,3 +1908,39 @@ Evidence:
 
 Next:
 - Use GAP-043 to add a held-out quality harness before report-grade use of the qwen3:4b outputs; use GAP-040/GAP-022 to improve Gold news aggregation and RSS date coverage.
+
+## 2026-06-25 - GAP-035 deterministic Silver language ID
+
+Status: done; shipping via PR.
+
+Changed:
+- `src/railway_lakehouse/silver/language_id.py`
+- `src/railway_lakehouse/silver/news/extract.py`
+- `src/railway_lakehouse/silver/news/cache.py`
+- `src/railway_lakehouse/silver/schema.py`
+- `tests/test_silver_language_id.py`
+- `tests/test_silver_news_parsers.py`
+- `tests/test_silver_news_extraction_e2e.py`
+- `tests/test_silver_news_wide_contract.py`
+- `tests/test_pipeline_gaps.py`
+- `pyproject.toml`, `constraints.txt`
+- `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, `docs/STATE_AND_ROADMAP.md`, `docs/SPEC_NEWS_PREPROCESSING.md`, `README.md`
+- `.planning/coursework/research/bigdata/silver-language-id.md`
+
+Findings:
+- GAP-050 had already removed `language` from the LLM JSON schema, but the few-shot prompt examples still carried `language` metadata and validation still accepted raw model language.
+- GAP-035 now uses pinned `lingua-language-detector==2.2.0` restricted to EN/DE/HU. `extract_article()` and GDELT passthrough populate `language` and `language_detected_code` deterministically before validation; the LLM prompt/schema no longer include language.
+- The extraction cache digest now includes the language-id identity so cached `NewsFeature` rows invalidate if the deterministic classifier changes.
+
+Evidence:
+- RED first: `python -m pytest -q tests/test_silver_language_id.py` failed on missing `railway_lakehouse.silver.language_id`.
+- `python -c "from railway_lakehouse.silver.language_id import identify_language; print(identify_language('Vasúti bővítés'))"` -> `hu`.
+- `python -m pytest -q tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q tests/test_silver_news_parsers.py` -> 7 passed.
+- `python -m pytest -q -m unit tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q` -> 202 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- GAP-034 can consume `language` for sentiment routing; GAP-038 can use it for conditional NER routing.

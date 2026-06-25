@@ -324,7 +324,7 @@ def test_gdelt_passthrough_cached_populates_gkg_without_llm(monkeypatch, tmp_pat
     assert feature.sentiment_label == "positive"
     assert feature.gkg_themes == "ECON_TRADE_AGREEMENT;LABOR_STRIKE"
     assert feature.gkg_tone_source == "gdelt_gkg"
-    assert feature.extraction_model_digest == "gdelt_gkg_passthrough"
+    assert feature.extraction_model_digest == news_extract.GDELT_PASSTHROUGH_DIGEST
 
 
 def test_gdelt_passthrough_preserves_zero_tone(monkeypatch, tmp_path):

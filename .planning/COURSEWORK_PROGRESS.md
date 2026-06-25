@@ -1,5 +1,35 @@
 # Coursework Progress
 
+## 2026-06-25 - GAP-035 Deterministic Silver Language ID
+
+Status: done
+
+Research:
+- Required `research-orchestrator` record written at `.planning/coursework/research/bigdata/silver-language-id.md`.
+- Local-first review found the spec was stale: GAP-050 had already removed `language` from `_JSON_SCHEMA`, but few-shot examples and validation still let language come from model output.
+- Routed docs used Context7, Tavily, and Firecrawl. Chosen dependency: `lingua-language-detector==2.2.0`, restricted to EN/DE/HU for this project.
+
+Changed:
+- Added `src/railway_lakehouse/silver/language_id.py`.
+- Wired deterministic language detection into RSS/article extraction and GDELT passthrough before validation.
+- Added language-id identity to the news extraction cache digest.
+- Updated `validate_news_feature()` to prioritize explicit deterministic language over legacy raw model fields.
+- Removed language from the LLM prompt examples/rules and updated fake LLM test payloads.
+- Synced `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, `docs/STATE_AND_ROADMAP.md`, `docs/SPEC_NEWS_PREPROCESSING.md`, and `README.md`.
+
+Evidence:
+- RED first: `python -m pytest -q tests/test_silver_language_id.py` failed on missing `railway_lakehouse.silver.language_id`.
+- `python -c "from railway_lakehouse.silver.language_id import identify_language; print(identify_language('Vasúti bővítés'))"` -> `hu`.
+- `python -m pytest -q tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q tests/test_silver_news_parsers.py` -> 7 passed.
+- `python -m pytest -q -m unit tests/test_silver_language_id.py` -> 7 passed.
+- `python -m pytest -q` -> 202 passed, 6 skipped.
+- `python -m compileall -q src tests` -> passed.
+- `git diff --check` -> passed (line-ending warnings only).
+
+Next:
+- Continue Wave 6 with GAP-034 sentiment and GAP-031/GAP-038 language-routed news follow-ups.
+
 ## 2026-06-25 - GAP-050 LLM Pipeline Engineering
 
 Status: done
