@@ -12,6 +12,7 @@ This documentation set is the project-local starting point for agents and contri
 | `DATA_CONTRACTS.md` | Data contracts between Bronze, Silver, and Gold. |
 | `PIPELINE.md` | Intended Bronze -> Silver -> Gold run sequence and current wiring gap. |
 | `SILVER_DESIGN.md` | Hybrid Silver design: deterministic numeric merge and bounded LLM extraction. |
+| `LLM_EXTRACTION_DESIGN.md` | GAP-050 news LLM prompt, cache, retry, lifecycle, and run-manifest design. |
 | `WORKSTREAMS.md` | Parallel ownership boundaries for contributors. |
 | `WORK_SPLIT.md` | Classmate ownership model, sync points, and done criteria. |
 | `PARSER_WORK_LOG.md` | Rolling parser inventory, bounded live evidence, source-to-feature matrix, and owner-ready parser waves. |

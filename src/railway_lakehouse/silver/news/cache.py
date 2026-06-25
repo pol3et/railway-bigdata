@@ -20,6 +20,14 @@ def _article_value(article, name: str):
     return None
 
 
+def _first_article_value(article, *names: str):
+    for name in names:
+        value = _article_value(article, name)
+        if value is not None:
+            return value
+    return None
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -41,6 +49,32 @@ def extract_cache_key(article) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def gdelt_passthrough_cache_key(gkg) -> str:
+    """Return a cache key for deterministic GDELT GKG passthrough features.
+
+    Unlike LLM extraction, the passthrough output depends on GKG annotation
+    fields as well as article identity. Include every field used to populate
+    ``NewsFeature`` so corrected/enriched GKG rows miss cache.
+    """
+    payload = {
+        "article_id": _first_article_value(gkg, "article_id", "document_identifier") or "",
+        "title": _article_value(gkg, "title") or "",
+        "body": _article_value(gkg, "body") or "",
+        "url": _article_value(gkg, "url") or "",
+        "published_date": _first_article_value(gkg, "published_date", "date") or "",
+        "language": _article_value(gkg, "language"),
+        "source_country": _first_article_value(gkg, "sourcecountry", "source_country"),
+        "gkg_tone": _first_article_value(gkg, "gkg_tone", "tone"),
+        "gkg_themes": _first_article_value(gkg, "gkg_themes", "themes"),
+        "gkg_persons": _first_article_value(gkg, "gkg_persons", "persons"),
+        "gkg_organizations": _first_article_value(gkg, "gkg_organizations", "organizations"),
+        "gkg_locations": _first_article_value(gkg, "gkg_locations", "locations"),
+        "gkg_emotions": _first_article_value(gkg, "gkg_emotions", "emotions"),
+    }
+    data = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(data.encode("utf-8")).hexdigest()
+
+
 def model_digest_key() -> str:
     """Hash the current extraction model/config/prompt identity.
 
@@ -54,11 +88,15 @@ def model_digest_key() -> str:
         "ollama_model": os.environ.get("OLLAMA_MODEL", config.OLLAMA_MODEL),
         "ollama_timeout": config.OLLAMA_TIMEOUT,
         "ollama_num_ctx": config.OLLAMA_NUM_CTX,
+        "ollama_num_batch": config.OLLAMA_NUM_BATCH,
         "ollama_num_predict": config.OLLAMA_NUM_PREDICT,
+        "ollama_keep_alive": config.OLLAMA_KEEP_ALIVE,
         "ollama_think": config.OLLAMA_THINK,
+        "prompt_version": config.NEWS_EXTRACTION_PROMPT_VERSION,
         "temperature": 0,
         "system": extract._SYSTEM,
         "json_schema": extract._JSON_SCHEMA,
+        "few_shot_examples": extract._FEW_SHOT_EXAMPLES,
     }
     data = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(data.encode("utf-8")).hexdigest()

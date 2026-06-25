@@ -29,11 +29,14 @@ from railway_lakehouse.bronze.sources import worldbank
 
 
 # Silver
+from railway_lakehouse.silver import persist
 from railway_lakehouse.silver.stats import load as stats_load
 from railway_lakehouse.silver.stats import merge as stats_merge
 from railway_lakehouse.silver.news import extract as news_extract
 from railway_lakehouse.silver.news.cache import FileSystemCache
+from railway_lakehouse.silver.news.failures import extraction_run_manifest_path, resolve_ingest_date
 from railway_lakehouse.silver.news.rss import parse_rss_xml
+from railway_lakehouse.silver import config as silver_config
 from railway_lakehouse.silver.ollama_client import health_check
 
 # Gold
@@ -74,6 +77,16 @@ def main(argv=None):
         default=None,
         help="local root for the Silver news extraction cache",
     )
+    ap.add_argument(
+        "--news-artifact-root",
+        default=silver_config.SILVER_NEWS_ARTIFACT_ROOT,
+        help="local root for Silver news extraction manifests and failure sidecars",
+    )
+    ap.add_argument(
+        "--news-ingest-date",
+        default=None,
+        help="ingest_date partition for Silver news extraction artifacts; defaults to UTC today",
+    )
     args = ap.parse_args(argv)
 
     return run_pipeline(
@@ -84,6 +97,8 @@ def main(argv=None):
         crosswalk_path=args.crosswalk_path,
         counts_out=args.counts_out,
         news_cache_root=args.news_cache_root,
+        news_artifact_root=args.news_artifact_root,
+        news_ingest_date=args.news_ingest_date,
     )
 
 
@@ -96,6 +111,8 @@ def run_pipeline(
     crosswalk_path: str | None = None,
     counts_out: str | None = None,
     news_cache_root: str | None = None,
+    news_artifact_root: str | None = None,
+    news_ingest_date: str | None = None,
 ) -> str:
     ollama_reachable = False if skip_news_extraction else health_check()
     local_bronze_root = None
@@ -146,10 +163,24 @@ def run_pipeline(
         news_rows = []
     elif ollama_reachable:
         news_cache = FileSystemCache(news_cache_root)
-        news_rows, news_failures = news_extract.extract_batch(
+        news_artifact_root = news_artifact_root or silver_config.SILVER_NEWS_ARTIFACT_ROOT
+        resolved_news_ingest_date = resolve_ingest_date(news_ingest_date)
+        news_manifest_path = extraction_run_manifest_path(
+            news_artifact_root,
+            resolved_news_ingest_date,
+        )
+        news_result = news_extract.run_extraction_pipeline(
             articles,
             cache=news_cache,
+            manifest_path=news_manifest_path,
+            warm_up=True,
         )      # Ollama/GDELT -> NewsFeature
+        news_rows = news_result.features
+        news_failure_path = persist.persist_news_failures(
+            news_result.failures,
+            news_artifact_root,
+            ingest_date=resolved_news_ingest_date,
+        )
         cache_stats = news_cache.cache_stats()
         log.info(
             "SILVER news cache: %d hits, %d misses, %d cached rows at %s",
@@ -158,8 +189,13 @@ def run_pipeline(
             cache_stats.get("cached_count", 0),
             cache_stats.get("root"),
         )
-        if news_failures:
-            log.warning("SILVER news: %d extraction failures", len(news_failures))
+        log.info("SILVER news run manifest -> %s", news_manifest_path)
+        if news_result.failures:
+            log.warning(
+                "SILVER news: %d extraction failures -> %s",
+                len(news_result.failures),
+                news_failure_path,
+            )
     else:
         log.warning("Ollama unreachable; skipping news extraction.")
         news_rows = []

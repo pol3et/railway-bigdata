@@ -12,6 +12,10 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def resolve_ingest_date(ingest_date: str | None = None) -> str:
+    return ingest_date or utc_now()[:10]
+
+
 @dataclass
 class ExtractionFailure:
     article_id: str
@@ -22,6 +26,7 @@ class ExtractionFailure:
     reason: str
     timestamp_utc: str
     model_digest: str
+    raw: Optional[str] = None
 
     def to_row(self) -> dict:
         return asdict(self)
@@ -54,6 +59,27 @@ def persist_news_failures(failures: list, root, ingest_date: str):
             indent=2,
         )
         + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def extraction_run_manifest_path(root, ingest_date: str) -> Path:
+    return (
+        Path(root)
+        / "news"
+        / "news_extraction_runs"
+        / f"ingest_date={ingest_date}"
+        / "manifest.json"
+    )
+
+
+def persist_extraction_run_manifest(manifest: dict, root, ingest_date: str):
+    """Write per-run extraction metrics alongside Silver news outputs."""
+    path = extraction_run_manifest_path(root, ingest_date)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
     return path

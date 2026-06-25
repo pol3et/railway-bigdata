@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,21 @@ def _fixture_records():
         / "gdelt_doc_HU_1w.json"
     ).read_text(encoding="utf-8")
     return parse_rss_xml(rss_xml, source="hu_telex") + parse_gdelt_artlist_json(gdelt_json)
+
+
+class _FakeLifecycle:
+    def __init__(self):
+        self.warmups = 0
+
+    def warm_up(self):
+        self.warmups += 1
+        return {"status": "ok", "latency_seconds": 0.0}
+
+    def stop_model(self):
+        return {"status": "not_called"}
+
+    def vram_status(self):
+        return {"status": "not_called"}
 
 
 def test_fixture_news_cached_extraction_persist_reload(monkeypatch, tmp_path):
@@ -151,11 +167,125 @@ def test_run_news_uses_filesystem_cache_between_production_runs(monkeypatch, tmp
     first = silver_run.run_news(
         articles,
         cache_root=tmp_path / ".news_extraction_cache",
+        artifact_root=tmp_path / "output" / "silver",
+        lifecycle=_FakeLifecycle(),
     )
     second = silver_run.run_news(
         articles,
         cache_root=tmp_path / ".news_extraction_cache",
+        artifact_root=tmp_path / "output" / "silver",
+        lifecycle=_FakeLifecycle(),
     )
 
     assert calls["count"] == 1
     assert [row.to_row() for row in second] == [row.to_row() for row in first]
+
+
+def test_run_news_production_entrypoint_writes_manifest_and_failure_sidecar(monkeypatch, tmp_path):
+    articles = [
+        {
+            "article_id": "prod-ok",
+            "source": "rss",
+            "title": "Rail upgrade",
+            "url": "https://example.test/prod-ok",
+            "body": "Railway expansion announced.",
+            "published_date": "2026-06-25",
+        },
+        {
+            "article_id": "prod-missing-title",
+            "source": "rss",
+            "title": "",
+            "url": "https://example.test/prod-missing-title",
+            "body": "Body",
+            "published_date": "2026-06-25",
+        },
+    ]
+    artifact_root = tmp_path / "output" / "silver"
+    lifecycle = _FakeLifecycle()
+
+    monkeypatch.setattr(silver_run, "health_check", lambda: True)
+    monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _raw_feature())
+
+    features = silver_run.run_news(
+        articles,
+        cache_root=tmp_path / ".news_extraction_cache",
+        artifact_root=artifact_root,
+        ingest_date="2026-06-25",
+        lifecycle=lifecycle,
+    )
+
+    manifest_path = (
+        artifact_root
+        / "news"
+        / "news_extraction_runs"
+        / "ingest_date=2026-06-25"
+        / "manifest.json"
+    )
+    failure_path = (
+        artifact_root
+        / "news"
+        / "news_extraction_failures"
+        / "ingest_date=2026-06-25"
+        / "failures.json"
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    sidecar = json.loads(failure_path.read_text(encoding="utf-8"))
+
+    assert lifecycle.warmups == 1
+    assert len(features) == 1
+    assert manifest["counts"]["processed"] == 2
+    assert manifest["counts"]["succeeded"] == 1
+    assert manifest["counts"]["failed"] == 1
+    assert sidecar["failure_count"] == 1
+    assert sidecar["failures"][0]["article_id"] == "prod-missing-title"
+
+
+def test_gap050_pipeline_manifest_and_failure_sidecar(monkeypatch, tmp_path):
+    cache = FileSystemCache(tmp_path / ".news_extraction_cache")
+    silver_root = tmp_path / "silver"
+    manifest_path = tmp_path / "run_manifest.json"
+    monkeypatch.setattr(news_extract, "generate_json", lambda *args, **kwargs: _raw_feature())
+
+    result = news_extract.run_extraction_pipeline(
+        [
+            {
+                "article_id": "ok",
+                "source": "rss",
+                "title": "Rail upgrade",
+                "url": "https://example.test/ok",
+                "body": "A railway upgrade was announced.",
+                "published_date": "2026-06-25",
+            },
+            {
+                "article_id": "missing-title",
+                "source": "rss",
+                "title": "",
+                "url": "https://example.test/missing",
+                "body": "Body",
+                "published_date": "2026-06-25",
+            },
+        ],
+        cache=cache,
+        manifest_path=manifest_path,
+        warm_up=False,
+        retry_backoff_seconds=0,
+    )
+    failure_path = persist.persist_news_failures(
+        result.failures,
+        silver_root,
+        ingest_date="2026-06-25",
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    sidecar = json.loads(failure_path.read_text(encoding="utf-8"))
+
+    assert len(result.features) == 1
+    assert len(result.failures) == 1
+    assert manifest["counts"]["processed"] == 2
+    assert manifest["counts"]["succeeded"] == 1
+    assert manifest["counts"]["failed"] == 1
+    assert manifest["counts"]["cache_hits"] == 0
+    assert manifest["counts"]["cache_writes"] == 1
+    assert sidecar["failure_count"] == 1
+    assert sidecar["failures"][0]["article_id"] == "missing-title"

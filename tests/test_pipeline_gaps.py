@@ -85,6 +85,8 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
     monkeypatch.setattr(pipeline, "health_check", lambda: True)
 
     def fake_generate_json(prompt, *, schema=None, system=None):
+        if prompt == 'Return {"ok": true}.':
+            return {"ok": True}
         assert "RailCargo investment announced" in prompt
         assert schema is not None
         assert system is not None
@@ -115,6 +117,8 @@ def test_pipeline_fixture_e2e_reads_bronze_and_writes_gold(
             str(crosswalk_path),
             "--news-cache-root",
             str(tmp_path / ".news_extraction_cache"),
+            "--news-artifact-root",
+            str(tmp_path / "output" / "silver"),
             "--counts-out",
             str(counts_path),
         ]
@@ -155,6 +159,12 @@ def test_pipeline_news_extraction_uses_filesystem_cache_between_runs(
     monkeypatch.setattr(pipeline, "health_check", lambda: True)
     monkeypatch.setenv("OLLAMA_MODEL", "qwen3:4b")
 
+    class FakeLifecycle:
+        def warm_up(self):
+            return {"status": "ok", "latency_seconds": 0.0}
+
+    monkeypatch.setattr(pipeline.news_extract, "OllamaLifecycle", lambda: FakeLifecycle())
+
     def fake_generate_json(prompt, *, schema=None, system=None):
         calls["count"] += 1
         return {
@@ -178,6 +188,7 @@ def test_pipeline_news_extraction_uses_filesystem_cache_between_runs(
         out=str(out_path),
         crosswalk_path=str(crosswalk_path),
         news_cache_root=str(cache_root),
+        news_artifact_root=str(tmp_path / "output" / "silver"),
     )
     first_call_count = calls["count"]
 
@@ -187,6 +198,7 @@ def test_pipeline_news_extraction_uses_filesystem_cache_between_runs(
         out=str(out_path),
         crosswalk_path=str(crosswalk_path),
         news_cache_root=str(cache_root),
+        news_artifact_root=str(tmp_path / "output" / "silver"),
     )
 
     manifest = json.loads(
@@ -258,6 +270,109 @@ def test_pipeline_preserves_gdelt_gkg_fields_for_passthrough(
     assert loaded.iloc[0]["gkg_tone"] == 0.0
     assert loaded.iloc[0]["sentiment"] == "neutral"
     assert loaded.iloc[0]["gkg_themes"] == "TRANSPORT;RAIL"
+
+
+def test_pipeline_news_entrypoint_writes_gap050_manifest_and_failure_sidecar(
+    tmp_path,
+    monkeypatch,
+):
+    import railway_lakehouse.pipeline as pipeline
+    from railway_lakehouse.silver.news import extract as news_extract
+
+    bronze_root = tmp_path / "bronze"
+    news_path = (
+        bronze_root
+        / "news"
+        / "rss"
+        / "fixture"
+        / "ingest_date=2026-06-25"
+        / "articles.json"
+    )
+    news_path.parent.mkdir(parents=True)
+    news_path.write_text(
+        json.dumps(
+            {
+                "articles": [
+                    {
+                        "article_id": "pipeline-ok",
+                        "url": "https://example.test/pipeline-ok",
+                        "title": "Rail upgrade",
+                        "body": "Railway expansion announced.",
+                        "published_date": "2026-06-25",
+                    },
+                    {
+                        "article_id": "pipeline-missing-title",
+                        "url": "https://example.test/pipeline-missing-title",
+                        "title": "",
+                        "body": "Body",
+                        "published_date": "2026-06-25",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    class FakeLifecycle:
+        warmups = 0
+
+        def warm_up(self):
+            self.warmups += 1
+            return {"status": "ok", "latency_seconds": 0.0}
+
+    lifecycle = FakeLifecycle()
+    artifact_root = tmp_path / "output" / "silver"
+
+    monkeypatch.setattr(pipeline, "health_check", lambda: True)
+    monkeypatch.setattr(news_extract, "OllamaLifecycle", lambda: lifecycle)
+    monkeypatch.setattr(
+        news_extract,
+        "generate_json",
+        lambda *args, **kwargs: {
+            "is_rail_related": True,
+            "country": "HU",
+            "event_type": "investment",
+            "operators": [],
+            "rail_lines": [],
+            "summary_en": "Railway expansion was announced.",
+            "sentiment": "neutral",
+            "language": "en",
+            "confidence": 0.9,
+        },
+    )
+
+    pipeline.run_pipeline(
+        bronze_root=str(bronze_root),
+        news=2,
+        out=str(tmp_path / "gold" / "railway_ml.parquet"),
+        news_cache_root=str(tmp_path / ".news_extraction_cache"),
+        news_artifact_root=str(artifact_root),
+        news_ingest_date="2026-06-25",
+    )
+
+    manifest_path = (
+        artifact_root
+        / "news"
+        / "news_extraction_runs"
+        / "ingest_date=2026-06-25"
+        / "manifest.json"
+    )
+    failure_path = (
+        artifact_root
+        / "news"
+        / "news_extraction_failures"
+        / "ingest_date=2026-06-25"
+        / "failures.json"
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    sidecar = json.loads(failure_path.read_text(encoding="utf-8"))
+
+    assert lifecycle.warmups == 1
+    assert manifest["counts"]["processed"] == 2
+    assert manifest["counts"]["succeeded"] == 1
+    assert manifest["counts"]["failed"] == 1
+    assert sidecar["failure_count"] == 1
+    assert sidecar["failures"][0]["article_id"] == "pipeline-missing-title"
 
 
 def test_pipeline_missing_bronze_root_raises_before_gold_write(tmp_path):

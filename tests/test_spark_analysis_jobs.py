@@ -21,6 +21,9 @@ def _skip_if_missing_windows_hadoop_native() -> None:
     if sys.platform != "win32":
         return
 
+    if not os.environ.get("JAVA_HOME"):
+        pytest.skip("Spark on Windows requires JAVA_HOME to point at JDK 17 or 21")
+
     hadoop_home = os.environ.get("HADOOP_HOME")
     if not hadoop_home:
         pytest.skip(
@@ -86,6 +89,8 @@ def _write_analysis_gold(path: Path) -> None:
 
 
 def test_correlations_default_input_fails_before_passing_on_missing_targets(tmp_path: Path):
+    if sys.platform == "win32" and not os.environ.get("JAVA_HOME"):
+        pytest.skip("Spark on Windows requires JAVA_HOME to point at JDK 17 or 21")
     spark = correlations.build_session("local[1]")
     try:
         with pytest.raises(ValueError, match="No investment target columns"):
@@ -100,6 +105,8 @@ def test_correlations_default_input_fails_before_passing_on_missing_targets(tmp_
 
 
 def test_regional_default_input_fails_before_passing_on_missing_columns(tmp_path: Path):
+    if sys.platform == "win32" and not os.environ.get("JAVA_HOME"):
+        pytest.skip("Spark on Windows requires JAVA_HOME to point at JDK 17 or 21")
     spark = regional.build_session("local[1]")
     try:
         with pytest.raises(ValueError, match="missing required regional columns"):

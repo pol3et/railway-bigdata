@@ -16,10 +16,13 @@ import sys
 import json
 import logging
 
+from . import config
+from . import persist
 from .ollama_client import health_check
 from .stats import merge as stats_merge
 from .news import extract as news_extract
 from .news.cache import FileSystemCache
+from .news.failures import extraction_run_manifest_path, resolve_ingest_date
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -44,7 +47,14 @@ def run_stats(frames_with_system: list) -> "object":
     return unified
 
 
-def run_news(articles: list, *, cache_root=None) -> list:
+def run_news(
+    articles: list,
+    *,
+    cache_root=None,
+    artifact_root=None,
+    ingest_date: str | None = None,
+    lifecycle=None,
+) -> list:
     """articles: list of dicts {article_id, source, url, title, body, published_date}.
     Returns NewsFeature rows. Requires a reachable Ollama for RSS extraction."""
     if not health_check():
@@ -52,9 +62,24 @@ def run_news(articles: list, *, cache_root=None) -> list:
                      "set OLLAMA_HOST / start the server")
         return []
     cache = FileSystemCache(cache_root)
-    feats, failures = news_extract.extract_batch(articles, cache=cache)
-    if failures:
-        logger.warning("NEWS: %d extraction failures", len(failures))
+    artifact_root = artifact_root or config.SILVER_NEWS_ARTIFACT_ROOT
+    ingest_date = resolve_ingest_date(ingest_date)
+    manifest_path = extraction_run_manifest_path(artifact_root, ingest_date)
+    result = news_extract.run_extraction_pipeline(
+        articles,
+        cache=cache,
+        manifest_path=manifest_path,
+        warm_up=True,
+        lifecycle=lifecycle,
+    )
+    feats = result.features
+    failure_path = persist.persist_news_failures(
+        result.failures,
+        artifact_root,
+        ingest_date=ingest_date,
+    )
+    if result.failures:
+        logger.warning("NEWS: %d extraction failures -> %s", len(result.failures), failure_path)
     cache_stats = cache.cache_stats()
     logger.info(
         "NEWS cache: %d hits, %d misses, %d cached rows at %s",
@@ -63,6 +88,7 @@ def run_news(articles: list, *, cache_root=None) -> list:
         cache_stats.get("cached_count", 0),
         cache_stats.get("root"),
     )
+    logger.info("NEWS run manifest -> %s", manifest_path)
     logger.info("NEWS: produced %d feature rows", len(feats))
     return feats
 
