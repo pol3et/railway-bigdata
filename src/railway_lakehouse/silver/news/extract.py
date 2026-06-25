@@ -456,7 +456,10 @@ def extract_article(*, article_id: str, source: str, url: str,
 
 def gdelt_passthrough(*, article_id: str, url: str, published_date: Optional[str],
                       gkg_tone: Optional[float], gkg_themes: Optional[str],
-                      gkg_locations: Optional[str]) -> NewsFeature:
+                      gkg_locations: Optional[str],
+                      gkg_persons: Optional[str] = None,
+                      gkg_organizations: Optional[str] = None,
+                      gkg_emotions: Optional[str] = None) -> NewsFeature:
     return gdelt_passthrough_cached(
         {
             "article_id": article_id,
@@ -465,6 +468,9 @@ def gdelt_passthrough(*, article_id: str, url: str, published_date: Optional[str
             "gkg_tone": gkg_tone,
             "gkg_themes": gkg_themes,
             "gkg_locations": gkg_locations,
+            "gkg_persons": gkg_persons,
+            "gkg_organizations": gkg_organizations,
+            "gkg_emotions": gkg_emotions,
         },
         NoOpCache(),
     )

@@ -379,8 +379,6 @@
         <div class="uitem"><span class="u high">HIGH</span><span class="ug"><b>GAP-043/GAP-040</b> add news quality evaluation and widen Gold aggregation before report-grade use.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>parsers-extra</b> StatAustria ODS / UIC PDF → StatFact; KSH XLSX reader done.</span></div>
         <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-021</b> crosswalk "unmapped" is terminal — add retry/rebuild.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-025</b> RSS <span class="mono">ParseError</span> aborts the whole batch — isolate per feed.</span></div>
-        <div class="uitem"><span class="u mid">MID</span><span class="ug"><b>GAP-022</b> robust mixed-format <span class="mono">published_date</span> parsing.</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GKG parser</b> GDELT csv.zip → ArticleRecord (volume).</span></div>
         <div class="uitem"><span class="u low">LOW</span><span class="ug"><b>GAP-029</b> doc: add <span class="mono">monetary_raw</span> to DATA_CONTRACTS.</span></div>
       </div>
@@ -460,7 +458,7 @@
         <div class="wbatch">
           <span class="wtask"><span class="u mid">MID</span> AT/UIC readers + GAP-005 scheduler; KSH reader done</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u mid">MID</span> GDELT history backfill + GKG parser</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021/022/025/026</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="u mid">MID</span> robustness GAP-015/016/021 (GAP-022/025/026 closed)</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="u low">LOW</span> GAP-028 CI</span>
         </div>
         <div style="margin-top:9px;" class="small muted">→ re-run Spark on the larger dataset → finalize the report.</div>
@@ -473,11 +471,12 @@
         <div class="wbatch">
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-039 43-field NewsFeature contract + digest cache</span><span class="wtask"><span class="pl">‖</span></span>
           <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-050 LLM pipeline engineered + production entrypoints wired (prompt+cache+retries+lifecycle+manifest)</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-033 live qwen3:4b extraction evidence → first real news Gold traceability row</span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-033 live qwen3:4b extraction evidence → first real news Gold traceability row</span><span class="wtask"><span class="pl">‖</span></span>
+          <span class="wtask"><span class="sig green"><span class="dot green"></span>closed</span> GAP-044 parser audit + field matrix</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u mid">P1</span> GAP-035 lang-id ‖ GAP-034 XLM-R sentiment ‖ GAP-031 GKG/DOC recover</span><span class="wtask"><span class="pl">‖</span></span>
-          <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness ‖ GAP-044 parser audit</span>
+          <span class="wtask"><span class="u mid">P1</span> GAP-040 widen Gold news ‖ GAP-043 eval harness</span>
         </div>
         <div class="wbatch" style="margin-top:7px;">
           <span class="wtask"><span class="u low">P2</span> GAP-032 capture-widen ‖ GAP-036 embeddings+dedup (e5/bge-m3) ‖ GAP-041 UIC widen+stage ‖ GAP-042 StatAustria ODS</span><span class="wtask"><span class="pl">‖</span></span>
@@ -521,7 +520,7 @@
     </div>
   </section>
 
-  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, the GAP-033 live qwen3:4b NewsFeature evidence, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's production LLM runner and GAP-033's live evidence are implemented, while quality/eval/wider aggregation remain follow-up. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
+  <p class="note">Grounded in docs/GAP_REGISTER.md (GAP-001…050), the source adapters &amp; Silver parsers, and committed output/evidence/ artifacts — including the live World Bank Bronze→Silver→Gold run, Spark evidence under <span class="mono">output/evidence/spark/</span>, the Spark correlation/regional analysis snapshot under <span class="mono">output/evidence/analysis-artifacts/</span> (PR #27), the live MinIO smoke, the GAP-033 live qwen3:4b NewsFeature evidence, the GAP-044 parser field matrix under <span class="mono">docs/PARSER_FIELD_COVERAGE.md</span>, and the GAP-011 report/presentation drafts. WAVE 6-7 (news &amp; model preprocessing → Spark EDA → hypotheses → report, GAP-031…050) is a reviewed design; GAP-050's production LLM runner and GAP-033/GAP-044 evidence are implemented, while quality/eval/wider aggregation remain follow-up. See <span class="mono">docs/ROADMAP_NEWS_TO_REPORT.md</span> + <span class="mono">docs/SPEC_NEWS_PREPROCESSING.md</span> + <span class="mono">docs/LLM_EXTRACTION_DESIGN.md</span> + <span class="mono">docs/GAP_TASKS.md</span>. Per-parser samples are real rows from that run / committed fixtures. Task slugs &amp; wave contracts match docs/TASKS.md. Snapshot 2026-06-25.</p>
 
 </main>
 </body>

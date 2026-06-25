@@ -1,12 +1,25 @@
+import logging
 import xml.etree.ElementTree as ET
 
 from ..schema import ArticleRecord
 from .extract import article_records_to_news_features
 from .records import article_record_id
 
+logger = logging.getLogger("silver.news.rss")
+
 
 def parse_rss_xml(xml_text: str, source: str) -> list[ArticleRecord]:
-    root = ET.fromstring(xml_text)
+    """Parse one RSS feed into ArticleRecord rows.
+
+    Malformed feeds are skipped and logged so one bad feed cannot abort a
+    multi-feed batch. ElementTree parses whole XML documents, so partial item
+    recovery is not attempted after a document-level ParseError.
+    """
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as exc:
+        logger.warning("rss %s: malformed RSS XML; skipping feed: %s", source, exc)
+        return []
 
     records = []
 

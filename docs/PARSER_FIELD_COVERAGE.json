@@ -1,0 +1,54 @@
+{
+  "generated_date": "2026-06-25",
+  "sources": [
+    {
+      "source": "RSS",
+      "available_fields": ["title", "link", "pubDate", "description", "content:encoded", "author", "category", "comments", "guid", "enclosure"],
+      "extracted_fields": ["article_id", "source", "title", "url", "published_date", "body"],
+      "dropped_or_future": ["author", "category", "comments", "guid", "enclosure"],
+      "notes": "content:encoded is preferred over description; extra RSS metadata is GAP-032 future widening."
+    },
+    {
+      "source": "GDELT DOC",
+      "available_fields": ["url", "url_mobile", "title", "seendate", "publishedDate", "datetime", "snippet", "summary", "description", "domain", "language", "sourcecountry", "socialimage"],
+      "extracted_fields": ["article_id", "source", "title", "url", "published_date", "body"],
+      "dropped_or_future": ["domain", "language", "sourcecountry", "socialimage", "gkg_themes", "gkg_persons", "gkg_organizations", "gkg_locations", "gkg_tone"],
+      "notes": "DOC ArtList does not return full GKG rows; GAP-031 owns GKG source parsing."
+    },
+    {
+      "source": "World Bank",
+      "available_fields": ["metadata", "indicator", "country", "countryiso3code", "date", "value", "unit", "obs_status", "decimal"],
+      "extracted_fields": ["geo", "year", "value", "unit", "source_dataset", "source_column", "source_system"],
+      "dropped_or_future": ["metadata", "obs_status", "decimal"],
+      "notes": "Metadata and observation status are future provenance enrichment; numeric values are parsed deterministically."
+    },
+    {
+      "source": "Eurostat",
+      "available_fields": ["freq", "unit", "geo", "breakdown_dimensions", "TIME_PERIOD", "obs_value", "obs_flag"],
+      "extracted_fields": ["geo", "year", "value", "unit", "source_dataset", "source_column", "source_system"],
+      "dropped_or_future": ["obs_flag", "unit_multiplier"],
+      "notes": "Flags are stripped from numeric cells for now; aggregate geos remain visible and policy filtering is separate from this audit."
+    },
+    {
+      "source": "KSH",
+      "available_fields": ["title_unit", "label", "unit", "year", "value", "regional_rows", "section_labels"],
+      "extracted_fields": ["geo", "year", "value", "unit", "source_dataset", "source_column", "source_system"],
+      "dropped_or_future": ["non_country_regional_rows", "unsupported_layout_cells"],
+      "notes": "Parser keeps HU country rows and returns empty with a warning for unsupported layouts."
+    },
+    {
+      "source": "UIC",
+      "available_fields": ["pdf_text", "tables", "country_code", "railway_company", "year", "network", "staff", "rolling_stock", "passenger_measures", "freight_measures"],
+      "extracted_fields": ["geo", "year", "value", "unit", "source_dataset", "source_column", "source_system"],
+      "dropped_or_future": ["non_AT_HU_countries", "non_matching_tables", "traffic_trends_text"],
+      "notes": "GAP-041 owns all-country widening and staging of unmapped/Traffic Trends rows."
+    },
+    {
+      "source": "Statistik Austria",
+      "available_fields": ["ods_workbook", "label", "unit", "year", "value"],
+      "extracted_fields": [],
+      "dropped_or_future": ["all_ods_fields"],
+      "notes": "No Silver ODS parser exists yet; GAP-042 owns implementation."
+    }
+  ]
+}

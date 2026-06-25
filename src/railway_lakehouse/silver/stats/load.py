@@ -73,7 +73,7 @@ def load_eurostat_frame(raw: bytes, dataset_id: str) -> pd.DataFrame:
     ``source_system='eurostat'``."""
     if raw[:2] == _GZIP_MAGIC:
         raw = gzip.decompress(raw)
-    df = pd.read_csv(io.BytesIO(raw), sep="\t", dtype=str)
+    df = pd.read_csv(io.BytesIO(raw), sep="\t", dtype=str, encoding="utf-8")
     if df.empty:
         return _empty()
     frame = read_eurostat_tsv(df, dataset_id)

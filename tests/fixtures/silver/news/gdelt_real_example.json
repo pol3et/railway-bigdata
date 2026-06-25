@@ -1,0 +1,51 @@
+{
+  "articles": [
+    {
+      "url": "https://example.test/gdelt/hungary-rail-investment",
+      "title": "Hungary announces railway investment",
+      "seendate": "20260622T120000Z",
+      "snippet": "Hungary announced a new railway investment programme.",
+      "domain": "example.test",
+      "language": "English",
+      "sourcecountry": "Hungary",
+      "socialimage": "https://example.test/img/rail.jpg"
+    },
+    {
+      "url_mobile": "https://m.example.test/gdelt/austria-delay",
+      "title": "Austrian rail delays after storm",
+      "seendate": "20260622121500",
+      "snippet": "A storm caused delays on Austrian rail services.",
+      "domain": "example.test",
+      "language": "English",
+      "sourcecountry": "Austria"
+    },
+    {
+      "url": "",
+      "title": "Rail station upgrade without URL",
+      "publishedDate": "2024-06-23T09:00:00Z",
+      "description": "A station upgrade article has a snippet but no canonical URL.",
+      "domain": "example.test",
+      "language": "English",
+      "sourcecountry": "Hungary"
+    },
+    {
+      "url": "https://example.test/gdelt/freight-corridor",
+      "title": "Freight corridor capacity expanded",
+      "datetime": "2024-06-24",
+      "summary": "Freight corridor capacity was expanded for rail operators.",
+      "domain": "example.test",
+      "language": "English",
+      "sourcecountry": "Austria"
+    },
+    {
+      "url": "https://example.test/gdelt/drop-me",
+      "seendate": "20260622T130000Z",
+      "domain": "example.test"
+    },
+    {
+      "title": "",
+      "snippet": "",
+      "domain": "example.test"
+    }
+  ]
+}

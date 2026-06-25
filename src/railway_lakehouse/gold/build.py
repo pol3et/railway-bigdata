@@ -18,6 +18,9 @@ Two deterministic stages, no LLM:
 """
 import json
 import logging
+from collections import Counter
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 import re
 from typing import Optional
@@ -25,6 +28,7 @@ from typing import Optional
 import pandas as pd
 
 from railway_lakehouse.silver.config import NEWS_EVENT_TYPES, KNOWN_OPERATORS
+from railway_lakehouse.silver.schema import news_feature_from_row
 
 logger = logging.getLogger("gold.build")
 
@@ -33,6 +37,7 @@ logger = logging.getLogger("gold.build")
 SOURCE_PRIORITY = ["eurostat", "uic", "ksh", "statistik_austria", "worldbank"]
 _SENTIMENT_MAP = {"negative": -1.0, "neutral": 0.0, "positive": 1.0}
 _NUTS_GEO_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{1,3}$")
+_NEWS_OPTIONAL_DEFAULTS = ("monetary_amount_eur", "operators", "confidence")
 
 
 # --------------------------------------------------------------------------
@@ -69,13 +74,107 @@ def pivot_stats(stats_long: pd.DataFrame) -> pd.DataFrame:
 # --------------------------------------------------------------------------
 # 2) news: aggregate to (country, year) feature block
 # --------------------------------------------------------------------------
+def _timestamp_from_datetime(value: datetime) -> pd.Timestamp:
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    return pd.Timestamp(value)
+
+
+def _parse_news_datetime(value) -> pd.Timestamp:
+    if value is None:
+        return pd.NaT
+    try:
+        if pd.isna(value):
+            return pd.NaT
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    if not text:
+        return pd.NaT
+
+    compact_formats = (
+        (r"^\d{8}T\d{6}Z$", "%Y%m%dT%H%M%SZ"),
+        (r"^\d{14}$", "%Y%m%d%H%M%S"),
+        (r"^\d{8}$", "%Y%m%d"),
+    )
+    for pattern, fmt in compact_formats:
+        if re.fullmatch(pattern, text):
+            try:
+                return _timestamp_from_datetime(datetime.strptime(text, fmt))
+            except ValueError:
+                return pd.NaT
+
+    iso_text = text.replace("Z", "+00:00")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}([T ].*)?", text):
+        try:
+            return _timestamp_from_datetime(datetime.fromisoformat(iso_text))
+        except ValueError:
+            pass
+
+    try:
+        return _timestamp_from_datetime(parsedate_to_datetime(text))
+    except (TypeError, ValueError, IndexError, AttributeError):
+        return pd.NaT
+
+
+def _parse_news_years(published_date: pd.Series) -> pd.Series:
+    parsed = published_date.map(_parse_news_datetime)
+    parsed = pd.to_datetime(parsed, errors="coerce")
+    present = published_date.notna() & published_date.astype(str).str.strip().ne("")
+    failed = present & parsed.isna()
+    if failed.any():
+        sample = published_date[failed].astype(str).head(3).tolist()
+        logger.warning(
+            "failed to parse %d published_date values; sample=%s",
+            int(failed.sum()),
+            sample,
+        )
+    return parsed.dt.year.astype("Int64")
+
+
+def _operator_list(value) -> list:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if value is None:
+        return []
+    try:
+        if pd.isna(value):
+            return []
+    except (TypeError, ValueError):
+        pass
+    return [value]
+
+
 def _news_to_df(news_rows: list) -> pd.DataFrame:
     if not news_rows:
         return pd.DataFrame()
-    rows = [r if isinstance(r, dict) else r.to_row() for r in news_rows]
+    missing_counts: Counter[str] = Counter()
+    rows = []
+    for raw in news_rows:
+        row = raw if isinstance(raw, dict) else raw.to_row()
+        row = dict(row)
+        for field in _NEWS_OPTIONAL_DEFAULTS:
+            if field not in row:
+                missing_counts[field] += 1
+        rows.append(news_feature_from_row(row).to_row())
+    if missing_counts:
+        details = ", ".join(
+            f"{field}={count}" for field, count in sorted(missing_counts.items())
+        )
+        logger.info("defaulted missing optional news fields: %s", details)
     df = pd.DataFrame(rows)
-    # derive year from published_date (YYYY-...); drop rows with no usable date/country
-    df["year"] = pd.to_datetime(df.get("published_date"), errors="coerce").dt.year.astype("Int64")
+    if "published_date" not in df:
+        df["published_date"] = None
+    df["year"] = _parse_news_years(df["published_date"])
+    if "operators" in df:
+        df["operators"] = df["operators"].map(_operator_list)
+    if "event_type" in df:
+        df["event_type"] = df["event_type"].where(
+            df["event_type"].isin(NEWS_EVENT_TYPES),
+            "other",
+        )
     return df
 
 

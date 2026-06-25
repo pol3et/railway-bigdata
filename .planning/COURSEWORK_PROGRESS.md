@@ -1669,3 +1669,33 @@ Evidence:
 
 Next:
 - GAP-043 should quantify the qwen3:4b quality caveat observed on sparse GDELT snippets; GAP-040/GAP-022 should improve news aggregation/date coverage before final report usage.
+
+## 2026-06-25 - GAP-044 parser correctness audit
+
+Status: done; shipping via PR.
+
+Research:
+- `research-orchestrator` record: `.planning/coursework/research/bigdata/parser-correctness-audit.md`.
+- Self-approved implementation plan: `.planning/coursework/plans/bigdata/gap-044-parser-correctness-audit.md`.
+
+Changed:
+- Added deterministic parser golden fixtures under `tests/fixtures/silver/` for RSS, GDELT, World Bank, Eurostat, KSH, and UIC.
+- Hardened RSS/GDELT parsing and Gold news aggregation for GAP-022, GAP-025, and GAP-026.
+- Added parser-focused unit tests and field-coverage artifacts in `docs/PARSER_FIELD_COVERAGE.md` and `.json`.
+- Synced `docs/DATA_CONTRACTS.md`, `docs/GAP_REGISTER.md`, `docs/TASKS.md`, `docs/index.html`, and `README.md`.
+- Added `.gitattributes` binary guards for fixture formats such as PDF, XLSX, GZ, ODS, and Parquet.
+
+Findings:
+- `NewsFeature` is currently a 43-field dataclass; the draft spec's 15-field Pydantic assumption was stale.
+- No committed raw KSH/UIC bytes were present under `output/evidence/`; those fixtures are self-contained parser-shape samples and tests do not reach live services.
+- RSS malformed feeds now log/skip; GDELT bad JSON/articles log/skip; Gold date parsing handles ISO, GDELT compact, and RFC-822 values and tolerates missing optional dict fields.
+
+Evidence:
+- Focused parser verify: 21 passed.
+- Full suite: 216 passed, 6 skipped.
+- Compileall: passed.
+- Parser coverage JSON smoke: passed.
+- `git diff --check`: passed with line-ending warnings only.
+
+Next:
+- Push `impl/gap-044` and open a PR against `main`.
